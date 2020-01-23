@@ -51,7 +51,7 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
     base_path : bpy.props.StringProperty(
         name="basepath",
         description="Path to base folder",
-        default="C:/Program Files (x86)/Steam/steamapps/common/Jedi Academy/GameData/base",
+        default="C:/Program Files (x86)/Steam/steamapps/common/Jedi Academy/GameData/unpacked",
         maxlen=2048,
         )
 
