@@ -46,7 +46,7 @@ class texture:
     size = STRING + INT + INT
     encoding = "<64sii"
     def __init__( self , array):
-        self.name = array[0].decode("utf-8").strip("\0")
+        self.name = array[0].decode("latin-1").strip("\0")
         self.flags = array[1]
         self.contents = array[2]
 
@@ -390,6 +390,7 @@ class BSP:
                 self.lightmaps = format.lightmaps
                 self.lightstyles = format.lightstyles
                 self.use_lightgridarray = format.use_lightgridarray
+                self.bsp_path = file_name
                 
         if self.valid:
             for lump in self.lumps:

@@ -675,7 +675,7 @@ class quake_shader:
         
         shader.mat.use_backface_culling = True
         if "cull" in shader.attributes:
-            if shader.attributes["cull"] == "twosided":
+            if shader.attributes["cull"] == "twosided" or shader.attributes["cull"] == "none":
                 shader.mat.use_backface_culling = False
         shader.mat.shadow_method = 'CLIP'
             

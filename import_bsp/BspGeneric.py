@@ -12,6 +12,9 @@ if "BspClasses" in locals():
 else:
     from . import BspClasses as BSP
     
+if "os" not in locals():
+    import os
+    
 import bpy
 from math import floor, ceil, pi, sin, cos
 import mathutils
@@ -27,9 +30,50 @@ def create_white_image():
     image.pixels = pixels
 
 def pack_lightmaps(bsp, import_settings):
-    #assume square lightmaps
-    lightmap_size = bsp.lightmap_size[0]
-    lightmaps_lump = bsp.lumps["lightmaps"]
+    use_internal_lightmaps = False
+    lightmaps = []
+    n_lightmaps = 0
+    color_scale = 1.0
+    color_components = 4
+    try:
+        path = bsp.bsp_path.replace(".bsp", "\\")
+        lm_files = os.listdir(path)
+        lm_list = [path + file_name
+                    for file_name in lm_files
+                    if file_name.lower().startswith('lm_') and file_name.lower().endswith('.tga')]
+        lightmap_size = 0
+        for lm in lm_list:
+            image = bpy.data.images.load(lm, check_existing=True)
+            working_pixels = list(image.pixels[:])
+            pixels = []
+            for y in range(image.size[1]):
+                for x in range(image.size[0]):
+                    id = floor(x + image.size[1] - (y * image.size[1]))
+                    pixels.append(working_pixels[id * 4 + 0])
+                    pixels.append(working_pixels[id * 4 + 1])
+                    pixels.append(working_pixels[id * 4 + 2])
+                    pixels.append(working_pixels[id * 4 + 3])
+                    
+            lightmaps.append(pixels)
+            #assume square lightmaps
+            if lightmap_size != 0 and lightmap_size != image.size[0]:
+                use_internal_lightmaps = True
+                break
+            lightmap_size = image.size[0]
+            bsp.lightmap_size = image.size
+            n_lightmaps += 1
+    except:
+        use_internal_lightmaps = True      
+    
+    if use_internal_lightmaps:
+        lightmaps = []
+        #assume square lightmaps
+        lightmap_size = bsp.lightmap_size[0]
+        for lm in bsp.lumps["lightmaps"].data:
+            lightmaps.append(lm.map)
+        n_lightmaps = bsp.lumps["lightmaps"].count
+        color_scale = 255.0
+        color_components = 3
     
     #make a big packed lightmap so we can alter tcs later on without getting in trouble with space
     num_rows_colums = import_settings.packed_lightmap_size / lightmap_size
@@ -37,7 +81,7 @@ def pack_lightmaps(bsp, import_settings):
     
     #grow lightmap atlas if needed
     for i in range(6):
-        if (float(lightmaps_lump.count) > max_lightmaps):
+        if (float(n_lightmaps) > max_lightmaps):
             import_settings.packed_lightmap_size *= 2
             num_rows_colums = import_settings.packed_lightmap_size / lightmap_size
             max_lightmaps = num_rows_colums * num_rows_colums
@@ -67,16 +111,16 @@ def pack_lightmaps(bsp, import_settings):
         #if quadrant_y > max_colum:
             #break
         
-        if (lightmap_id > lightmaps_lump.count-1) or (lightmap_id<0):
+        if (lightmap_id > n_lightmaps-1) or (lightmap_id<0):
             continue
         else:
             #pixel id in lightmap
             lm_x = row%lightmap_size
             lm_y = colum%lightmap_size
             pixel_id = floor(lm_x + (lm_y * lightmap_size))
-            pixels[4 * pixel + 0] = (float(lightmaps_lump.data[lightmap_id].map[pixel_id*3 + 0])/255.0)
-            pixels[4 * pixel + 1] = (float(lightmaps_lump.data[lightmap_id].map[pixel_id*3 + 1])/255.0)
-            pixels[4 * pixel + 2] = (float(lightmaps_lump.data[lightmap_id].map[pixel_id*3 + 2])/255.0)
+            pixels[4 * pixel + 0] = (float(lightmaps[lightmap_id][pixel_id*color_components + 0])/color_scale)
+            pixels[4 * pixel + 1] = (float(lightmaps[lightmap_id][pixel_id*color_components + 1])/color_scale)
+            pixels[4 * pixel + 2] = (float(lightmaps[lightmap_id][pixel_id*color_components + 2])/color_scale)
             pixels[4 * pixel + 3] = (float(1.0))
     image.pixels = pixels
     
@@ -310,22 +354,22 @@ class blender_model_data:
                 #packed lightmap tcs
                 lm1_tcs.append(pack_lm_tc(  drawverts_lump[face_index].lm1coord, 
                                             face.lm_indexes[0], 
-                                            128, 
+                                            model.lightmap_size, 
                                             import_settings.packed_lightmap_size))
                 colors.append(drawverts_lump[face_index].color1)
                 
                 if model.lightmaps > 1:
                     lm2_tcs.append(pack_lm_tc(  drawverts_lump[face_index].lm2coord, 
                                                 face.lm_indexes[1], 
-                                                128, 
+                                                model.lightmap_size, 
                                                 import_settings.packed_lightmap_size))
                     lm3_tcs.append(pack_lm_tc(  drawverts_lump[face_index].lm3coord, 
                                                 face.lm_indexes[2], 
-                                                128, 
+                                                model.lightmap_size, 
                                                 import_settings.packed_lightmap_size))
                     lm4_tcs.append(pack_lm_tc(  drawverts_lump[face_index].lm4coord, 
                                                 face.lm_indexes[3], 
-                                                128, 
+                                                model.lightmap_size, 
                                                 import_settings.packed_lightmap_size))
                     colors2.append(drawverts_lump[face_index].color2)
                     colors3.append(drawverts_lump[face_index].color3)
@@ -514,33 +558,33 @@ class blender_model_data:
             model.face_tcs.append([patch[i1].texcoord, patch[i2].texcoord, patch[i3].texcoord, patch[i4].texcoord])
             
             model.face_lm1_tcs.append([
-            pack_lm_tc(patch[i1].lm1coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
-            pack_lm_tc(patch[i2].lm1coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
-            pack_lm_tc(patch[i3].lm1coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
-            pack_lm_tc(patch[i4].lm1coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size)
+            pack_lm_tc(patch[i1].lm1coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size),
+            pack_lm_tc(patch[i2].lm1coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size),
+            pack_lm_tc(patch[i3].lm1coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size),
+            pack_lm_tc(patch[i4].lm1coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size)
             ])
             model.face_vert_color.append([patch[i1].color1, patch[i2].color1, patch[i3].color1, patch[i4].color1])
             
             if model.lightmaps > 1:
                 model.face_lm2_tcs.append([
-                pack_lm_tc(patch[i1].lm2coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
-                pack_lm_tc(patch[i2].lm2coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
-                pack_lm_tc(patch[i3].lm2coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
-                pack_lm_tc(patch[i4].lm2coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size)
+                pack_lm_tc(patch[i1].lm2coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i2].lm2coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i3].lm2coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i4].lm2coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size)
                 ])
                 
                 model.face_lm3_tcs.append([
-                pack_lm_tc(patch[i1].lm3coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
-                pack_lm_tc(patch[i2].lm3coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
-                pack_lm_tc(patch[i3].lm3coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
-                pack_lm_tc(patch[i4].lm3coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size)
+                pack_lm_tc(patch[i1].lm3coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i2].lm3coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i3].lm3coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i4].lm3coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size)
                 ])
                         
                 model.face_lm4_tcs.append([
-                pack_lm_tc(patch[i1].lm4coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
-                pack_lm_tc(patch[i2].lm4coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
-                pack_lm_tc(patch[i3].lm4coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
-                pack_lm_tc(patch[i4].lm4coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size)
+                pack_lm_tc(patch[i1].lm4coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i2].lm4coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i3].lm4coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i4].lm4coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size)
                 ])
                     
                 model.face_vert_color2.append([patch[i1].color2, patch[i2].color2, patch[i3].color2, patch[i4].color2])
@@ -562,6 +606,7 @@ class blender_model_data:
         #meh.... ugly fuck
         if bsp.lightmaps != model.lightmaps:
             model.lightmaps = bsp.lightmaps
+            model.lightmap_size = bsp.lightmap_size[0]
             model.vertex_class = BSP.vertex_ibsp
         
         index = 0
