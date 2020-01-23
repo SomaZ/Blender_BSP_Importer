@@ -16,10 +16,15 @@ if "ImportHelper" not in locals():
 if "math" not in locals():
     import math
     
-if "JABsp" in locals():
-    imp.reload( JABsp )
+if "BspClasses" in locals():
+    imp.reload( BspClasses )
 else:
-    from . import JABsp
+    from . import BspClasses
+    
+if "MD3" in locals():
+    imp.reload( MD3 )
+else:
+    from . import MD3
     
 if "BspGeneric" in locals():
     imp.reload( BspGeneric )
@@ -36,7 +41,8 @@ if "struct" not in locals():
     
 if "StringProperty" not in locals():
     from bpy.props import StringProperty
-
+    
+from time import perf_counter
 
 from bpy_extras.io_utils import unpack_list
 from math import radians
@@ -62,10 +68,14 @@ def parse(line):
         value = 1
     return [key, value]
 
+#empty class for now, we will see what to do with it
+class ImportSettings:
+    pass
+
 ### The new operator ###
 class Operator(bpy.types.Operator, ImportHelper):
-    bl_idname = "import_scene.ja_bsp"
-    bl_label = "Import JA BSP (.bsp)"
+    bl_idname = "import_scene.id3_bsp"
+    bl_label = "Import ID3 engine BSP (.bsp)"
     filename_ext = ".bsp"
     filter_glob : StringProperty(default="*.bsp", options={'HIDDEN'})
 
@@ -82,20 +92,28 @@ class Operator(bpy.types.Operator, ImportHelper):
         self.prefs = context.preferences.addons[addon_name].preferences
         
         fixed_base_path = self.prefs.base_path
-        fixed_shader_dir = "shaders/"
-        #fixed_shader_dir = self.prefs.shader_dir
-        
-        if not fixed_shader_dir.endswith('/'):
-            fixed_shader_dir = fixed_shader_dir + '/'
-            
         if not fixed_base_path.endswith('/'):
             fixed_base_path = fixed_base_path + '/'
         
-        self.ImportBSP(fixed_base_path, fixed_shader_dir)
+        #trace some things like paths and lightmap size
+        import_settings = ImportSettings()
+        import_settings.base_path = fixed_base_path
+        import_settings.shader_dirs = "shaders/", "scripts/"
+        import_settings.bsp_name = ""
+        import_settings.preset = self.properties.preset
+        import_settings.subdivisions = self.properties.subdivisions
+        import_settings.packed_lightmap_size = 128
+        import_settings.log = []
+        import_settings.log.append("----import_scene.ja_bsp----")
+        
+        self.ImportBSP(import_settings)
+        
+        #for line in import_settings.log:
+        #    print(line)
+            
         return {'FINISHED'}
     
-    def ImportEntities(self, bsp, base_path, shader_path):
-        
+    def ImportEntities(self, bsp, import_settings):        
         clip_end = 12000
         
         lump = bsp.lumps["entities"]
@@ -113,8 +131,8 @@ class Operator(bpy.types.Operator, ImportHelper):
             if l_open(line):
                 ent.clear()
             elif l_close(line):
-                if "distanceCull" in ent:
-                    clip_end = ent["distanceCull"]            
+                if "distancecull" in ent:
+                    clip_end = float(ent["distancecull"].replace('"',''))
                     
                 if "gridsize" in ent:
                     bsp.lightgrid_size = ent["gridsize"]
@@ -148,7 +166,7 @@ class Operator(bpy.types.Operator, ImportHelper):
                     else:
                         #TODO: Fix reimporting model when only the zoffset is different
                         #check if model already loaded, make a copy of it, replace all the material names with new zoffset
-                        me = self.ImportMD3(ent["model"], base_path, shader_path, zoffset)
+                        me = MD3.ImportMD3(ent["model"], import_settings, zoffset)
                         ob = bpy.data.objects.new(mesh_name, me)
                         md3_objects.append(mesh_name)
                         obj_list.append(ob)
@@ -201,159 +219,30 @@ class Operator(bpy.types.Operator, ImportHelper):
                         s.clip_start = 4
                         s.clip_end = clip_end
                         
-        return obj_list
-    
-    def ImportMD3(self, model_name, base_path, shader_path, zoffset):
-        mesh = None
-        skip = False
-        try:
-            file = open(base_path + model_name, "rb")
-        except:
-            return mesh
-
-        if (not skip):
-            magic_nr = file.read(4)
-            version_nr = struct.unpack("<i", file.read(4))[0]
-                    
-            md3 = JABsp.MD3(file, magic_nr, version_nr)
-
-            if (not md3.valid):
-                print("this md3 version is not supported\n")
-                skip = True
         
-        if (not skip):
-            name        = file.read(64).decode("utf-8", errors="ignore").strip("\0")
-            flags       = struct.unpack("<i", file.read(4))[0]
-            numFrames   = struct.unpack("<i", file.read(4))[0]
-            numTags     = struct.unpack("<i", file.read(4))[0]
-            numSurfaces = struct.unpack("<i", file.read(4))[0]
-            numSkins    = struct.unpack("<i", file.read(4))[0]
-            ofsFrames   = struct.unpack("<i", file.read(4))[0]
-            ofsTags     = struct.unpack("<i", file.read(4))[0]
-            ofsSurfaces = struct.unpack("<i", file.read(4))[0]
-            ofsEnd      = struct.unpack("<i", file.read(4))[0]
-            
-            surface_lumps = []
-            for surface_lump in range(numSurfaces):
-                surface = BspGeneric.lump(md3.surface)
-                surface.set_offset_count([ofsSurfaces,1])
-                surface.readFrom(file)
-                surface.data[0].vertices.readFrom(file,ofsSurfaces)
-                surface.data[0].tcs.readFrom(file,ofsSurfaces)
-                surface.data[0].shaders.readFrom(file,ofsSurfaces)
-                surface.data[0].triangles.readFrom(file,ofsSurfaces)
-                
-                surface_lumps.append(surface)
-                ofsSurfaces += surface.data[0].off_end
-            
-            vertex_pos = []
-            vertex_nor = []
-            vertex_tc = []
-            face_indices = []
-            face_tcs = []
-            face_shaders = []
-            shaderindex = 0
-            face_index_offset = 0
-            face_material_index = []
-            
-            surfaces = []
-            
-            class surface_class:
-                def __init__(sf, name_in, vertices_in):
-                    sf.name = name_in
-                    sf.vertices = vertices_in
-            
-            for surface in surface_lumps:
-                n_indices = 0
-                surface_indices = []
-                for vertex, tc in zip(surface.data[0].vertices.data, surface.data[0].tcs.data):
-                    vertex_pos.append(vertex.position)
-                    vertex_nor.append(vertex.normal)
-                    vertex_tc.append(tc.tc)
-                    n_indices += 1
-                
-                for triangle in surface.data[0].triangles.data:
-                    triangle_indices = [ triangle.indices[0] + face_index_offset,
-                                         triangle.indices[1] + face_index_offset,
-                                         triangle.indices[2] + face_index_offset]
-                    surface_indices.append(triangle_indices)
-                    face_indices.append(triangle_indices)
-                    
-                    face_tcs.append(vertex_tc[triangle_indices[0]])
-                    face_tcs.append(vertex_tc[triangle_indices[1]])
-                    face_tcs.append(vertex_tc[triangle_indices[2]])
-                    face_material_index.append(shaderindex)
-                    
-                surfaces.append(surface_class(surface.data[0].name, unpack_list(surface_indices)))
-                face_shaders.append(surface.data[0].shaders.data[0])
-                shaderindex += 1
-                face_index_offset += n_indices
-            
-            if name.endswith(".md3"):
-                name = name.replace(".md3", "")
-            
-            mesh = bpy.data.meshes.new( name )
-            mesh.from_pydata(vertex_pos, [], face_indices)
-            
-            #oh man...
-            if zoffset == 0:
-                material_suffix = ".grid"
-            else:
-                material_suffix = "." + str(zoffset) + "grid"
-            
-            for texture_instance in face_shaders:
-                mat = bpy.data.materials.get(texture_instance.name + material_suffix)
-                if (mat == None):
-                    mat = bpy.data.materials.new(name=texture_instance.name + material_suffix)
-                mesh.materials.append(mat)
-                        
-            mesh.polygons.foreach_set("material_index", face_material_index)
-            
-            for poly in mesh.polygons:
-                        poly.use_smooth = True
-                        
-            mesh.vertices.foreach_set("normal", unpack_list(vertex_nor))
-            
-            mesh.uv_layers.new(do_init=False,name="UVMap")
-            mesh.uv_layers["UVMap"].data.foreach_set("uv", unpack_list(face_tcs))
-            
-            #q3 renders with front culling as default
-            mesh.flip_normals()
-                    
-            mesh.update()
-            mesh.validate()
-            
-        file.close
-        return mesh
+        return obj_list
 
-    def ImportBSP(self, base_path, shader_path):     
-        skip = False
-
+    def ImportBSP(self, import_settings):
+        
         dataPath = self.properties.filepath
-        file = open(self.properties.filepath, "rb")
+        import_settings.log.append("----ImportBSP----")
+        import_settings.log.append("bsp: " + dataPath)
 
-        if (file == None):
-            skip = True
+        bsp = BspClasses.BSP(dataPath)
 
-        if (not skip):
-            magic_nr = file.read(4)
-            version_nr = struct.unpack("<i", file.read(4))[0]
+        if bsp.valid:
+            #import lightmaps before packing vertex data 
+            #because of varying packed lightmap size
+            import_settings.log.append("----pack_lightmaps----")
+            time_start = perf_counter()
+            BspGeneric.pack_lightmaps(bsp, import_settings)
+            import_settings.log.append("took:" + str(perf_counter() - time_start) + " seconds")
             
-            bsp = JABsp.RBSP(dataPath, magic_nr, version_nr)
-
-            if (not bsp.valid):
-                print("this Bsp version is not supported: ", magic_nr, " ", version_nr)
-                skip = True
-
-        if (not skip):
-            for lump in bsp.lumps:
-                bsp.lumps[lump].set_offset_size(struct.unpack("<ii", file.read(8)))
-                
-            for lump in bsp.lumps:
-                bsp.lumps[lump].readFrom(file)
-            
+            import_settings.log.append("----fill_bsp_data----")
+            time_start = perf_counter()
             model = BspGeneric.blender_model_data()
-            model.fill_bsp_data(bsp, self.properties.subdivisions)
+            model.fill_bsp_data(bsp, import_settings)
+            import_settings.log.append("took:" + str(perf_counter() - time_start) + " seconds")
 
             mesh = bpy.data.meshes.new( dataPath )
             mesh.from_pydata(model.vertices, [], model.face_vertices)
@@ -414,22 +303,29 @@ class Operator(bpy.types.Operator, ImportHelper):
             bsp_obj = bpy.data.objects.new("BSP_Data", mesh)
             
             #import entities and get object list
-            obj_list = self.ImportEntities(bsp, base_path, shader_path)
+            import_settings.log.append("----ImportEntities----")
+            time_start = perf_counter()
+            obj_list = self.ImportEntities(bsp, import_settings)
             obj_list.append(bsp_obj)
-            
-            #import lightmaps
-            BspGeneric.pack_lightmaps(bsp)
+            import_settings.log.append("took:" + str(perf_counter() - time_start) + " seconds")
             
             #import lightgrid after entitys because the grid size can change
+            import_settings.log.append("----pack_lightgrid----")
+            time_start = perf_counter()
             BspGeneric.pack_lightgrid(bsp)
+            import_settings.log.append("took:" + str(perf_counter() - time_start) + " seconds")
             
             #create whiteimage before parsing shaders
             BspGeneric.create_white_image()
             
             #init shader system
             QuakeShader.init_shader_system(bsp)
+            
             #build shaders
-            QuakeShader.build_quake_shaders(base_path, shader_path, obj_list)
+            import_settings.log.append("----build_quake_shaders----")
+            time_start = perf_counter()
+            QuakeShader.build_quake_shaders(import_settings, obj_list)
+            import_settings.log.append("took:" + str(perf_counter() - time_start) + " seconds")
             
             vg = bsp_obj.vertex_groups.get("Decals")
             if vg is not None:
@@ -442,11 +338,9 @@ class Operator(bpy.types.Operator, ImportHelper):
             bsp_obj.vertex_groups["Patches"].add(list(model.patch_vertices), 1.0, "ADD")
             scene = bpy.context.scene
             scene.collection.objects.link(bsp_obj)
-            
-        file.close
         
 def menu_func(self, context):
-    self.layout.operator(Operator.bl_idname, text="JA BSP (.bsp)")
+    self.layout.operator(Operator.bl_idname, text="ID3 BSP (.bsp)")
     
 #Panels
 class Q3_PT_MappingPanel(bpy.types.Panel):
@@ -475,15 +369,13 @@ class Reload_shader(bpy.types.Operator):
         addon_name = __name__.split('.')[0]
         prefs = context.preferences.addons[addon_name].preferences
         
-        fixed_base_path = prefs.base_path
-        #fixed_shader_dir = prefs.shader_dir
-        fixed_shader_dir = "shaders/"
-        
-        if not fixed_shader_dir.endswith('/'):
-            fixed_shader_dir = fixed_shader_dir + '/'
+        #TODO: write shader dir to scene and read this
+        import_settings = ImportSettings()
+        import_settings.base_path = prefs.base_path
+        import_settings.shader_dirs = "shaders/", "scripts/"
             
-        if not fixed_base_path.endswith('/'):
-            fixed_base_path = fixed_base_path + '/'
+        if not import_settings.base_path.endswith('/'):
+            import_settings.base_path = import_settings.base_path + '/'
             
         objs = [bpy.context.view_layer.objects.active]
         
@@ -492,7 +384,7 @@ class Reload_shader(bpy.types.Operator):
             if vg is not None:
                 obj.vertex_groups.remove(vg)
         
-        QuakeShader.build_quake_shaders(fixed_base_path, fixed_shader_dir, objs)
+        QuakeShader.build_quake_shaders(import_settings, objs)
         
         for obj in objs:
             vg = obj.vertex_groups.get("Decals")

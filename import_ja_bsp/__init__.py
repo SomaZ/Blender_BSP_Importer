@@ -17,10 +17,10 @@
 # ##### END GPL LICENSE BLOCK #####
 
 bl_info = {
-    "name": "Import Jedi Academy BSP",
+    "name": "Import id Tech 3 BSP",
     "author": "SomaZ",
 	"version": (0, 8, 9),
-    "description": "Importer for Jedi Knight: Jedi Academy BSP",
+    "description": "Importer for id Tech 3 BSP levels",
     "blender": (2, 81, 16),
     "location": "File > Import-Export",
 	"warning": "",

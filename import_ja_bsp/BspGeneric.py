@@ -15,34 +15,7 @@ else:
 import bpy
 from math import floor, ceil, pi, sin, cos
 import mathutils
-
-class lump:
-    def __init__(self, data_class):
-        self.data_class = data_class
-        self.data = []
-        self.offset = 0
-        self.size = 0
-        self.count = 0
-        
-    def set_offset_size(self, offset_size):
-        self.offset = offset_size[0]
-        self.size = offset_size[1]
-        
-    def set_offset_count(self, offset_count):
-        self.offset = offset_count[0]
-        self.count = offset_count[1]
-        
-    def readFrom(self, file):
-        
-        if self.count == 0:
-            self.count = self.size / self.data_class.size
             
-        file.seek(self.offset)
-        for i in range(int(self.count)):
-            self.data.append(self.data_class(struct.unpack(self.data_class.encoding, file.read(self.data_class.size))))
-            
-PACKED_LM_SIZE = 2048
-
 def create_white_image():
     image = bpy.data.images.new("$whiteimage", width=8, height=8)
     pixels = []
@@ -53,32 +26,38 @@ def create_white_image():
         pixels.append(1.0)
     image.pixels = pixels
 
-def pack_lightmaps(bsp):
+def pack_lightmaps(bsp, import_settings):
     #assume square lightmaps
     lightmap_size = bsp.lightmap_size[0]
     lightmaps_lump = bsp.lumps["lightmaps"]
     
     #make a big packed lightmap so we can alter tcs later on without getting in trouble with space
-    num_rows_colums = PACKED_LM_SIZE / lightmap_size
+    num_rows_colums = import_settings.packed_lightmap_size / lightmap_size
     max_lightmaps = num_rows_colums * num_rows_colums
     
     #grow lightmap atlas if needed
-    #if (float(lightmaps_lump.count) > max_lightmaps):
-    #    packed_size *= 2
-    #    num_rows_colums = packed_size / lightmap_size
-    #    max_lightmaps = num_rows_colums * num_rows_colums
+    for i in range(6):
+        if (float(lightmaps_lump.count) > max_lightmaps):
+            import_settings.packed_lightmap_size *= 2
+            num_rows_colums = import_settings.packed_lightmap_size / lightmap_size
+            max_lightmaps = num_rows_colums * num_rows_colums
+        else:
+            import_settings.log.append("found best packed lightmap size: " + str(import_settings.packed_lightmap_size))
+            break
+        
+    packed_lm_size = import_settings.packed_lightmap_size
         
     #create dummy image
-    image = bpy.data.images.new("$lightmap", width=PACKED_LM_SIZE, height=PACKED_LM_SIZE)
+    image = bpy.data.images.new("$lightmap", width=packed_lm_size, height=packed_lm_size)
     
-    numPixels = PACKED_LM_SIZE*PACKED_LM_SIZE*4
+    numPixels = packed_lm_size*packed_lm_size*4
     #max_colum = ceil((lightmaps_lump.count-1) / PACKED_LM_SIZE)
     pixels = [0]*numPixels
     
-    for pixel in range(PACKED_LM_SIZE*PACKED_LM_SIZE):
+    for pixel in range(packed_lm_size*packed_lm_size):
         #pixel position in packed texture
-        row = pixel%PACKED_LM_SIZE
-        colum = floor(pixel/PACKED_LM_SIZE)
+        row = pixel%packed_lm_size
+        colum = floor(pixel/packed_lm_size)
         
         #lightmap quadrant
         quadrant_x = floor(row/lightmap_size)
@@ -101,17 +80,14 @@ def pack_lightmaps(bsp):
             pixels[4 * pixel + 3] = (float(1.0))
     image.pixels = pixels
     
-    #TODO: alter bsp tcs based on packed lm size
-    #alternative: packlightmaps first then read tcs
-    
-def pack_lm_tc(tc, lightmap_id, lightmap_size):
+def pack_lm_tc(tc, lightmap_id, lightmap_size, packed_lm_size):
     
     #maybe handle lightmap_ids better?
     if (lightmap_id < 0):
         return [0.0, 0.0]
     
-    num_rows_colums = PACKED_LM_SIZE / lightmap_size
-    scale_value = lightmap_size / PACKED_LM_SIZE
+    num_rows_colums = packed_lm_size / lightmap_size
+    scale_value = lightmap_size / packed_lm_size
     
     x = (lightmap_id%num_rows_colums) * scale_value
     y = floor(lightmap_id/num_rows_colums) * scale_value
@@ -163,7 +139,11 @@ def pack_lightgrid(bsp):
     num_elements = lightgrid_dimensions[0] * lightgrid_dimensions[1] * lightgrid_dimensions[2]
     
     for pixel in range(int(lightgrid_dimensions[0]*lightgrid_dimensions[1]*lightgrid_dimensions[2])):
-        index = bsp.lumps["lightgridarray"].data[pixel].data        
+        
+        if bsp.use_lightgridarray:
+            index = bsp.lumps["lightgridarray"].data[pixel].data
+        else:
+            index = pixel
         
         ambient1 = mathutils.Vector((0,0,0))
         ambient2 = mathutils.Vector((0,0,0))
@@ -175,109 +155,58 @@ def pack_lightgrid(bsp):
         direct4 = mathutils.Vector((0,0,0))
         l = mathutils.Vector((0,0,0))
         
-        #if light styles is NONE find most fitting neighbors
-        if False:#(bsp.lumps["lightgrid"].data[index].styles[0] == 255) :
-            if False:
-                neighbors = [   pixel + 1 + lightgrid_dimensions[0] + (lightgrid_dimensions[0]*lightgrid_dimensions[1]), 
-                                pixel + 1 + lightgrid_dimensions[0] - (lightgrid_dimensions[0]*lightgrid_dimensions[1]), 
-                                pixel + 1 - lightgrid_dimensions[0] + (lightgrid_dimensions[0]*lightgrid_dimensions[1]), 
-                                pixel + 1 - lightgrid_dimensions[0] - (lightgrid_dimensions[0]*lightgrid_dimensions[1]), 
-                                pixel - 1 + lightgrid_dimensions[0] + (lightgrid_dimensions[0]*lightgrid_dimensions[1]), 
-                                pixel - 1 + lightgrid_dimensions[0] - (lightgrid_dimensions[0]*lightgrid_dimensions[1]), 
-                                pixel - 1 - lightgrid_dimensions[0] + (lightgrid_dimensions[0]*lightgrid_dimensions[1]), 
-                                pixel - 1 - lightgrid_dimensions[0] - (lightgrid_dimensions[0]*lightgrid_dimensions[1])  ]
-            else:
-                neighbors = [   pixel + 1,
-                                pixel - 1,
-                                pixel + lightgrid_dimensions[0],
-                                pixel - lightgrid_dimensions[0],
-                                pixel + (lightgrid_dimensions[0]*lightgrid_dimensions[1]),
-                                pixel - (lightgrid_dimensions[0]*lightgrid_dimensions[1]) ]
-            factor = 1.0
-            for neighbor in neighbors:
-                if neighbor < 0 or neighbor >= num_elements:
-                    continue
-                index = bsp.lumps["lightgridarray"].data[neighbor].data
-                if bsp.lumps["lightgrid"].data[index].styles[0] < 255:
-                    ambient1 = ambient1+mathutils.Vector(bsp.lumps["lightgrid"].data[index].ambient1)
-                    ambient2 = ambient2+mathutils.Vector(bsp.lumps["lightgrid"].data[index].ambient2)
-                    ambient3 = ambient3+mathutils.Vector(bsp.lumps["lightgrid"].data[index].ambient3)
-                    ambient4 = ambient4+mathutils.Vector(bsp.lumps["lightgrid"].data[index].ambient4)
-                    direct1 = direct1+mathutils.Vector(bsp.lumps["lightgrid"].data[index].direct1)
-                    direct2 = direct2+mathutils.Vector(bsp.lumps["lightgrid"].data[index].direct2)
-                    direct3 = direct3+mathutils.Vector(bsp.lumps["lightgrid"].data[index].direct3)
-                    direct4 = direct4+mathutils.Vector(bsp.lumps["lightgrid"].data[index].direct4)
-                    lat = (bsp.lumps["lightgrid"].data[index].lat_long[0]/255.0) * 2.0 * pi
-                    long = (bsp.lumps["lightgrid"].data[index].lat_long[1]/255.0) * 2.0 * pi
-        
-                    slat = sin(lat)
-                    clat = cos(lat)
-                    slong = sin(long)
-                    clong = cos(long)
-        
-                    vec = mathutils.Vector((clat * slong, slat * slong, clong)).normalized()
-                    l = l+vec
-                    factor += 1.0
-            ambient1 = ambient1/factor
-            ambient2 = ambient2/factor
-            ambient3 = ambient3/factor
-            ambient4 = ambient4/factor
-            direct1 = direct1/factor
-            direct2 = direct2/factor
-            direct3 = direct3/factor
-            direct4 = direct4/factor
-            l = l.normalized()
-            
-            #ambient1 = [255.0, 0.0, 0.0]
-        else:
-            ambient1 = bsp.lumps["lightgrid"].data[index].ambient1
+        ambient1 = bsp.lumps["lightgrid"].data[index].ambient1
+        direct1 = bsp.lumps["lightgrid"].data[index].direct1
+        if bsp.lightmaps > 1:
             ambient2 = bsp.lumps["lightgrid"].data[index].ambient2
             ambient3 = bsp.lumps["lightgrid"].data[index].ambient3
             ambient4 = bsp.lumps["lightgrid"].data[index].ambient4
-            direct1 = bsp.lumps["lightgrid"].data[index].direct1
             direct2 = bsp.lumps["lightgrid"].data[index].direct2
             direct3 = bsp.lumps["lightgrid"].data[index].direct3
             direct4 = bsp.lumps["lightgrid"].data[index].direct4
-            ambient1 = bsp.lumps["lightgrid"].data[index].ambient1
             
-            lat = (bsp.lumps["lightgrid"].data[index].lat_long[0]/255.0) * 2.0 * pi
-            long = (bsp.lumps["lightgrid"].data[index].lat_long[1]/255.0) * 2.0 * pi
+        lat = (bsp.lumps["lightgrid"].data[index].lat_long[0]/255.0) * 2.0 * pi
+        long = (bsp.lumps["lightgrid"].data[index].lat_long[1]/255.0) * 2.0 * pi
             
-            slat = sin(lat)
-            clat = cos(lat)
-            slong = sin(long)
-            clong = cos(long)
+        slat = sin(lat)
+        clat = cos(lat)
+        slong = sin(long)
+        clong = cos(long)
             
-            l = mathutils.Vector((clat * slong, slat * slong, clong)).normalized()
+        l = mathutils.Vector((clat * slong, slat * slong, clong)).normalized()
         
         color_scale = 1.0/255.0
         append_byte_to_color_list(ambient1, a1_pixels, color_scale)
-        append_byte_to_color_list(ambient2, a2_pixels, color_scale)
-        append_byte_to_color_list(ambient3, a3_pixels, color_scale)
-        append_byte_to_color_list(ambient4, a4_pixels, color_scale)
         append_byte_to_color_list(direct1, d1_pixels, color_scale)
-        append_byte_to_color_list(direct2, d2_pixels, color_scale)
-        append_byte_to_color_list(direct3, d3_pixels, color_scale)
-        append_byte_to_color_list(direct4, d4_pixels, color_scale)
+        if bsp.lightmaps > 1:
+            append_byte_to_color_list(ambient2, a2_pixels, color_scale)
+            append_byte_to_color_list(ambient3, a3_pixels, color_scale)
+            append_byte_to_color_list(ambient4, a4_pixels, color_scale)
+            append_byte_to_color_list(direct2, d2_pixels, color_scale)
+            append_byte_to_color_list(direct3, d3_pixels, color_scale)
+            append_byte_to_color_list(direct4, d4_pixels, color_scale)
+            
         append_byte_to_color_list(l, l_pixels, 1.0)
     
     ambient1 = bpy.data.images.new("$lightgrid_ambient1", width=lightgrid_dimensions[0], height=lightgrid_dimensions[1]*lightgrid_dimensions[2])
-    ambient2 = bpy.data.images.new("$lightgrid_ambient2", width=lightgrid_dimensions[0], height=lightgrid_dimensions[1]*lightgrid_dimensions[2])
-    ambient3 = bpy.data.images.new("$lightgrid_ambient3", width=lightgrid_dimensions[0], height=lightgrid_dimensions[1]*lightgrid_dimensions[2])
-    ambient4 = bpy.data.images.new("$lightgrid_ambient4", width=lightgrid_dimensions[0], height=lightgrid_dimensions[1]*lightgrid_dimensions[2])
     ambient1.pixels = a1_pixels
-    ambient2.pixels = a2_pixels
-    ambient3.pixels = a3_pixels
-    ambient4.pixels = a4_pixels
     
     direct1 = bpy.data.images.new("$lightgrid_direct1", width=lightgrid_dimensions[0], height=lightgrid_dimensions[1]*lightgrid_dimensions[2])
-    direct2 = bpy.data.images.new("$lightgrid_direct2", width=lightgrid_dimensions[0], height=lightgrid_dimensions[1]*lightgrid_dimensions[2])
-    direct3 = bpy.data.images.new("$lightgrid_direct3", width=lightgrid_dimensions[0], height=lightgrid_dimensions[1]*lightgrid_dimensions[2])
-    direct4 = bpy.data.images.new("$lightgrid_direct4", width=lightgrid_dimensions[0], height=lightgrid_dimensions[1]*lightgrid_dimensions[2])
     direct1.pixels = d1_pixels
-    direct2.pixels = d2_pixels
-    direct3.pixels = d3_pixels
-    direct4.pixels = d4_pixels
+    
+    if bsp.lightmaps > 1:
+        ambient2 = bpy.data.images.new("$lightgrid_ambient2", width=lightgrid_dimensions[0], height=lightgrid_dimensions[1]*lightgrid_dimensions[2])
+        ambient3 = bpy.data.images.new("$lightgrid_ambient3", width=lightgrid_dimensions[0], height=lightgrid_dimensions[1]*lightgrid_dimensions[2])
+        ambient4 = bpy.data.images.new("$lightgrid_ambient4", width=lightgrid_dimensions[0], height=lightgrid_dimensions[1]*lightgrid_dimensions[2])
+        ambient2.pixels = a2_pixels
+        ambient3.pixels = a3_pixels
+        ambient4.pixels = a4_pixels
+        direct2 = bpy.data.images.new("$lightgrid_direct2", width=lightgrid_dimensions[0], height=lightgrid_dimensions[1]*lightgrid_dimensions[2])
+        direct3 = bpy.data.images.new("$lightgrid_direct3", width=lightgrid_dimensions[0], height=lightgrid_dimensions[1]*lightgrid_dimensions[2])
+        direct4 = bpy.data.images.new("$lightgrid_direct4", width=lightgrid_dimensions[0], height=lightgrid_dimensions[1]*lightgrid_dimensions[2])
+        direct2.pixels = d2_pixels
+        direct3.pixels = d3_pixels
+        direct4.pixels = d4_pixels
     
     lightvec = bpy.data.images.new( "$lightgrid_vector", 
                                     width=lightgrid_dimensions[0], 
@@ -286,20 +215,8 @@ def pack_lightgrid(bsp):
     lightvec.colorspace_settings.name = "Non-Color"
     
     lightvec.pixels = l_pixels
-    
-#meh, find a better way maybe?
-class md3_array:
-    def __init__(self, data_class, offset_count):
-        self.data_class = data_class
-        self.data = []
-        self.offset = offset_count[0]
-        self.count = offset_count[1]
-    def readFrom(self, file, offset):
-        file.seek(self.offset + offset)
-        for i in range(int(self.count)):
-            self.data.append(self.data_class(struct.unpack(self.data_class.encoding, file.read(self.data_class.size))))
         
-def lerpVertices(vertex1, vertex2):
+def lerpVertices(vertex1, vertex2, vertex_class, lightmaps):
     vertexArray = []
     vertexArray.append((vertex1.position[0] + vertex2.position[0])/2.0)
     vertexArray.append((vertex1.position[1] + vertex2.position[1])/2.0)
@@ -309,12 +226,14 @@ def lerpVertices(vertex1, vertex2):
     vertexArray.append(1.0 - (vertex1.texcoord[1] + vertex2.texcoord[1])/2.0)
     vertexArray.append((vertex1.lm1coord[0] + vertex2.lm1coord[0])/2.0)
     vertexArray.append((vertex1.lm1coord[1] + vertex2.lm1coord[1])/2.0)
-    vertexArray.append((vertex1.lm2coord[0] + vertex2.lm2coord[0])/2.0)
-    vertexArray.append((vertex1.lm2coord[1] + vertex2.lm2coord[1])/2.0)
-    vertexArray.append((vertex1.lm3coord[0] + vertex2.lm3coord[0])/2.0)
-    vertexArray.append((vertex1.lm3coord[1] + vertex2.lm3coord[1])/2.0)
-    vertexArray.append((vertex1.lm4coord[0] + vertex2.lm4coord[0])/2.0)
-    vertexArray.append((vertex1.lm4coord[1] + vertex2.lm4coord[1])/2.0)
+    
+    if lightmaps > 1:
+        vertexArray.append((vertex1.lm2coord[0] + vertex2.lm2coord[0])/2.0)
+        vertexArray.append((vertex1.lm2coord[1] + vertex2.lm2coord[1])/2.0)
+        vertexArray.append((vertex1.lm3coord[0] + vertex2.lm3coord[0])/2.0)
+        vertexArray.append((vertex1.lm3coord[1] + vertex2.lm3coord[1])/2.0)
+        vertexArray.append((vertex1.lm4coord[0] + vertex2.lm4coord[0])/2.0)
+        vertexArray.append((vertex1.lm4coord[1] + vertex2.lm4coord[1])/2.0)
     
     vertexArray.append((vertex1.normal[0] + vertex2.normal[0])/2.0)
     vertexArray.append((vertex1.normal[1] + vertex2.normal[1])/2.0)
@@ -325,22 +244,23 @@ def lerpVertices(vertex1, vertex2):
     vertexArray.append(((vertex1.color1[2] + vertex2.color1[2])/2.0)*255.0)
     vertexArray.append(((vertex1.color1[3] + vertex2.color1[3])/2.0)*255.0)
     
-    vertexArray.append(((vertex1.color2[0] + vertex2.color2[0])/2.0)*255.0)
-    vertexArray.append(((vertex1.color2[1] + vertex2.color2[1])/2.0)*255.0)
-    vertexArray.append(((vertex1.color2[2] + vertex2.color2[2])/2.0)*255.0)
-    vertexArray.append(((vertex1.color2[3] + vertex2.color2[3])/2.0)*255.0)
+    if lightmaps > 1:
+        vertexArray.append(((vertex1.color2[0] + vertex2.color2[0])/2.0)*255.0)
+        vertexArray.append(((vertex1.color2[1] + vertex2.color2[1])/2.0)*255.0)
+        vertexArray.append(((vertex1.color2[2] + vertex2.color2[2])/2.0)*255.0)
+        vertexArray.append(((vertex1.color2[3] + vertex2.color2[3])/2.0)*255.0)
+        
+        vertexArray.append(((vertex1.color3[0] + vertex2.color3[0])/2.0)*255.0)
+        vertexArray.append(((vertex1.color3[1] + vertex2.color3[1])/2.0)*255.0)
+        vertexArray.append(((vertex1.color3[2] + vertex2.color3[2])/2.0)*255.0)
+        vertexArray.append(((vertex1.color3[3] + vertex2.color3[3])/2.0)*255.0)
+        
+        vertexArray.append(((vertex1.color4[0] + vertex2.color4[0])/2.0)*255.0)
+        vertexArray.append(((vertex1.color4[1] + vertex2.color4[1])/2.0)*255.0)
+        vertexArray.append(((vertex1.color4[2] + vertex2.color4[2])/2.0)*255.0)
+        vertexArray.append(((vertex1.color4[3] + vertex2.color4[3])/2.0)*255.0)
     
-    vertexArray.append(((vertex1.color3[0] + vertex2.color3[0])/2.0)*255.0)
-    vertexArray.append(((vertex1.color3[1] + vertex2.color3[1])/2.0)*255.0)
-    vertexArray.append(((vertex1.color3[2] + vertex2.color3[2])/2.0)*255.0)
-    vertexArray.append(((vertex1.color3[3] + vertex2.color3[3])/2.0)*255.0)
-    
-    vertexArray.append(((vertex1.color4[0] + vertex2.color4[0])/2.0)*255.0)
-    vertexArray.append(((vertex1.color4[1] + vertex2.color4[1])/2.0)*255.0)
-    vertexArray.append(((vertex1.color4[2] + vertex2.color4[2])/2.0)*255.0)
-    vertexArray.append(((vertex1.color4[3] + vertex2.color4[3])/2.0)*255.0)
-    
-    return BSP.vertex(vertexArray)
+    return vertex_class(vertexArray)
             
 class blender_model_data:
     def __init__(model):
@@ -362,8 +282,10 @@ class blender_model_data:
         model.face_vert_alpha = []
         model.patch_vertices = set()
         model.material_names = []
+        model.vertex_class = BSP.vertex_rbsp
+        model.lightmaps = 4
         
-    def parse_bsp_surface(model, drawverts_lump, face, model_indices, shaders_lump):
+    def parse_bsp_surface(model, drawverts_lump, face, model_indices, shaders_lump, import_settings):
         index = face.index
         #bsp only stores triangles, so there are n_indexes/3 trinangles in this face
         for i in range(int(face.n_indexes / 3)):
@@ -373,33 +295,42 @@ class blender_model_data:
             indices.append(face.vertex + model_indices[index + 2])
             tcs = []
             lm1_tcs = []
-            lm2_tcs = []
-            lm3_tcs = []
-            lm4_tcs = []
             colors = []
-            colors2 = []
-            colors3 = []
-            colors4 = []
+            if model.lightmaps > 1:
+                lm2_tcs = []
+                lm3_tcs = []
+                lm4_tcs = []
+                colors2 = []
+                colors3 = []
+                colors4 = []
             alphas = []
             for face_index in indices:
                 tcs.append(drawverts_lump[face_index].texcoord)
                 
                 #packed lightmap tcs
-                lm1_tcs.append(pack_lm_tc(drawverts_lump[face_index].lm1coord, face.lm_indexes[0], 128))
-                lm2_tcs.append(pack_lm_tc(drawverts_lump[face_index].lm2coord, face.lm_indexes[1], 128))
-                lm3_tcs.append(pack_lm_tc(drawverts_lump[face_index].lm3coord, face.lm_indexes[2], 128))
-                lm4_tcs.append(pack_lm_tc(drawverts_lump[face_index].lm4coord, face.lm_indexes[3], 128))
-                
-                #original lightmap tcs
-                #lm1_tcs.append(drawverts_lump[face_index].lm1coord)
-                #lm2_tcs.append(drawverts_lump[face_index].lm2coord)
-                #lm3_tcs.append(drawverts_lump[face_index].lm3coord)
-                #lm4_tcs.append(drawverts_lump[face_index].lm4coord)
-                
+                lm1_tcs.append(pack_lm_tc(  drawverts_lump[face_index].lm1coord, 
+                                            face.lm_indexes[0], 
+                                            128, 
+                                            import_settings.packed_lightmap_size))
                 colors.append(drawverts_lump[face_index].color1)
-                colors2.append(drawverts_lump[face_index].color2)
-                colors3.append(drawverts_lump[face_index].color3)
-                colors4.append(drawverts_lump[face_index].color4)
+                
+                if model.lightmaps > 1:
+                    lm2_tcs.append(pack_lm_tc(  drawverts_lump[face_index].lm2coord, 
+                                                face.lm_indexes[1], 
+                                                128, 
+                                                import_settings.packed_lightmap_size))
+                    lm3_tcs.append(pack_lm_tc(  drawverts_lump[face_index].lm3coord, 
+                                                face.lm_indexes[2], 
+                                                128, 
+                                                import_settings.packed_lightmap_size))
+                    lm4_tcs.append(pack_lm_tc(  drawverts_lump[face_index].lm4coord, 
+                                                face.lm_indexes[3], 
+                                                128, 
+                                                import_settings.packed_lightmap_size))
+                    colors2.append(drawverts_lump[face_index].color2)
+                    colors3.append(drawverts_lump[face_index].color3)
+                    colors4.append(drawverts_lump[face_index].color4)
+                
                 alphas.append([drawverts_lump[face_index].color1[3],drawverts_lump[face_index].color1[3],drawverts_lump[face_index].color1[3],drawverts_lump[face_index].color1[3]])
                 index += 1
             model.face_vertices.append(indices)
@@ -415,16 +346,19 @@ class blender_model_data:
             
             model.face_tcs.append(tcs)
             model.face_lm1_tcs.append(lm1_tcs)
-            model.face_lm2_tcs.append(lm2_tcs)
-            model.face_lm3_tcs.append(lm3_tcs)
-            model.face_lm4_tcs.append(lm4_tcs)
             model.face_vert_color.append(colors)
-            model.face_vert_color2.append(colors2)
-            model.face_vert_color3.append(colors3)
-            model.face_vert_color4.append(colors4)
+            
+            if model.lightmaps > 1:
+                model.face_lm2_tcs.append(lm2_tcs)
+                model.face_lm3_tcs.append(lm3_tcs)
+                model.face_lm4_tcs.append(lm4_tcs)
+                model.face_vert_color2.append(colors2)
+                model.face_vert_color3.append(colors3)
+                model.face_vert_color4.append(colors4)
+                
             model.face_vert_alpha.append(alphas)
             
-    def parse_patch_surface(model, drawverts_lump, face, model_indices, shaders_lump, index, subdivisions):
+    def parse_patch_surface(model, drawverts_lump, face, model_indices, shaders_lump, index, import_settings):
         width = int(face.patch_width-1)
         height = int(face.patch_height-1)
                 
@@ -437,10 +371,8 @@ class blender_model_data:
                 vertex = drawverts_lump[face.vertex + j*face.patch_width + i]
                 ctrlPoints[j][i] = vertex
                 indicesPoints[j][i] = face.vertex + j*face.patch_width + i
-                        
-        #print(ctrlPoints)
                 
-        for subd in range(subdivisions):
+        for subd in range(import_settings.subdivisions):
             pos_w = 0
             pos_h = 0
             added_width = 0
@@ -454,9 +386,9 @@ class blender_model_data:
                 added_width +=2
                 #build new vertices
                 for j in range(height+1):
-                    prev = lerpVertices(ctrlPoints[j][pos_w], ctrlPoints[j][pos_w+1])
-                    next = lerpVertices(ctrlPoints[j][pos_w+1], ctrlPoints[j][pos_w+2])
-                    midl = lerpVertices(prev, next)
+                    prev = lerpVertices(ctrlPoints[j][pos_w], ctrlPoints[j][pos_w+1], model.vertex_class, model.lightmaps)
+                    next = lerpVertices(ctrlPoints[j][pos_w+1], ctrlPoints[j][pos_w+2], model.vertex_class, model.lightmaps)
+                    midl = lerpVertices(prev, next, model.vertex_class, model.lightmaps)
                 
                     #replace peak
                     for x in range(width):
@@ -482,9 +414,9 @@ class blender_model_data:
                 added_height +=2
                 #build new vertices
                 for i in range(width+1):
-                    prev = lerpVertices(ctrlPoints[pos_h][i], ctrlPoints[pos_h+1][i])
-                    next = lerpVertices(ctrlPoints[pos_h+1][i], ctrlPoints[pos_h+2][i])
-                    midl = lerpVertices(prev, next)
+                    prev = lerpVertices(ctrlPoints[pos_h][i], ctrlPoints[pos_h+1][i], model.vertex_class, model.lightmaps)
+                    next = lerpVertices(ctrlPoints[pos_h+1][i], ctrlPoints[pos_h+2][i], model.vertex_class, model.lightmaps)
+                    midl = lerpVertices(prev, next, model.vertex_class, model.lightmaps)
                 
                     #replace peak
                     for x in range(height):
@@ -504,16 +436,16 @@ class blender_model_data:
         #now smooth the rest of the points
         for i in range(width+1):
             for j in range(1, height, 2):
-                prev = lerpVertices(ctrlPoints[j][i], ctrlPoints[j+1][i])
-                next = lerpVertices(ctrlPoints[j][i], ctrlPoints[j-1][i])
-                ctrlPoints[j][i] = lerpVertices(prev, next)
+                prev = lerpVertices(ctrlPoints[j][i], ctrlPoints[j+1][i], model.vertex_class, model.lightmaps)
+                next = lerpVertices(ctrlPoints[j][i], ctrlPoints[j-1][i], model.vertex_class, model.lightmaps)
+                ctrlPoints[j][i] = lerpVertices(prev, next, model.vertex_class, model.lightmaps)
                 indicesPoints[j][i] = -4;
                 
         for j in range(height+1):
             for i in range(1, width, 2):
-                prev = lerpVertices(ctrlPoints[j][i], ctrlPoints[j][i+1])
-                next = lerpVertices(ctrlPoints[j][i], ctrlPoints[j][i-1])
-                ctrlPoints[j][i] = lerpVertices(prev, next)
+                prev = lerpVertices(ctrlPoints[j][i], ctrlPoints[j][i+1], model.vertex_class, model.lightmaps)
+                next = lerpVertices(ctrlPoints[j][i], ctrlPoints[j][i-1], model.vertex_class, model.lightmaps)
+                ctrlPoints[j][i] = lerpVertices(prev, next, model.vertex_class, model.lightmaps)
                 indicesPoints[j][i] = -4;       
         
         indicesPoints2 = []
@@ -582,37 +514,38 @@ class blender_model_data:
             model.face_tcs.append([patch[i1].texcoord, patch[i2].texcoord, patch[i3].texcoord, patch[i4].texcoord])
             
             model.face_lm1_tcs.append([
-            pack_lm_tc(patch[i1].lm1coord, face.lm_indexes[0], 128),
-            pack_lm_tc(patch[i2].lm1coord, face.lm_indexes[0], 128),
-            pack_lm_tc(patch[i3].lm1coord, face.lm_indexes[0], 128),
-            pack_lm_tc(patch[i4].lm1coord, face.lm_indexes[0], 128)
+            pack_lm_tc(patch[i1].lm1coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
+            pack_lm_tc(patch[i2].lm1coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
+            pack_lm_tc(patch[i3].lm1coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
+            pack_lm_tc(patch[i4].lm1coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size)
             ])
-            
-            model.face_lm2_tcs.append([
-            pack_lm_tc(patch[i1].lm2coord, face.lm_indexes[0], 128),
-            pack_lm_tc(patch[i2].lm2coord, face.lm_indexes[0], 128),
-            pack_lm_tc(patch[i3].lm2coord, face.lm_indexes[0], 128),
-            pack_lm_tc(patch[i4].lm2coord, face.lm_indexes[0], 128)
-            ])
-            
-            model.face_lm3_tcs.append([
-            pack_lm_tc(patch[i1].lm3coord, face.lm_indexes[0], 128),
-            pack_lm_tc(patch[i2].lm3coord, face.lm_indexes[0], 128),
-            pack_lm_tc(patch[i3].lm3coord, face.lm_indexes[0], 128),
-            pack_lm_tc(patch[i4].lm3coord, face.lm_indexes[0], 128)
-            ])
-                    
-            model.face_lm4_tcs.append([
-            pack_lm_tc(patch[i1].lm4coord, face.lm_indexes[0], 128),
-            pack_lm_tc(patch[i2].lm4coord, face.lm_indexes[0], 128),
-            pack_lm_tc(patch[i3].lm4coord, face.lm_indexes[0], 128),
-            pack_lm_tc(patch[i4].lm4coord, face.lm_indexes[0], 128)
-            ])
-                    
             model.face_vert_color.append([patch[i1].color1, patch[i2].color1, patch[i3].color1, patch[i4].color1])
-            model.face_vert_color2.append([patch[i1].color2, patch[i2].color2, patch[i3].color2, patch[i4].color2])
-            model.face_vert_color3.append([patch[i1].color3, patch[i2].color3, patch[i3].color3, patch[i4].color3])
-            model.face_vert_color4.append([patch[i1].color4, patch[i2].color4, patch[i3].color4, patch[i4].color4])
+            
+            if model.lightmaps > 1:
+                model.face_lm2_tcs.append([
+                pack_lm_tc(patch[i1].lm2coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i2].lm2coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i3].lm2coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i4].lm2coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size)
+                ])
+                
+                model.face_lm3_tcs.append([
+                pack_lm_tc(patch[i1].lm3coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i2].lm3coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i3].lm3coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i4].lm3coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size)
+                ])
+                        
+                model.face_lm4_tcs.append([
+                pack_lm_tc(patch[i1].lm4coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i2].lm4coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i3].lm4coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i4].lm4coord, face.lm_indexes[0], 128, import_settings.packed_lightmap_size)
+                ])
+                    
+                model.face_vert_color2.append([patch[i1].color2, patch[i2].color2, patch[i3].color2, patch[i4].color2])
+                model.face_vert_color3.append([patch[i1].color3, patch[i2].color3, patch[i3].color3, patch[i4].color3])
+                model.face_vert_color4.append([patch[i1].color4, patch[i2].color4, patch[i3].color4, patch[i4].color4])
             
             alphas = []
             alphas.append([patch[i1].color1[3],patch[i1].color1[3],patch[i1].color1[3],patch[i1].color1[3]])
@@ -624,7 +557,13 @@ class blender_model_data:
             
         return index
             
-    def fill_bsp_data(model, bsp, patch_subdivisions):
+    def fill_bsp_data(model, bsp, import_settings):
+        
+        #meh.... ugly fuck
+        if bsp.lightmaps != model.lightmaps:
+            model.lightmaps = bsp.lightmaps
+            model.vertex_class = BSP.vertex_ibsp
+        
         index = 0
         for vertex_instance in bsp.lumps["drawverts"].data:
             model.vertices.append(vertex_instance.position)
@@ -638,9 +577,8 @@ class blender_model_data:
         for face_instance in bsp.lumps["surfaces"].data:
             #surface or mesh
             if (face_instance.type == 1 or face_instance.type == 3):
-                model.parse_bsp_surface(bsp.lumps["drawverts"].data, face_instance, model.indices, bsp.lumps["shaders"].data)
+                model.parse_bsp_surface(bsp.lumps["drawverts"].data, face_instance, model.indices, bsp.lumps["shaders"].data, import_settings)
                 
             #patches
-            #TODO stiching?
             if (face_instance.type == 2):
-                index = model.parse_patch_surface(bsp.lumps["drawverts"].data, face_instance, model.indices, bsp.lumps["shaders"].data, index, patch_subdivisions)
+                index = model.parse_patch_surface(bsp.lumps["drawverts"].data, face_instance, model.indices, bsp.lumps["shaders"].data, index, import_settings)

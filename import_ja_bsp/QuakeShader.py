@@ -749,17 +749,26 @@ def parse(line):
 def init_shader_system(bsp):
     ShaderNodes.Bsp_Node.create_node_tree(bsp)
 
-def build_quake_shaders(base_path, shader_path, object_list):    
+def build_quake_shaders(import_settings, object_list):
+    
+    base_path = import_settings.base_path
+    
     shaders = {}
     shader_list = []
+    found_shader_dir = False
 
-    try:
-        shader_files = os.listdir(base_path + shader_path)
-        shader_list = [base_path + shader_path + file_path
-                       for file_path in shader_files
-                       if file_path.lower().endswith('.shader')]
-    except Exception as e:
-        print("Could not build shader list, error {}".format(str(e)))
+    for shader_path in import_settings.shader_dirs:
+        try:
+            shader_files = os.listdir(base_path + shader_path)
+            shader_list = [base_path + shader_path + file_path
+                           for file_path in shader_files
+                           if file_path.lower().endswith('.shader')]
+            found_shader_dir = True
+            break
+        except:
+            continue
+    
+    if not found_shader_dir:
         return
     
     material_list = []
@@ -865,4 +874,6 @@ def build_quake_shaders(base_path, shader_path, object_list):
     for shader_group in shaders:
         for shader in shaders[shader_group]:
             shader.finish_shader(base_path)
+            
+    return
             
