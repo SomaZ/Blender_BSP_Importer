@@ -36,7 +36,7 @@ def pack_lightmaps(bsp, import_settings):
     color_scale = 1.0
     color_components = 4
     try:
-        path = bsp.bsp_path.replace(".bsp", "\\")
+        path = bsp.bsp_path[:-len(".bsp")] + "\\"
         lm_files = os.listdir(path)
         lm_list = [path + file_name
                     for file_name in lm_files

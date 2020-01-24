@@ -154,7 +154,8 @@ class Operator(bpy.types.Operator, ImportHelper):
                     bpy.context.collection.objects.link(cube)
                 
                 if "model" in ent and (ent["classname"] == "misc_model_static" or ent["classname"] == "misc_model_breakable"):
-                    mesh_name = ent["model"].replace(".md3","")
+                    # FIXME: what if the model is not md3?
+                    mesh_name = ent["model"][:-len(".md3")]
                     zoffset = 0
                     if "zoffset" in ent:
                         zoffset = int(ent["zoffset"].replace('"','')) + 1
