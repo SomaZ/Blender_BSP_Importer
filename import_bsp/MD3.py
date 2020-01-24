@@ -8,6 +8,11 @@ if "struct" not in locals():
 if "bpy" not in locals():
     import bpy
     
+if "Image" in locals():
+    imp.reload( Image )
+else:
+    from . import Image
+
 from math import pi, sin, cos, atan2, acos
 from bpy_extras.io_utils import unpack_list
     
@@ -95,15 +100,8 @@ class MD3:
             size = STRING + INT
             encoding = "<64si"
             
-            def remove_file_extention(self, file_path):
-                extensions = [".jpg", ".jpeg", ".tga", ".png"]
-                for extension in extensions:
-                    if file_path.endswith(extension):
-                        return file_path.replace(extension, "")
-                return file_path
-                    
             def __init__(self, array):
-                self.name =     self.remove_file_extention(array[0].decode("utf-8", errors="ignore").strip("\0"))
+                self.name =     Image.remove_file_extension(array[0].decode("utf-8", errors="ignore").strip("\0"))
                 self.index =    array[1]
                 
         class triangle:

@@ -27,6 +27,11 @@ if "QuakeSky" in locals():
 else:
     from . import QuakeSky
     
+if "Image" in locals():
+    imp.reload( Image )
+else:
+    from . import Image
+
 from math import radians
 
 LIGHTING_IDENTITY = 0
@@ -375,7 +380,7 @@ class quake_shader:
             if (stage.diffuse == "$whiteimage" or stage.diffuse == "$lightmap"):
                 img = bpy.data.images.get(stage.diffuse)
             else:
-                img = shader.load_image(base_path, stage.diffuse)
+                img = Image.load_file(base_path, stage.diffuse)
             
             if img is not None:        
                 node_color = shader.nodes.new(type='ShaderNodeTexImage')
@@ -475,19 +480,6 @@ class quake_shader:
         if (stage.valid or stage.lightmap):
             shader.stages.append(stage)
             shader.is_explicit = True
-            
-    def load_image(shader, base_path, texture_path):
-        extensions = [ ".png", ".tga", ".jpg" ]
-        for extension in extensions:
-            if texture_path.endswith(extension):
-                texture_path = texture_path.replace(extension,"")
-        for extension in extensions:
-            try:
-                return bpy.data.images.load(base_path + "/" + texture_path + extension, check_existing=True)
-            except:
-                continue
-        print("couldn't load texture: ", texture_path)
-        return None
             
     def finish_shader(shader, base_path):
         
@@ -636,7 +628,7 @@ class quake_shader:
                 print(shader.name + " shader is not supported right now")
             
         else:
-            img = shader.load_image(base_path, shader.texture)
+            img = Image.load_file(base_path, shader.texture)
             if img is not None:
                 img.alpha_mode = "CHANNEL_PACKED"
                 if shader.is_vertex_lit:
