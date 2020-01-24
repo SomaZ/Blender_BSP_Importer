@@ -3,10 +3,13 @@
 if "bpy" not in locals():
     import bpy
 
-extensions = [ ".png", ".tga", ".jpg", ".jpeg" ]
+# move file extension from first array to second one
+# when the format is supported
+unsupported_extensions = [ ".bmp", ".webp", ".ktx", ".dds", ".crn" ]
+extensions = [ ".tga", ".png", ".jpg", ".jpeg" ]
 
 def remove_file_extension(file_path):
-    for extension in extensions:
+    for extension in extensions + unsupported_extensions:
         if file_path.lower().endswith(extension):
             return file_path[:-len(extension)]
     return file_path
