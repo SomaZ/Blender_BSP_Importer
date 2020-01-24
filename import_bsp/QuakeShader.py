@@ -735,7 +735,7 @@ class quake_shader:
 def l_format(line):
     return line.lower().strip(" \t\r\n")
 def l_empty(line):
-    return line.strip("\t\r\n") == ' '
+    return line.strip(" \t\r\n") == ''
 def l_comment(line):
     return l_format(line).startswith('/')
 def l_open(line):

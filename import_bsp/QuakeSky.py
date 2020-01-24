@@ -1,7 +1,7 @@
 #----------------------------------------------------------------------------#
 #TODO: replace all of this with c libary to get more performance out of it
-#TODO: refactor image loading here and in QuakeShader
 #----------------------------------------------------------------------------#
+import imp
 
 if "bpy" not in locals():
     import bpy

@@ -1,6 +1,7 @@
 #----------------------------------------------------------------------------#
 #TODO:  refactor loading bsp files and md3 files, right now its a mess o.O
 #----------------------------------------------------------------------------#
+import imp
 
 if "struct" not in locals():
     import struct
@@ -231,7 +232,7 @@ def ImportMD3(model_name, import_settings, zoffset):
             face_index_offset += n_indices
             
         if name.lower().endswith(".md3"):
-            name = name[:-len(extension)]
+            name = name[:-len(".md3")]
             
         mesh = bpy.data.meshes.new( name )
         mesh.from_pydata(vertex_pos, [], face_indices)
