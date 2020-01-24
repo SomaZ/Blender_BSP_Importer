@@ -30,7 +30,7 @@ def create_white_image():
     image.pixels = pixels
 
 def pack_lightmaps(bsp, import_settings):
-    use_internal_lightmaps = False
+    use_internal_lightmaps = True
     lightmaps = []
     n_lightmaps = 0
     color_scale = 1.0
@@ -62,6 +62,7 @@ def pack_lightmaps(bsp, import_settings):
             lightmap_size = image.size[0]
             bsp.lightmap_size = image.size
             n_lightmaps += 1
+            use_internal_lightmaps = False
     except:
         use_internal_lightmaps = True      
     
@@ -75,7 +76,11 @@ def pack_lightmaps(bsp, import_settings):
         color_scale = 255.0
         color_components = 3
     
-    #make a big packed lightmap so we can alter tcs later on without getting in trouble with space
+    force_vertex_lighting = False
+    if lightmap_size == 0:
+        force_vertex_lighting = True
+        lightmap_size = 128
+    
     num_rows_colums = import_settings.packed_lightmap_size / lightmap_size
     max_lightmaps = num_rows_colums * num_rows_colums
     
@@ -88,6 +93,9 @@ def pack_lightmaps(bsp, import_settings):
         else:
             import_settings.log.append("found best packed lightmap size: " + str(import_settings.packed_lightmap_size))
             break
+        
+    if force_vertex_lighting == True:
+        return
         
     packed_lm_size = import_settings.packed_lightmap_size
         
@@ -328,6 +336,7 @@ class blender_model_data:
         model.material_names = []
         model.vertex_class = BSP.vertex_rbsp
         model.lightmaps = 4
+        model.lightmap_size = 128
         
     def parse_bsp_surface(model, drawverts_lump, face, model_indices, shaders_lump, import_settings):
         index = face.index

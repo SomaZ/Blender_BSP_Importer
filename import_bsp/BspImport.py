@@ -180,10 +180,8 @@ class Operator(bpy.types.Operator, ImportHelper):
                         ob.scale = ent["modelscale_vec"]
                     if "angle" in ent:
                         ob.rotation_euler = (0.0,0.0,radians(float(ent["angle"])))
-                        
-                    #mostly untested!!!
                     if "angles" in ent:
-                        ob.rotation_euler = (radians(ent["angles"][0]),radians(ent["angles"][2]),radians(ent["angles"][1]))                    
+                        ob.rotation_euler = (radians(ent["angles"][2]),radians(ent["angles"][0]),radians(ent["angles"][1]))                    
                     
                 n_ent += 1
             elif line != " ":
@@ -268,27 +266,28 @@ class Operator(bpy.types.Operator, ImportHelper):
 
             mesh.uv_layers.new(do_init=False,name="LightmapUV")
             mesh.uv_layers["LightmapUV"].data.foreach_set("uv", unpack_list(unpack_list(model.face_lm1_tcs)))
-
-            mesh.uv_layers.new(do_init=False,name="LightmapUV2")
-            mesh.uv_layers["LightmapUV2"].data.foreach_set("uv", unpack_list(unpack_list(model.face_lm2_tcs)))
-
-            mesh.uv_layers.new(do_init=False,name="LightmapUV3")
-            mesh.uv_layers["LightmapUV3"].data.foreach_set("uv", unpack_list(unpack_list(model.face_lm3_tcs)))
-
-            mesh.uv_layers.new(do_init=False,name="LightmapUV4")
-            mesh.uv_layers["LightmapUV4"].data.foreach_set("uv", unpack_list(unpack_list(model.face_lm4_tcs)))
-
+            
             mesh.vertex_colors.new(name = "Color")
             mesh.vertex_colors["Color"].data.foreach_set("color", unpack_list(unpack_list(model.face_vert_color)))
+            
+            if bsp.lightmaps > 1:
+                mesh.uv_layers.new(do_init=False,name="LightmapUV2")
+                mesh.uv_layers["LightmapUV2"].data.foreach_set("uv", unpack_list(unpack_list(model.face_lm2_tcs)))
 
-            mesh.vertex_colors.new(name = "Color2")
-            mesh.vertex_colors["Color2"].data.foreach_set("color", unpack_list(unpack_list(model.face_vert_color2)))
+                mesh.uv_layers.new(do_init=False,name="LightmapUV3")
+                mesh.uv_layers["LightmapUV3"].data.foreach_set("uv", unpack_list(unpack_list(model.face_lm3_tcs)))
 
-            mesh.vertex_colors.new(name = "Color3")
-            mesh.vertex_colors["Color3"].data.foreach_set("color", unpack_list(unpack_list(model.face_vert_color3)))
+                mesh.uv_layers.new(do_init=False,name="LightmapUV4")
+                mesh.uv_layers["LightmapUV4"].data.foreach_set("uv", unpack_list(unpack_list(model.face_lm4_tcs)))
 
-            mesh.vertex_colors.new(name = "Color4")
-            mesh.vertex_colors["Color4"].data.foreach_set("color", unpack_list(unpack_list(model.face_vert_color4)))
+                mesh.vertex_colors.new(name = "Color2")
+                mesh.vertex_colors["Color2"].data.foreach_set("color", unpack_list(unpack_list(model.face_vert_color2)))
+
+                mesh.vertex_colors.new(name = "Color3")
+                mesh.vertex_colors["Color3"].data.foreach_set("color", unpack_list(unpack_list(model.face_vert_color3)))
+
+                mesh.vertex_colors.new(name = "Color4")
+                mesh.vertex_colors["Color4"].data.foreach_set("color", unpack_list(unpack_list(model.face_vert_color4)))
             
             #ugly hack to get the vertex alpha.....
             mesh.vertex_colors.new(name = "Alpha")

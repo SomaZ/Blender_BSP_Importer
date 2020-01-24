@@ -161,16 +161,22 @@ class vanilla_shader_stage:
             print("didn't parse alphaFunc: ", compare)
             
     def setBlend(stage, blend):
-        if (blend == "add"):
+        blends = blend.split()
+        if len(blends) > 1:
+            safe_blend = blends[0] + " " + blends[1]
+        else:
+            safe_blend = blends[0]
+            
+        if (safe_blend == "add"):
             stage.blend = "gl_one gl_one"
-        elif (blend == "filter"):
+        elif (safe_blend == "filter"):
             stage.blend = "gl_dst_color gl_zero"
-        elif (blend == "blend"):
+        elif (safe_blend == "blend"):
             stage.blend = "gl_src_alpha gl_one_minus_src_alpha"
-        elif (blend == "gl_one gl_zero"):
+        elif (safe_blend == "gl_one gl_zero"):
             stage.blend = BLEND_NONE
         else:
-            stage.blend = blend
+            stage.blend = safe_blend
     
     def setAlpha(stage, alpha):
         if (alpha.startswith("const")):
@@ -367,7 +373,7 @@ class quake_shader:
         node_blend = None
         if stage.valid:
             if (stage.diffuse == "$whiteimage" or stage.diffuse == "$lightmap"):
-                img = bpy.data.images[stage.diffuse]
+                img = bpy.data.images.get(stage.diffuse)
             else:
                 img = shader.load_image(base_path, stage.diffuse)
             
@@ -539,6 +545,7 @@ class quake_shader:
             n_stages = 0
 
             explicitly_depthwritten = False
+            lightmap_available = bpy.data.images.get("$lightmap") != None
             
             for stage in shader.stages:
                 
@@ -558,6 +565,10 @@ class quake_shader:
                         stage.lighting = LIGHTING_LIGHTGRID
                         
                 if not shader.is_grid_lit and stage.lighting is LIGHTING_LIGHTGRID:
+                    stage.lighting = LIGHTING_VERTEX
+                    
+                if stage.lightmap and not lightmap_available:
+                    stage.diffuse = "$whiteimage"
                     stage.lighting = LIGHTING_VERTEX
                         
                 #TODO: proper handling of additive and multiplicative shaders
@@ -656,9 +667,14 @@ class quake_shader:
                     
                     node_texture.location = 1200,0
                     
-                    node_lm = shader.nodes.new(type='ShaderNodeTexImage')
-                    node_lm.image = bpy.data.images["$lightmap"]
-                    node_lm.location = 1200,-800
+                    lightmap = bpy.data.images.get("$lightmap")
+                    if lightmap == None:
+                        node_lm = shader.get_rgbGen_node(LIGHTING_VERTEX)
+                        node_lm.location = 1200,-800
+                    else:
+                        node_lm = shader.nodes.new(type='ShaderNodeTexImage')
+                        node_lm.image = lightmap
+                        node_lm.location = 1200,-800
                     
                     tc_gen = shader.get_tcGen_node(TCGEN_LM)
                     if tc_gen is not None:
@@ -750,9 +766,7 @@ def init_shader_system(bsp):
     ShaderNodes.Bsp_Node.create_node_tree(bsp)
 
 def build_quake_shaders(import_settings, object_list):
-    
     base_path = import_settings.base_path
-    
     shaders = {}
     shader_list = []
     found_shader_dir = False
@@ -793,7 +807,7 @@ def build_quake_shaders(import_settings, object_list):
             shaders.setdefault(l_format(shader_name),[]).append(quake_shader(m.material.name, m.material))
             
     for shader_file in shader_list:
-        with open(shader_file) as lines:
+        with open(shader_file, encoding="latin-1") as lines:
             current_shaders = []
             dict_key = ""
             stage = {}
