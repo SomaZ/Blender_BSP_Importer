@@ -748,6 +748,7 @@ def parse(line):
             key, value = line.split('\t', 1)
         except:
             key, value = line.split(' ', 1)
+        value = value.strip("\t ")
     except:
         key = line
         value = 1
