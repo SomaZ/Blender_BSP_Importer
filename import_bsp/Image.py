@@ -7,8 +7,8 @@ extensions = [ ".png", ".tga", ".jpg", ".jpeg" ]
 
 def remove_file_extension(file_path):
     for extension in extensions:
-        if file_path.endswith(extension):
-            return file_path.replace(extension, "")
+        if file_path.lower().endswith(extension):
+            return file_path[:-len(extension)]
     return file_path
 
 def load_file(base_path, file_path):

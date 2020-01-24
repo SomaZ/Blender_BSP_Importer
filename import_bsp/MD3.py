@@ -230,8 +230,8 @@ def ImportMD3(model_name, import_settings, zoffset):
             shaderindex += 1
             face_index_offset += n_indices
             
-        if name.endswith(".md3"):
-            name = name.replace(".md3", "")
+        if name.lower().endswith(".md3"):
+            name = name[:-len(extension)]
             
         mesh = bpy.data.meshes.new( name )
         mesh.from_pydata(vertex_pos, [], face_indices)
