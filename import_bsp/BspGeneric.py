@@ -12,6 +12,11 @@ if "BspClasses" in locals():
 else:
     from . import BspClasses as BSP
     
+if "Image" in locals():
+    imp.reload( Image )
+else:
+    from . import Image
+
 if "os" not in locals():
     import os
     
@@ -36,11 +41,27 @@ def pack_lightmaps(bsp, import_settings):
     color_scale = 1.0
     color_components = 4
     try:
-        path = bsp.bsp_path[:-len(".bsp")] + "/"
-        lm_files = os.listdir(path)
-        lm_list = [path + file_name
-                    for file_name in lm_files
-                    if file_name.lower().startswith('lm_') and file_name.lower().endswith('.tga')]
+        path = bsp.bsp_path[:-len(".bsp")]
+        lm_file_list = os.listdir(path)
+
+        lm_list = []
+        while range(len(lm_file_list)):
+            base_name = "lm_" + str(len(lm_list)).zfill(4)
+            lightmap_found = False
+            for extension in Image.extensions:
+                file_name = base_name + extension
+                lightmap_found = False
+                for listed_file_name in lm_file_list:
+                    if file_name == listed_file_name.lower():
+                        real_file_name = os.path.join(path, listed_file_name)
+                        lm_list.append(real_file_name)
+                        lightmap_found = True
+                        break
+                if lightmap_found:
+                    break
+            if not lightmap_found:
+                break
+
         lightmap_size = 0
         for lm in lm_list:
             image = bpy.data.images.load(lm, check_existing=True)
