@@ -81,6 +81,7 @@ class vanilla_shader_stage:
         stage.skip_alpha = False
     
         stage.stage_functions = {   "map": stage.setDiffuse,
+                                    "animmap": stage.setAnimmap,
                                     "clampmap" : stage.setDiffuse,
                                     "blendfunc": stage.setBlend,
                                     "alphafunc": stage.setAlphaClip,
@@ -96,13 +97,24 @@ class vanilla_shader_stage:
                                 }
                         
     def setDiffuse(stage, diffuse):
-        if diffuse == "$lightmap":
+        stage_diffuse = diffuse.split(" ", 1)[0] 
+        if stage_diffuse == "$lightmap":
             stage.lightmap = True
             stage.tcGen = TCGEN_LM
-        stage.diffuse = diffuse
+        stage.diffuse = stage_diffuse
+        
+    def setAnimmap(stage, diffuse):
+        array = diffuse.split(" ")
+        #try getting first image of the array
+        try:
+            stage_diffuse = array[1]
+        except:
+            print("Could not parse animmap.")
+        #I think using the lightmap here is BS so dont check it
+        stage.diffuse = stage_diffuse
         
     def setDepthFunc(stage, depthFunc):
-        if depthFunc == "equal":
+        if depthFunc.startswith("equal"):
             stage.skip_alpha = True
         
     def setDepthwrite(stage, empty):
@@ -112,9 +124,9 @@ class vanilla_shader_stage:
         stage.detail = True
         
     def setTcGen(stage, tcgen):
-        if tcgen == "environment":
+        if tcgen.startswith("environment"):
             stage.tcGen = TCGEN_ENV
-        elif tcgen == "lightmap":
+        elif tcgen.startswith("lightmap"):
             stage.tcGen = TCGEN_LM
         else:
             print("didn't parse tcGen: ", tcgen)
@@ -136,13 +148,13 @@ class vanilla_shader_stage:
             print("didn't parse tcMod: ", tcmod)
         
     def setLighting(stage, lighting):
-        if (lighting == "vertex" or lighting == "exactvertex"):
+        if (lighting.startswith("vertex") or lighting.startswith("exactvertex")):
             stage.lighting = LIGHTING_VERTEX
-        elif (lighting == "oneminusvertex"):
+        elif (lighting.startswith("oneminusvertex")):
             stage.lighting = -LIGHTING_VERTEX
-        elif (lighting == "lightingdiffuse"):
+        elif (lighting.startswith("lightingdiffuse")):
             stage.lighting = LIGHTING_LIGHTGRID
-        elif (lighting == "identity"):
+        elif (lighting.startswith("identity")):
             stage.lighting = LIGHTING_IDENTITY
         elif (lighting.startswith("const ")):
             stage.lighting = LIGHTING_CONST
@@ -153,13 +165,13 @@ class vanilla_shader_stage:
             print("didn't parse rgbGen: ", lighting)
             
     def setAlphaClip(stage, compare):
-        if compare == "gt0":
+        if compare.startswith("gt0"):
             stage.alpha_clip = ACLIP_GT0
-        elif compare == "lt128":
+        elif compare.startswith("lt128"):
             stage.alpha_clip = ACLIP_LT128
-        elif compare == "ge128":
+        elif compare.startswith("ge128"):
             stage.alpha_clip = ACLIP_GE128
-        elif compare == "ge192":
+        elif compare.startswith("ge192"):
             stage.alpha_clip = ACLIP_GE192
         else:
             stage.alpha_clip = ACLIP_NONE
@@ -172,13 +184,13 @@ class vanilla_shader_stage:
         else:
             safe_blend = blends[0]
             
-        if (safe_blend == "add"):
+        if (safe_blend.startswith("add")):
             stage.blend = "gl_one gl_one"
-        elif (safe_blend == "filter"):
+        elif (safe_blend.startswith("filter")):
             stage.blend = "gl_dst_color gl_zero"
-        elif (safe_blend == "blend"):
+        elif (safe_blend.startswith("blend")):
             stage.blend = "gl_src_alpha gl_one_minus_src_alpha"
-        elif (safe_blend == "gl_one gl_zero"):
+        elif (safe_blend.startswith("gl_one gl_zero")):
             stage.blend = BLEND_NONE
         else:
             stage.blend = safe_blend
@@ -186,15 +198,19 @@ class vanilla_shader_stage:
     def setAlpha(stage, alpha):
         if (alpha.startswith("const")):
             stage.alpha = ALPHA_CONST
-            stage.alpha_value = float(alpha.split(' ', 1)[1])
-        elif (alpha == "identity"):
+            try:
+                stage.alpha_value = float(alpha.split(' ', 1)[1])
+            except:
+                print("alphaGen const with no value found")
+                stage.alpha_value = 0.5
+        elif (alpha.startswith("identity")):
             stage.alpha = ALPHA_CONST
             stage.alpha_value = 1.0
-        elif (alpha == "vertex"):
+        elif (alpha.startswith("vertex")):
             stage.alpha = ALPHA_VERTEX
-        elif (alpha == "oneminusvertex"):
+        elif (alpha.startswith("oneminusvertex")):
             stage.alpha = -ALPHA_VERTEX
-        elif (alpha == "lightingspecular"):
+        elif (alpha.startswith("lightingspecular")):
             stage.alpha = ALPHA_SPEC
         else:
             stage.alpha = ALPHA_CONST
@@ -733,7 +749,7 @@ class quake_shader:
         shader.links.new(shader_out, shader.nodes["Output"].inputs[0])
 
 def l_format(line):
-    return line.lower().strip(" \t\r\n")
+    return line.lower().strip(" \t\r\n").replace("\t"," ")
 def l_empty(line):
     return line.strip(" \t\r\n") == ''
 def l_comment(line):
@@ -744,10 +760,8 @@ def l_close(line):
     return line.startswith('}')
 def parse(line):
     try:
-        try:
-            key, value = line.split('\t', 1)
-        except:
-            key, value = line.split(' ', 1)
+        key, value = line.split(' ', 1)
+        key = key.strip("\t ")
         value = value.strip("\t ")
     except:
         key = line

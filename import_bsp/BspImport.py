@@ -108,6 +108,13 @@ class Operator(bpy.types.Operator, ImportHelper):
         
         self.ImportBSP(import_settings)
         
+        #set world color to black to remove additional lighting
+        background = context.scene.world.node_tree.nodes.get("Background")
+        if background is not None:
+            background.inputs[0].default_value = 0,0,0,1
+        else:
+            import_settings.log.append("WARNING: Could not set world color to black.")
+        
         #for line in import_settings.log:
         #    print(line)
             

@@ -50,7 +50,7 @@ def make_equirectangular_from_sky(base_path, sky_name):
             u = 2 * i / equi_w -1
             v = 2 * j / equi_h -1
             
-            theta = u * math.pi
+            theta = u * math.pi - math.pi/2.0
             phi = v * math.pi/2.0
             
             x = math.cos(phi) * math.cos(theta)
