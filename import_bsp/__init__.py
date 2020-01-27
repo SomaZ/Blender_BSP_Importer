@@ -48,6 +48,17 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
 
     bl_idname = __name__
 
+    guess_base_path : bpy.props.BoolProperty(
+        name="Guess base path from map path",
+        description="Use parent of map directory as base path",
+        default=False
+        )
+
+    # HACK: hack prefs as global for Reload_shader
+    guessed_base_path : bpy.props.StringProperty(
+        maxlen=2048,
+        )
+
     base_path : bpy.props.StringProperty(
         name="basepath",
         description="Path to base folder",
@@ -65,9 +76,11 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
     def draw(self, context):
         layout = self.layout
         row = layout.row()
+        row.prop(self, "guess_base_path")
+        row = layout.row()
         row.prop(self, "base_path")
         #layout.prop(self, "shader_dir")
-	
+
 classes = ( BspImport.Operator,
             BspImportAddonPreferences,
             BspImport.Q3_PT_MappingPanel,

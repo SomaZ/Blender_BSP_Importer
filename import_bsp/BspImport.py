@@ -46,6 +46,7 @@ from time import perf_counter
 
 from bpy_extras.io_utils import unpack_list
 from math import radians
+from os import path
 
 def l_format(line):
     return line.lower().strip(" \t\r\n")
@@ -89,12 +90,20 @@ class Operator(bpy.types.Operator, ImportHelper):
 
     def execute(self, context):
         addon_name = __name__.split('.')[0]
-        self.prefs = context.preferences.addons[addon_name].preferences
-        
-        fixed_base_path = self.prefs.base_path
+        prefs = context.preferences.addons[addon_name].preferences
+
+        if prefs.guess_base_path:
+            dataPath = self.properties.filepath
+            fixed_base_path = path.dirname(path.dirname(dataPath))
+        else:
+            fixed_base_path = prefs.base_path
+
         if not fixed_base_path.endswith('/'):
             fixed_base_path = fixed_base_path + '/'
-        
+
+        # HACK: hack prefs as global for Reload_shader
+        context.preferences.addons[addon_name].preferences.guessed_base_path = fixed_base_path
+
         #trace some things like paths and lightmap size
         import_settings = ImportSettings()
         import_settings.base_path = fixed_base_path
@@ -373,24 +382,30 @@ class Reload_shader(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
     
     def execute(self, context):
-        addon_name = __name__.split('.')[0]
-        prefs = context.preferences.addons[addon_name].preferences
-        
-        #TODO: write shader dir to scene and read this
-        import_settings = ImportSettings()
-        import_settings.base_path = prefs.base_path
-        import_settings.shader_dirs = "shaders/", "scripts/"
-            
-        if not import_settings.base_path.endswith('/'):
-            import_settings.base_path = import_settings.base_path + '/'
-            
         objs = [bpy.context.view_layer.objects.active]
-        
+
         for obj in objs:
             vg = obj.vertex_groups.get("Decals")
             if vg is not None:
                 obj.vertex_groups.remove(vg)
-        
+
+        addon_name = __name__.split('.')[0]
+        prefs = context.preferences.addons[addon_name].preferences
+
+        # HACK: hack prefs as global for Reload_shader
+        if prefs.guess_base_path:
+            fixed_base_path = prefs.guessed_base_path
+        else:
+            fixed_base_path = prefs.base_path
+
+        if not fixed_base_path.endswith('/'):
+            fixed_base_path = fixed_base_path + '/'
+
+        #TODO: write shader dir to scene and read this
+        import_settings = ImportSettings()
+        import_settings.base_path = fixed_base_path
+        import_settings.shader_dirs = "shaders/", "scripts/"
+            
         QuakeShader.build_quake_shaders(import_settings, objs)
         
         for obj in objs:
