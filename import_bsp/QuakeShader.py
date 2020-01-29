@@ -63,6 +63,7 @@ CULL_TWO = 1
 class vanilla_shader_stage:                        
     def __init__(stage):
         stage.diffuse = ""
+        stage.clamp = False
         stage.blend = BLEND_NONE
         stage.lighting = LIGHTING_IDENTITY
         stage.color = [1.0, 1.0, 1.0]
@@ -82,7 +83,7 @@ class vanilla_shader_stage:
     
         stage.stage_functions = {   "map": stage.setDiffuse,
                                     "animmap": stage.setAnimmap,
-                                    "clampmap" : stage.setDiffuse,
+                                    "clampmap" : stage.setClampDiffuse,
                                     "blendfunc": stage.setBlend,
                                     "alphafunc": stage.setAlphaClip,
                                     "tcgen": stage.setTcGen,
@@ -102,6 +103,14 @@ class vanilla_shader_stage:
             stage.lightmap = True
             stage.tcGen = TCGEN_LM
         stage.diffuse = stage_diffuse
+        
+    def setClampDiffuse(stage, diffuse):
+        stage_diffuse = diffuse.split(" ", 1)[0] 
+        if stage_diffuse == "$lightmap":
+            stage.lightmap = True
+            stage.tcGen = TCGEN_LM
+        stage.diffuse = stage_diffuse
+        stage.clamp = True
         
     def setAnimmap(stage, diffuse):
         array = diffuse.split(" ")
@@ -401,6 +410,8 @@ class quake_shader:
             if img is not None:        
                 node_color = shader.nodes.new(type='ShaderNodeTexImage')
                 node_color.image = img
+                if stage.clamp:
+                    node_color.extension = 'CLIP'
                 node_color.location = loc_x + 200,loc_y
                 tc_gen = shader.get_tcGen_node(stage.tcGen)
                 if tc_gen is not None:
