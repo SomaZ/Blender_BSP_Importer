@@ -1,6 +1,3 @@
-#----------------------------------------------------------------------------#
-#TODO: replace all of this with c libary to get more performance out of it
-#----------------------------------------------------------------------------#
 import imp
 
 if "bpy" not in locals():
@@ -12,6 +9,144 @@ else:
     from . import Image
 
 import math
+import bgl
+import gpu
+from gpu_extras.batch import batch_for_shader
+from mathutils import Matrix
+
+vertex_shader = '''
+    in int vertex_id;
+    out vec2 tc;
+
+    void main()
+    {
+        const vec2 positions[] = vec2[3](
+            vec2(-1.0f, -1.0f),
+            vec2(-1.0f,  3.0f),
+            vec2( 3.0f, -1.0f)
+        );
+
+        const vec2 texcoords[] = vec2[3](
+            vec2( 0.0f,  0.0f),
+            vec2( 0.0f,  2.0f),
+            vec2( 2.0f,  0.0f)
+        );
+
+        gl_Position = vec4(positions[vertex_id], 0.0, 1.0);
+        tc = texcoords[vertex_id];
+    }
+'''
+
+fragment_shader = '''
+    uniform sampler2D tex_up;
+    uniform sampler2D tex_dn;
+    uniform sampler2D tex_ft;
+    uniform sampler2D tex_bk;
+    uniform sampler2D tex_lf;
+    uniform sampler2D tex_rt;
+    uniform float clamp_value;
+    
+    in vec2 tc;
+    #define PI 3.14159265358979323846
+    #define UP 0
+    #define DN 1
+    #define FT 2
+    #define BK 3
+    #define LF 4
+    #define RT 5
+
+    void main()
+    {
+        vec2 thetaphi = ((tc * 2.0) - vec2(1.0)) * vec2(PI, PI / 2.0) - vec2(PI / 2.0, 0.0); 
+        vec3 rayDirection = vec3(cos(thetaphi.y) * cos(thetaphi.x), sin(thetaphi.y), cos(thetaphi.y) * sin(thetaphi.x));
+        vec3 absDirection = abs(rayDirection);
+        int read_texture = 0;
+        vec2 read_tc = vec2(0.0);
+        
+        if (absDirection.y > absDirection.x && absDirection.y > absDirection.z)
+        {
+            if (absDirection.y > 0.0)
+            {
+                rayDirection.z /= absDirection.y;
+                rayDirection.x /= absDirection.y;
+            }
+            if (rayDirection.y < 0.0)
+            {
+                read_texture = DN;
+                rayDirection.z = -rayDirection.z;
+            }
+            read_tc = vec2(rayDirection.x, rayDirection.z) * 0.5 + 0.5;
+        }
+        else if (absDirection.x > absDirection.y && absDirection.x > absDirection.z)
+        {
+            if (absDirection.x > 0.0)
+            {
+                rayDirection.z /= absDirection.x;
+                rayDirection.y /= absDirection.x;
+            }
+            if (rayDirection.x < 0.0)
+            {
+                read_texture = BK;
+                rayDirection.z = -rayDirection.z;
+            }
+            else
+            {
+                read_texture = FT;
+            }
+            read_tc = vec2(rayDirection.z, rayDirection.y) * 0.5 + 0.5;
+        }
+        else
+        {
+            if (absDirection.z > 0.0)
+            {
+                rayDirection.y /= absDirection.z;
+                rayDirection.x /= absDirection.z;
+            }
+            if (rayDirection.z < 0.0)
+            {
+                read_texture = RT;
+            }
+            else
+            {
+                read_texture = LF;
+                rayDirection.x = -rayDirection.x;
+            }
+            read_tc = vec2(rayDirection.x, rayDirection.y) * 0.5 + 0.5;
+        }
+        
+        vec4 color = vec4(0.0);
+        read_tc = clamp(read_tc, vec2(clamp_value), vec2(1.0 - clamp_value));
+        
+        switch (read_texture)
+        {
+            case UP:
+                color = texture(tex_up, read_tc);
+                break;
+            case DN:
+                color = texture(tex_dn, read_tc);
+                break;
+            case FT:
+                color = texture(tex_ft, read_tc);
+                break;
+            case BK:
+                color = texture(tex_bk, read_tc);
+                break;
+            case LF:
+                color = texture(tex_lf, read_tc);
+                break;
+            case RT:
+                color = texture(tex_rt, read_tc);
+                break;
+            default:
+                break;  
+        }
+        // TODO: Check color space?
+        gl_FragColor = color;
+    }
+'''
+
+shader = gpu.types.GPUShader(vertex_shader, fragment_shader)
+batch = batch_for_shader(shader, 'TRIS', {"vertex_id" : (0, 1, 2)})
 
 def make_equirectangular_from_sky(base_path, sky_name):
     textures = [sky_name + "_up", 
@@ -21,124 +156,73 @@ def make_equirectangular_from_sky(base_path, sky_name):
                 sky_name + "_lf",
                 sky_name + "_rt" ]
     cube = [None for x in range(6)]
-    cube_size = [None for x in range(6)]
     
-    biggest_h = 512
-    biggest_w = 512
+    biggest_h = 1
+    biggest_w = 1
                  
     for index,tex in enumerate(textures):
         image = Image.load_file(base_path, tex)
         
-        if image == None:
-            cube[index] = []
-            cube_size[index] = 0,0
-        else:
-            cube[index] = list(image.pixels[:])
-            cube_size[index] = image.size
-        
-        if biggest_h < cube_size[index][1]:
-            biggest_h = cube_size[index][1]
-        if biggest_w < cube_size[index][0]:
-            biggest_w = cube_size[index][0]
+        if image != None:
+            cube[index] = image
+            if image.gl_load():
+                raise Exception()
+            if biggest_h < image.size[1]:
+                biggest_h = image.size[1]
+            if biggest_w < image.size[0]:
+                biggest_w = image.size[0]
     
     equi_w = biggest_w*4
     equi_h = biggest_h*2
-    pixels = [0.0 for x in range(equi_h * equi_w * 4)]
     
-    for j in range(equi_h):
-        for i in range(equi_w):
-            u = 2 * i / equi_w -1
-            v = 2 * j / equi_h -1
+    offscreen = gpu.types.GPUOffScreen(equi_w, equi_h)
+    with offscreen.bind():
+        bgl.glClear(bgl.GL_COLOR_BUFFER_BIT)
+        with gpu.matrix.push_pop():
+            # reset matrices -> use normalized device coordinates [-1, 1]
+            gpu.matrix.load_matrix(Matrix.Identity(4))
+            gpu.matrix.load_projection_matrix(Matrix.Identity(4))
             
-            theta = u * math.pi - math.pi/2.0
-            phi = v * math.pi/2.0
+            if cube[0] != None:
+                bgl.glActiveTexture(bgl.GL_TEXTURE0)
+                bgl.glBindTexture(bgl.GL_TEXTURE_2D, cube[0].bindcode)
+            if cube[1] != None:
+                bgl.glActiveTexture(bgl.GL_TEXTURE1)
+                bgl.glBindTexture(bgl.GL_TEXTURE_2D, cube[1].bindcode)
+            if cube[2] != None:
+                bgl.glActiveTexture(bgl.GL_TEXTURE2)
+                bgl.glBindTexture(bgl.GL_TEXTURE_2D, cube[2].bindcode)
+            if cube[3] != None:
+                bgl.glActiveTexture(bgl.GL_TEXTURE3)
+                bgl.glBindTexture(bgl.GL_TEXTURE_2D, cube[3].bindcode)
+            if cube[4] != None:
+                bgl.glActiveTexture(bgl.GL_TEXTURE4)
+                bgl.glBindTexture(bgl.GL_TEXTURE_2D, cube[4].bindcode)
+            if cube[5] != None:
+                bgl.glActiveTexture(bgl.GL_TEXTURE5)
+                bgl.glBindTexture(bgl.GL_TEXTURE_2D, cube[5].bindcode)
             
-            x = math.cos(phi) * math.cos(theta)
-            y = math.sin(phi)
-            z = math.cos(phi) * math.sin(theta)
+            #now draw
+            shader.bind()
+            shader.uniform_int("tex_up", 0)
+            shader.uniform_int("tex_dn", 1)
+            shader.uniform_int("tex_ft", 2)
+            shader.uniform_int("tex_bk", 3)
+            shader.uniform_int("tex_lf", 4)
+            shader.uniform_int("tex_rt", 5)
+            shader.uniform_float("clamp_value", 1.0 / biggest_h)
+            batch.draw(shader)
             
-            #choose correct image
-            if (x < 0):
-                abs_x = -x
-            else:
-                abs_x = x
-            if y < 0:
-                abs_y = -y
-            else:
-                abs_y = y
-            if z < 0:
-                abs_z = -z
-            else:
-                abs_z = z
-                
-            read_img = cube[0]
-            read_size = cube_size[0]
-            read_x = 0
-            read_y = 0
-            
-            #top bottom
-            if abs_y >= abs_x and abs_y >= abs_z:
-                if abs_y > 0.0:
-                    z /= abs_y
-                    x /= abs_y
-                if y < 0:
-                    read_img = cube[1]
-                    read_size = cube_size[1]
-                    z = -z
-                else:
-                    read_img = cube[0]
-                    read_size = cube_size[0]
-                read_x = int((x + 1.0) * read_size[0] / 2.0)
-                read_y = int((z + 1.0) * read_size[1] / 2.0)
-                
-            #front back
-            elif abs_x >= abs_y and abs_x >= abs_z:
-                if abs_x > 0.0:
-                    z /= abs_x
-                    y /= abs_x
-                if x < 0:
-                    read_img = cube[3]
-                    read_size = cube_size[3]
-                    z = -z
-                else:
-                    read_img = cube[2]
-                    read_size = cube_size[2]
-                read_x = int((z + 1.0) * read_size[0] / 2.0)
-                read_y = int((y + 1.0) * read_size[1] / 2.0)
-            #left right
-            else:
-                if abs_z > 0.0:
-                    y /= abs_z
-                    x /= abs_z
-                if z < 0:
-                    read_img = cube[5]
-                    read_size = cube_size[5]
-                else:
-                    read_img = cube[4]
-                    read_size = cube_size[4]
-                    x = -x
-                read_x = int((x + 1.0) * read_size[0] / 2.0)
-                read_y = int((y + 1.0) * read_size[1] / 2.0)
-                
-            if read_x > read_size[0] - 1:
-                read_x = read_size[0] - 1
-            if read_y > read_size[1] - 1:
-                read_y = read_size[1] - 1
-                
-            read_id = (read_x + read_y * read_size[0]) * 4
-            pixel_id = math.floor(i + (j * equi_w)) * 4
-            
-            if read_size[0] != 0.0 and read_size[1] != 0.0:
-                pixels[pixel_id + 0] = read_img[read_id + 0]
-                pixels[pixel_id + 1] = read_img[read_id + 1]
-                pixels[pixel_id + 2] = read_img[read_id + 2]
-                pixels[pixel_id + 3] = 1.0
+        buffer = bgl.Buffer(bgl.GL_FLOAT, equi_w * equi_h * 4)
+        bgl.glReadBuffer(bgl.GL_BACK)
+        bgl.glReadPixels(0, 0, equi_w, equi_h, bgl.GL_RGBA, bgl.GL_FLOAT, buffer)
+        
+    offscreen.free()
     
     image = bpy.data.images.get(sky_name)
     if image == None:
         image = bpy.data.images.new(sky_name, width=equi_w, height=equi_h)
-    if image.size[0] != equi_w or image.size[1] != equi_h:
-        image.scale(equi_w, equi_h)
-    image.pixels = pixels
+    image.scale(equi_w, equi_h)
+    image.pixels = buffer
     
     return image
