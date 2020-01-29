@@ -560,7 +560,6 @@ class quake_shader:
             return
         
         elif shader.is_explicit:
-            print(shader.name)
             stage_index = 0
             n_stages = 0
 
