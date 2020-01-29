@@ -143,16 +143,16 @@ class vanilla_shader_stage:
     def setTcMod(stage, tcmod):
         if tcmod.startswith("scale"):
             stage.tcMods.append("scale")
-            stage.tcMods_arguments.append(tcmod.split(" ",1)[1])
+            stage.tcMods_arguments.append(tcmod.split(" ",1)[1].strip("\r\n\t "))
         elif tcmod.startswith("scroll"):
             stage.tcMods.append("scroll")
-            stage.tcMods_arguments.append(tcmod.split(" ",1)[1])
+            stage.tcMods_arguments.append(tcmod.split(" ",1)[1].strip("\r\n\t "))
         elif tcmod.startswith("turb"):
             stage.tcMods.append("turb")
-            stage.tcMods_arguments.append(tcmod.split(" ",1)[1])
+            stage.tcMods_arguments.append(tcmod.split(" ",1)[1].strip("\r\n\t "))
         elif tcmod.startswith("rotate"):
             stage.tcMods.append("rotate")
-            stage.tcMods_arguments.append(tcmod.split(" ",1)[1])
+            stage.tcMods_arguments.append(tcmod.split(" ",1)[1].strip("\r\n\t "))
         else:
             print("didn't parse tcMod: ", tcmod)
         
@@ -208,7 +208,7 @@ class vanilla_shader_stage:
         if (alpha.startswith("const")):
             stage.alpha = ALPHA_CONST
             try:
-                stage.alpha_value = float(alpha.split(' ', 1)[1])
+                stage.alpha_value = float(alpha.split(' ', 1)[1].strip("\r\n\t "))
             except:
                 print("alphaGen const with no value found")
                 stage.alpha_value = 0.5
