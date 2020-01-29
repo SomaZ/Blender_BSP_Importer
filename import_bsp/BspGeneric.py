@@ -36,7 +36,7 @@ def pack_lightmaps(bsp, import_settings):
     color_scale = 1.0
     color_components = 4
     try:
-        path = bsp.bsp_path[:-len(".bsp")] + "\\"
+        path = bsp.bsp_path[:-len(".bsp")] + "/"
         lm_files = os.listdir(path)
         lm_list = [path + file_name
                     for file_name in lm_files
@@ -77,7 +77,7 @@ def pack_lightmaps(bsp, import_settings):
         color_components = 3
     
     force_vertex_lighting = False
-    if lightmap_size == 0:
+    if n_lightmaps == 0:
         force_vertex_lighting = True
         lightmap_size = 128
     
