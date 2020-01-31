@@ -19,11 +19,11 @@
 bl_info = {
     "name": "Import id Tech 3 BSP",
     "author": "SomaZ",
-	"version": (0, 9, 0),
+    "version": (0, 9, 0),
     "description": "Importer for id Tech 3 BSP levels",
     "blender": (2, 81, 16),
     "location": "File > Import-Export",
-	"warning": "",
+    "warning": "",
     "category": "Import-Export"
 }
 
@@ -52,11 +52,6 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
         name="Guess base path from map path",
         description="Use parent of map directory as base path",
         default=False
-        )
-
-    # HACK: hack prefs as global for Reload_shader
-    guessed_base_path : bpy.props.StringProperty(
-        maxlen=2048,
         )
 
     base_path : bpy.props.StringProperty(
@@ -91,8 +86,16 @@ def register():
         bpy.utils.register_class(cls)
     bpy.types.TOPBAR_MT_file_import.append(BspImport.menu_func)
 
+    # note: this is stored in .blend file
+    bpy.types.Scene.guessed_base_path = bpy.props.StringProperty(
+        name="Guessed base path",
+        description="Base path guessed from map path",
+        default="",
+        )
+
 def unregister():
     bpy.types.TOPBAR_MT_file_import.remove(BspImport.menu_func)
+    bpy.types.Scene.remove(guessed_base_path)
     for cls in classes:
         bpy.utils.unregister_class(cls)
 

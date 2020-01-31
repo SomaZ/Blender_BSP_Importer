@@ -95,14 +95,12 @@ class Operator(bpy.types.Operator, ImportHelper):
         if prefs.guess_base_path:
             dataPath = self.properties.filepath
             fixed_base_path = path.dirname(path.dirname(dataPath))
+            context.scene.guessed_base_path = fixed_base_path
         else:
             fixed_base_path = prefs.base_path
 
         if not fixed_base_path.endswith('/'):
             fixed_base_path = fixed_base_path + '/'
-
-        # HACK: hack prefs as global for Reload_shader
-        context.preferences.addons[addon_name].preferences.guessed_base_path = fixed_base_path
 
         #trace some things like paths and lightmap size
         import_settings = ImportSettings()
@@ -392,9 +390,9 @@ class Reload_shader(bpy.types.Operator):
         addon_name = __name__.split('.')[0]
         prefs = context.preferences.addons[addon_name].preferences
 
-        # HACK: hack prefs as global for Reload_shader
-        if prefs.guess_base_path:
-            fixed_base_path = prefs.guessed_base_path
+        if prefs.guess_base_path and hasattr(context.scene, "guessed_base_path"):
+            fixed_base_path = context.scene.guessed_base_path
+            print("2: " + context.scene.guessed_base_path)
         else:
             fixed_base_path = prefs.base_path
 
