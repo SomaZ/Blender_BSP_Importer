@@ -18,9 +18,25 @@ if "os" not in locals():
 import bpy
 from math import floor, ceil, pi, sin, cos
 import mathutils
+
+#prevents overwriting of old images
+def create_new_image(name, width, height, float_buffer=False):
+    old_image = bpy.data.images.get(name)
+    if old_image != None:
+        old_image.name = name + "_previous.000"
+        
+    if float_buffer:
+        image = bpy.data.images.new(name, width=width, height=height, float_buffer=True)
+    else:
+        image = bpy.data.images.new(name, width=width, height=height)
+        
+    image.use_fake_user=True
+    return image
             
 def create_white_image():
-    image = bpy.data.images.new("$whiteimage", width=8, height=8)
+    image = bpy.data.images.get("$whiteimage")
+    if image == None:
+        image = bpy.data.images.new("$whiteimage", width=8, height=8)
     pixels = []
     for pixel in range(64):
         pixels.append(1.0)
@@ -28,6 +44,7 @@ def create_white_image():
         pixels.append(1.0)
         pixels.append(1.0)
     image.pixels = pixels
+    image.use_fake_user=True
 
 def pack_lightmaps(bsp, import_settings):
     use_internal_lightmaps = True
@@ -100,7 +117,7 @@ def pack_lightmaps(bsp, import_settings):
     packed_lm_size = import_settings.packed_lightmap_size
         
     #create dummy image
-    image = bpy.data.images.new("$lightmap", width=packed_lm_size, height=packed_lm_size)
+    image = create_new_image("$lightmap", packed_lm_size, packed_lm_size)
     
     numPixels = packed_lm_size*packed_lm_size*4
     #max_colum = ceil((lightmaps_lump.count-1) / PACKED_LM_SIZE)
@@ -240,30 +257,30 @@ def pack_lightgrid(bsp):
             
         append_byte_to_color_list(l, l_pixels, 1.0)
     
-    ambient1 = bpy.data.images.new("$lightgrid_ambient1", width=lightgrid_dimensions[0], height=lightgrid_dimensions[1]*lightgrid_dimensions[2])
+    ambient1 = create_new_image("$lightgrid_ambient1", lightgrid_dimensions[0], lightgrid_dimensions[1]*lightgrid_dimensions[2])
     ambient1.pixels = a1_pixels
     
-    direct1 = bpy.data.images.new("$lightgrid_direct1", width=lightgrid_dimensions[0], height=lightgrid_dimensions[1]*lightgrid_dimensions[2])
+    direct1 = create_new_image("$lightgrid_direct1", lightgrid_dimensions[0], lightgrid_dimensions[1]*lightgrid_dimensions[2])
     direct1.pixels = d1_pixels
     
     if bsp.lightmaps > 1:
-        ambient2 = bpy.data.images.new("$lightgrid_ambient2", width=lightgrid_dimensions[0], height=lightgrid_dimensions[1]*lightgrid_dimensions[2])
-        ambient3 = bpy.data.images.new("$lightgrid_ambient3", width=lightgrid_dimensions[0], height=lightgrid_dimensions[1]*lightgrid_dimensions[2])
-        ambient4 = bpy.data.images.new("$lightgrid_ambient4", width=lightgrid_dimensions[0], height=lightgrid_dimensions[1]*lightgrid_dimensions[2])
+        ambient2 = create_new_image("$lightgrid_ambient2", lightgrid_dimensions[0], lightgrid_dimensions[1]*lightgrid_dimensions[2])
+        ambient3 = create_new_image("$lightgrid_ambient3", lightgrid_dimensions[0], lightgrid_dimensions[1]*lightgrid_dimensions[2])
+        ambient4 = create_new_image("$lightgrid_ambient4", lightgrid_dimensions[0], lightgrid_dimensions[1]*lightgrid_dimensions[2])
         ambient2.pixels = a2_pixels
         ambient3.pixels = a3_pixels
         ambient4.pixels = a4_pixels
-        direct2 = bpy.data.images.new("$lightgrid_direct2", width=lightgrid_dimensions[0], height=lightgrid_dimensions[1]*lightgrid_dimensions[2])
-        direct3 = bpy.data.images.new("$lightgrid_direct3", width=lightgrid_dimensions[0], height=lightgrid_dimensions[1]*lightgrid_dimensions[2])
-        direct4 = bpy.data.images.new("$lightgrid_direct4", width=lightgrid_dimensions[0], height=lightgrid_dimensions[1]*lightgrid_dimensions[2])
+        direct2 = create_new_image("$lightgrid_direct2", lightgrid_dimensions[0], lightgrid_dimensions[1]*lightgrid_dimensions[2])
+        direct3 = create_new_image("$lightgrid_direct3", lightgrid_dimensions[0], lightgrid_dimensions[1]*lightgrid_dimensions[2])
+        direct4 = create_new_image("$lightgrid_direct4", lightgrid_dimensions[0], lightgrid_dimensions[1]*lightgrid_dimensions[2])
         direct2.pixels = d2_pixels
         direct3.pixels = d3_pixels
         direct4.pixels = d4_pixels
     
-    lightvec = bpy.data.images.new( "$lightgrid_vector", 
-                                    width=lightgrid_dimensions[0], 
-                                    height=lightgrid_dimensions[1]*lightgrid_dimensions[2],
-                                    float_buffer=True)
+    lightvec = create_new_image( "$lightgrid_vector", 
+                                    lightgrid_dimensions[0], 
+                                    lightgrid_dimensions[1]*lightgrid_dimensions[2],
+                                    True)
     lightvec.colorspace_settings.name = "Non-Color"
     
     lightvec.pixels = l_pixels
