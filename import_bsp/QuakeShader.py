@@ -31,6 +31,11 @@ if "Image" in locals():
     imp.reload( Image )
 else:
     from . import Image
+    
+if "Parsing" in locals():
+    imp.reload( Parsing )
+else:
+    from .Parsing import *
 
 from math import radians
 
@@ -758,26 +763,6 @@ class quake_shader:
             shader_out = node_BSDF.outputs["BSDF"]
         
         shader.links.new(shader_out, shader.nodes["Output"].inputs[0])
-
-def l_format(line):
-    return line.lower().strip(" \t\r\n").replace("\t"," ")
-def l_empty(line):
-    return line.strip(" \t\r\n") == ''
-def l_comment(line):
-    return l_format(line).startswith('/')
-def l_open(line):
-    return line.startswith('{')
-def l_close(line):
-    return line.startswith('}')
-def parse(line):
-    try:
-        key, value = line.split(' ', 1)
-        key = key.strip("\t ")
-        value = value.strip("\t ")
-    except:
-        key = line
-        value = 1
-    return [key, value]
 
 #TODO: overwrite existing Bsp Node instead of making a new one?
 def init_shader_system(bsp):
