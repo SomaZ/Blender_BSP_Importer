@@ -19,7 +19,7 @@
 bl_info = {
     "name": "Import id Tech 3 BSP",
     "author": "SomaZ",
-	"version": (0, 9, 0),
+	"version": (0, 9, 3),
     "description": "Importer for id Tech 3 BSP levels",
     "blender": (2, 81, 16),
     "location": "File > Import-Export",
@@ -40,6 +40,9 @@ if "BspImport" in locals():
     imp.reload( BspImport )
 else:
     from . import BspImport
+    
+if "PointerProperty" not in locals():
+    from bpy.props import PointerProperty
 
 # ------------------------------------------------------------------------
 #    store properties in the user preferences
@@ -52,6 +55,7 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
         name="basepath",
         description="Path to base folder",
         default="C:/Program Files (x86)/Steam/steamapps/common/Jedi Academy/GameData/unpacked",
+        subtype="DIR_PATH",
         maxlen=2048,
         )
 
@@ -70,13 +74,26 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
 	
 classes = ( BspImport.Operator,
             BspImportAddonPreferences,
-            BspImport.Q3_PT_MappingPanel,
-            BspImport.Reload_shader,)
+            BspImport.Q3_PT_ShaderPanel,
+            BspImport.Q3_PT_EntityPanel,
+            BspImport.Reload_shader,
+            BspImport.DynamicProperties,
+            BspImport.Add_property,
+            BspImport.Del_property,
+            BspImport.Add_entity_definition,
+            BspImport.Add_key_definition,
+            BspImport.Update_entity_definition,
+            BspImport.Q3_PT_EntPanel,
+            BspImport.ExportEnt,
+            BspImport.PatchBspEntities,
+            BspImport.Q3_PT_EditEntityPanel,
+            )
 
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
     bpy.types.TOPBAR_MT_file_import.append(BspImport.menu_func)
+    bpy.types.Object.q3_dynamic_props = PointerProperty(type=BspImport.DynamicProperties)
 
 def unregister():
     bpy.types.TOPBAR_MT_file_import.remove(BspImport.menu_func)

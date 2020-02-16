@@ -149,7 +149,7 @@ def ImportMD3(model_name, import_settings, zoffset):
     mesh = None
     skip = False
     try:
-        file = open(import_settings.base_path + model_name, "rb")
+        file = open(model_name, "rb")
     except:
         return mesh
 

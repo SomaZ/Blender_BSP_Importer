@@ -416,7 +416,7 @@ class quake_shader:
                 node_color = shader.nodes.new(type='ShaderNodeTexImage')
                 node_color.image = img
                 if stage.clamp:
-                    node_color.extension = 'CLIP'
+                    node_color.extension = 'EXTEND'
                 node_color.location = loc_x + 200,loc_y
                 tc_gen = shader.get_tcGen_node(stage.tcGen)
                 if tc_gen is not None:
@@ -513,23 +513,27 @@ class quake_shader:
             shader.stages.append(stage)
             shader.is_explicit = True
             
-    def finish_shader(shader, base_path):
+    def finish_shader(shader, base_path, import_settings):
         
         color_out = None
         alpha_out = None
         shader_type = "BLEND"
         
         if shader.is_system_shader:
-            shader.nodes.clear()
-            node_output = shader.nodes.new(type='ShaderNodeOutputMaterial')
-            node_output.name = "Output"
-            node_output.location = (3400,0)
-            node_BSDF = shader.nodes.new(type="ShaderNodeBsdfTransparent")
-            node_BSDF.name = "Out_BSDF"
-            node_BSDF.location = (3000,0)
-            shader.links.new(node_BSDF.outputs["BSDF"], node_output.inputs[0])
-            shader.mat.blend_method = "BLEND"
-            return
+            if import_settings.preset != 'EDITING': #not editing preset
+                shader.nodes.clear()
+                node_output = shader.nodes.new(type='ShaderNodeOutputMaterial')
+                node_output.name = "Output"
+                node_output.location = (3400,0)
+                node_BSDF = shader.nodes.new(type="ShaderNodeBsdfTransparent")
+                node_BSDF.name = "Out_BSDF"
+                node_BSDF.location = (3000,0)
+                shader.links.new(node_BSDF.outputs["BSDF"], node_output.inputs[0])
+                shader.mat.blend_method = "BLEND"
+                return
+            else:
+                shader.is_explicit = False
+                shader.mat.blend_method = "BLEND"
         
         if "skyparms" in shader.attributes:
             shader.nodes.clear()
@@ -718,6 +722,15 @@ class quake_shader:
             if shader.attributes["cull"] == "twosided" or shader.attributes["cull"] == "none":
                 shader.mat.use_backface_culling = False
         shader.mat.shadow_method = 'CLIP'
+        
+        if import_settings.preset == 'EDITING' and shader.is_system_shader:
+            shader_type = "BLEND"
+            node_val = shader.nodes.new(type="ShaderNodeValue")
+            if "qer_trans" in shader.attributes:
+                node_val.outputs[0].default_value = float(shader.attributes["qer_trans"])
+            else:
+                node_val.outputs[0].default_value = 0.8
+            alpha_out = node_val.outputs[0]
             
         shader_out = None
         if shader_type == "ADD":
@@ -865,7 +878,7 @@ def build_quake_shaders(import_settings, object_list):
                         #finish the shaders and delete them from the list
                         #so we dont double parse them by accident
                         for shader in shaders[dict_key]:
-                            shader.finish_shader(base_path)
+                            shader.finish_shader(base_path, import_settings)
                             
                             #polygon offset to vertex group
                             if "polygonoffset" in shader.attributes:
@@ -890,7 +903,7 @@ def build_quake_shaders(import_settings, object_list):
     #finish remaining none explicit shaders         
     for shader_group in shaders:
         for shader in shaders[shader_group]:
-            shader.finish_shader(base_path)
+            shader.finish_shader(base_path, import_settings)
             
     return
             

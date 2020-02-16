@@ -12,62 +12,43 @@ if "bpy" not in locals():
     
 if "ImportHelper" not in locals():
     from bpy_extras.io_utils import ImportHelper
-
-if "math" not in locals():
-    import math
+if "ExportHelper" not in locals():
+    from bpy_extras.io_utils import ExportHelper
     
 if "BspClasses" in locals():
     imp.reload( BspClasses )
 else:
     from . import BspClasses
     
+if "Entities" in locals():
+    imp.reload( Entities )
+else:
+    from . import Entities
+    
 if "MD3" in locals():
     imp.reload( MD3 )
 else:
     from . import MD3
     
-if "BspGeneric" in locals():
-    imp.reload( BspGeneric )
-else:
-    from . import BspGeneric
-    
 if "QuakeShader" in locals():
     imp.reload( QuakeShader )
 else:
     from . import QuakeShader
-
-if "struct" not in locals():
-    import struct
     
 if "StringProperty" not in locals():
     from bpy.props import StringProperty
     
-from time import perf_counter
-
-from bpy_extras.io_utils import unpack_list
-from math import radians
-
-def l_format(line):
-    return line.lower().strip(" \t\r\n")
-def l_empty(line):
-    return line.strip("\t\r\n") == ' '
-def l_comment(line):
-    return l_format(line).startswith('/')
-def l_open(line):
-    return line.startswith('{')
-def l_close(line):
-    return line.startswith('}')
-def parse(line):
-    try:
-        try:
-            key, value = line.split('\t', 1)
-        except:
-            key, value = line.split(' ', 1)
-    except:
-        key = line
-        value = 1
-    return [key, value]
-
+if "BoolProperty" not in locals():
+    from bpy.props import BoolProperty
+    
+if "PropertyGroup" not in locals():
+    from bpy.types import PropertyGroup
+    
+if "struct" not in locals():
+    import struct
+    
+from mathutils import Vector
+    
 #empty class for now, we will see what to do with it
 class ImportSettings:
     pass
@@ -105,8 +86,9 @@ class Operator(bpy.types.Operator, ImportHelper):
         import_settings.packed_lightmap_size = 128
         import_settings.log = []
         import_settings.log.append("----import_scene.ja_bsp----")
+        import_settings.filepath = self.filepath
         
-        self.ImportBSP(import_settings)
+        BspClasses.ImportBSP(import_settings)
         
         #set world color to black to remove additional lighting
         background = context.scene.world.node_tree.nodes.get("Background")
@@ -119,243 +101,289 @@ class Operator(bpy.types.Operator, ImportHelper):
         #    print(line)
             
         return {'FINISHED'}
-    
-    def ImportEntities(self, bsp, import_settings):        
-        clip_end = 12000
-        
-        lump = bsp.lumps["entities"]
-        stringdata = []
-        for i in lump.data:
-            stringdata.append(i.char.decode("ascii"))
-    
-        entities_string = "".join(stringdata)
-        ent = {}
-        n_ent = 0
-        ent_object = None
-        md3_objects = []
-        obj_list = []
-        for line in entities_string.splitlines():
-            if l_open(line):
-                ent.clear()
-            elif l_close(line):
-                if "distancecull" in ent:
-                    clip_end = float(ent["distancecull"].replace('"',''))
-                    
-                if "gridsize" in ent:
-                    bsp.lightgrid_size = ent["gridsize"]
-                    bsp.lightgrid_inverse_size = [  1.0 / float(bsp.lightgrid_size[0]),
-                                                    1.0 / float(bsp.lightgrid_size[1]),
-                                                    1.0 / float(bsp.lightgrid_size[2]) ]
-                if "origin" in ent and self.properties.preset == "EDITING":
-                    if (ent_object == None):
-                        ent_object = bpy.ops.mesh.primitive_cube_add(size = 32.0, location=([0,0,0]))
-                        ent_object = bpy.context.object
-                        ent_object.name = "EntityBox"
-                        mesh = ent_object.data
-                        mesh.name = "EntityMesh"
-
-                    cube = bpy.data.objects.new(name="Entity " + (str(n_ent).zfill(4)), object_data=mesh.copy())
-                    cube.location = ent["origin"]
-                    for key in ent:
-                        cube.data[key] = ent[key]
-                    bpy.context.collection.objects.link(cube)
-                
-                if "model" in ent and (ent["classname"] == "misc_model_static" or ent["classname"] == "misc_model_breakable"):
-                    # FIXME: what if the model is not md3?
-                    mesh_name = ent["model"][:-len(".md3")]
-                    zoffset = 0
-                    if "zoffset" in ent:
-                        zoffset = int(ent["zoffset"].replace('"','')) + 1
-                        mesh_name = mesh_name+".z"+str(zoffset)
-                    
-                    if mesh_name in md3_objects:
-                        me = bpy.data.objects[mesh_name].data
-                        ob = bpy.data.objects.new(mesh_name, me)
-                    else:
-                        #TODO: Fix reimporting model when only the zoffset is different
-                        #check if model already loaded, make a copy of it, replace all the material names with new zoffset
-                        me = MD3.ImportMD3(ent["model"], import_settings, zoffset)
-                        ob = bpy.data.objects.new(mesh_name, me)
-                        md3_objects.append(mesh_name)
-                        obj_list.append(ob)
-                    bpy.context.collection.objects.link(ob)
-                    
-                    ob.location = ent["origin"]
-                    if "modelscale" in ent:
-                        scale = (float(ent["modelscale"]),float(ent["modelscale"]),float(ent["modelscale"]))
-                        ob.scale = scale
-                    if "modelscale_vec" in ent:
-                        ob.scale = ent["modelscale_vec"]
-                    if "angle" in ent:
-                        ob.rotation_euler = (0.0,0.0,radians(float(ent["angle"])))
-                    if "angles" in ent:
-                        ob.rotation_euler = (radians(ent["angles"][2]),radians(ent["angles"][0]),radians(ent["angles"][1]))                    
-                    
-                n_ent += 1
-            elif line != " ":
-                key,value = parse(line)
-                key = key.strip(" \"\t\n\r")
-                if (key == "origin") or (key == "modelscale_vec") or (key == "angles") or (key == "gridsize"):
-                    value = value.strip(" \"\t\n\r")
-                    value = value.split(" ")
-                    #oh man.... Problem in t1_rail
-                    try:
-                        value[0] = float(value[0])
-                        value[1] = float(value[1])
-                        value[2] = float(value[2])
-                    except:
-                        value = [float(value[0]),float(value[0]),float(value[0])]
-                if (key == "classname") or (key == "model") or (key == "modelscale") or (key == "angle"):
-                    value = value.strip(" \"\t\n\r").replace("\\","/")
-                
-                #oh man.... Problem in hoth2
-                if (key == "modelscale"):
-                    try:
-                        value = float(value)
-                    except:
-                        value = float(value.split(" ")[0])
-                        
-                ent[key] = value
-                
-        #set clip data
-        for a in bpy.context.screen.areas:
-            if a.type == 'VIEW_3D':
-                for s in a.spaces:
-                    if s.type == 'VIEW_3D':
-                        s.clip_start = 4
-                        s.clip_end = clip_end
-                        
-        
-        return obj_list
-
-    def ImportBSP(self, import_settings):
-        
-        dataPath = self.properties.filepath
-        import_settings.log.append("----ImportBSP----")
-        import_settings.log.append("bsp: " + dataPath)
-
-        bsp = BspClasses.BSP(dataPath)
-
-        if bsp.valid:
-            #import lightmaps before packing vertex data 
-            #because of varying packed lightmap size
-            import_settings.log.append("----pack_lightmaps----")
-            time_start = perf_counter()
-            BspGeneric.pack_lightmaps(bsp, import_settings)
-            import_settings.log.append("took:" + str(perf_counter() - time_start) + " seconds")
-            
-            import_settings.log.append("----fill_bsp_data----")
-            time_start = perf_counter()
-            model = BspGeneric.blender_model_data()
-            model.fill_bsp_data(bsp, import_settings)
-            import_settings.log.append("took:" + str(perf_counter() - time_start) + " seconds")
-
-            mesh = bpy.data.meshes.new( dataPath )
-            mesh.from_pydata(model.vertices, [], model.face_vertices)
-
-            for texture_instance in model.material_names:
-                mat = bpy.data.materials.get(texture_instance)
-                if (mat == None):
-                    mat = bpy.data.materials.new(name=texture_instance)
-                mesh.materials.append(mat)
-                
-            mesh.polygons.foreach_set("material_index", model.face_materials)
-            
-            for poly in mesh.polygons:
-                poly.use_smooth = True
-            
-            mesh.vertices.foreach_set("normal", unpack_list(model.normals))
-
-            mesh.vertex_layers_int.new(name="BSP_VERT_INDEX")
-            mesh.vertex_layers_int["BSP_VERT_INDEX"].data.foreach_set("value", model.vertex_bsp_indices)
-
-            mesh.uv_layers.new(do_init=False,name="UVMap")
-            mesh.uv_layers["UVMap"].data.foreach_set("uv", unpack_list(unpack_list(model.face_tcs)))
-
-            mesh.uv_layers.new(do_init=False,name="LightmapUV")
-            mesh.uv_layers["LightmapUV"].data.foreach_set("uv", unpack_list(unpack_list(model.face_lm1_tcs)))
-            
-            mesh.vertex_colors.new(name = "Color")
-            mesh.vertex_colors["Color"].data.foreach_set("color", unpack_list(unpack_list(model.face_vert_color)))
-            
-            if bsp.lightmaps > 1:
-                mesh.uv_layers.new(do_init=False,name="LightmapUV2")
-                mesh.uv_layers["LightmapUV2"].data.foreach_set("uv", unpack_list(unpack_list(model.face_lm2_tcs)))
-
-                mesh.uv_layers.new(do_init=False,name="LightmapUV3")
-                mesh.uv_layers["LightmapUV3"].data.foreach_set("uv", unpack_list(unpack_list(model.face_lm3_tcs)))
-
-                mesh.uv_layers.new(do_init=False,name="LightmapUV4")
-                mesh.uv_layers["LightmapUV4"].data.foreach_set("uv", unpack_list(unpack_list(model.face_lm4_tcs)))
-
-                mesh.vertex_colors.new(name = "Color2")
-                mesh.vertex_colors["Color2"].data.foreach_set("color", unpack_list(unpack_list(model.face_vert_color2)))
-
-                mesh.vertex_colors.new(name = "Color3")
-                mesh.vertex_colors["Color3"].data.foreach_set("color", unpack_list(unpack_list(model.face_vert_color3)))
-
-                mesh.vertex_colors.new(name = "Color4")
-                mesh.vertex_colors["Color4"].data.foreach_set("color", unpack_list(unpack_list(model.face_vert_color4)))
-            
-            #ugly hack to get the vertex alpha.....
-            mesh.vertex_colors.new(name = "Alpha")
-            mesh.vertex_colors["Alpha"].data.foreach_set("color", unpack_list(unpack_list(model.face_vert_alpha)))    
-            
-            #q3 renders with front culling as default
-            mesh.flip_normals()
-            
-            mesh.update()
-            mesh.validate()
-
-            bsp_obj = bpy.data.objects.new("BSP_Data", mesh)
-            
-            #import entities and get object list
-            import_settings.log.append("----ImportEntities----")
-            time_start = perf_counter()
-            obj_list = self.ImportEntities(bsp, import_settings)
-            obj_list.append(bsp_obj)
-            import_settings.log.append("took:" + str(perf_counter() - time_start) + " seconds")
-            
-            #import lightgrid after entitys because the grid size can change
-            import_settings.log.append("----pack_lightgrid----")
-            time_start = perf_counter()
-            BspGeneric.pack_lightgrid(bsp)
-            import_settings.log.append("took:" + str(perf_counter() - time_start) + " seconds")
-            
-            #create whiteimage before parsing shaders
-            BspGeneric.create_white_image()
-            
-            #init shader system
-            QuakeShader.init_shader_system(bsp)
-            
-            #build shaders
-            import_settings.log.append("----build_quake_shaders----")
-            time_start = perf_counter()
-            QuakeShader.build_quake_shaders(import_settings, obj_list)
-            import_settings.log.append("took:" + str(perf_counter() - time_start) + " seconds")
-            
-            vg = bsp_obj.vertex_groups.get("Decals")
-            if vg is not None:
-                modifier = bsp_obj.modifiers.new("polygonOffset", type = "DISPLACE")
-                modifier.vertex_group = "Decals"
-                modifier.strength = 0.2
-                modifier.name = "polygonOffset"
-            
-            bsp_obj.vertex_groups.new(name = "Patches")
-            bsp_obj.vertex_groups["Patches"].add(list(model.patch_vertices), 1.0, "ADD")
-            scene = bpy.context.scene
-            scene.collection.objects.link(bsp_obj)
         
 def menu_func(self, context):
     self.layout.operator(Operator.bl_idname, text="ID3 BSP (.bsp)")
     
+flag_mapping = {
+    1 : "b1",
+    2 : "b2",
+    4 : "b4",
+    8 : "b8",
+    16 : "b16",
+    32 : "b32",
+    64 : "b64",
+    128 : "b128",
+    256 : "b256",
+    512 : "b512",
+}
+
+class Del_property(bpy.types.Operator):
+    bl_idname = "q3.del_property"
+    bl_label = "Remove custom property"
+    bl_options = {"UNDO","INTERNAL","REGISTER"}
+    name : bpy.props.StringProperty()
+    def execute(self, context):
+        obj = bpy.context.active_object
+        if self.name in obj:
+            del obj[self.name]
+            rna_ui = obj.get('_RNA_UI')
+            if rna_ui is not None:
+                del rna_ui[self.name]
+        return {'FINISHED'}
+
+type_matching = {   "STRING"    : "NONE",
+                    "COLOR"     : "COLOR_GAMMA",
+                    "COLOR255"  : "COLOR_GAMMA",
+                    "INT"       : "NONE",
+                    "FLOAT"     : "NONE",
+}
+default_values = {  "STRING" : "",
+                    "COLOR"  : [0.0, 0.0, 0.0],
+                    "COLOR255"  : [0.0, 0.0, 0.0],
+                    "INT"  : 0,
+                    "FLOAT"  : 0.0,
+}
+
+class Add_property(bpy.types.Operator):
+    bl_idname = "q3.add_property"
+    bl_label = "Add custom property"
+    bl_options = {"UNDO","INTERNAL","REGISTER"}
+    name : bpy.props.StringProperty()
+    def execute(self, context):
+        ob = bpy.context.active_object
+        key = self.name
+        if key == "classname":
+            ob["classname"] = ""
+            return {'FINISHED'}
+        
+        Dict = Entities.Dict
+        if self.name not in ob:
+            default = ""
+            
+            rna_ui = ob.get('_RNA_UI')
+            if rna_ui is None:
+                ob['_RNA_UI'] = {}
+                rna_ui = ob['_RNA_UI']
+            
+            descr_dict = {}
+            if ob["classname"].lower() in Dict:
+                if key.lower() in Dict[ob["classname"].lower()]["Keys"]:
+                    if "Description" in Dict[ob["classname"].lower()]["Keys"][key.lower()]:
+                        descr_dict["description"] = Dict[ob["classname"].lower()]["Keys"][key.lower()]["Description"]
+                    if "Type" in Dict[ob["classname"].lower()]["Keys"][key.lower()]:
+                        descr_dict["subtype"] = type_matching[Dict[ob["classname"].lower()]["Keys"][key.lower()]["Type"].upper()]
+                        default = default_values[Dict[ob["classname"].lower()]["Keys"][key.lower()]["Type"].upper()]
+            
+            ob[self.name] = default
+            rna_ui[key.lower()] = descr_dict
+        return {'FINISHED'}
+    
+class Add_entity_definition(bpy.types.Operator):
+    bl_idname = "q3.add_entity_definition"
+    bl_label = "Update entity definition"
+    bl_options = {"INTERNAL","REGISTER"}
+    name : bpy.props.StringProperty()
+    
+    def execute(self, context):
+        obj = bpy.context.active_object
+        new_entry = {   "Color" : [0.0, 0.5, 0.0],
+                        "Mins": [-8, -8, -8],
+                        "Maxs": [8, 8, 8],
+                        "Model": "box",
+                        "Describtion" : "NOT DOCUMENTED YET",
+                        "Spawnflags": {},
+                        "Keys": {},
+                    }
+
+        Entities.Dict[self.name] = new_entry
+        Entities.save_gamepack(Entities.Dict, "JKA.json")
+        return {'FINISHED'}
+    
+class Add_key_definition(bpy.types.Operator):
+    bl_idname = "q3.add_key_definition"
+    bl_label = "Update entity definition"
+    bl_options = {"INTERNAL","REGISTER"}
+    name : bpy.props.StringProperty()
+    
+    def execute(self, context):
+        obj = bpy.context.active_object
+        if "classname" in obj:
+            classname = obj["classname"]
+            if classname.lower() in Entities.Dict:
+                if self.name not in Entities.Dict[classname.lower()]["Keys"]:
+                    Entities.Dict[classname.lower()]["Keys"][self.name] = { "Type" : "STRING",
+                                                                            "Description": "NOT DOCUMENTED YET"}
+                    Entities.save_gamepack(Entities.Dict, "JKA.json")
+        return {'FINISHED'}
+
+type_save_matching = {   "NONE"    : "STRING",
+                        "COLOR_GAMMA" : "COLOR",
+                        "COLOR" : "COLOR",
+}
+
+class Update_entity_definition(bpy.types.Operator):
+    bl_idname = "q3.update_entity_definition"
+    bl_label = "Update entity definition"
+    bl_options = {"INTERNAL","REGISTER"}
+    name : bpy.props.StringProperty()
+    
+    def execute(self, context):
+        obj = bpy.context.active_object
+        
+        rna_ui = obj.get('_RNA_UI')
+        if rna_ui is None:
+            obj['_RNA_UI'] = {}
+            rna_ui = obj['_RNA_UI']
+
+        if self.name in Entities.Dict:
+            ent = Entities.Dict[self.name]
+            for key in rna_ui.to_dict():
+                if key in ent["Keys"] and key in rna_ui:
+                    if "description" in rna_ui[key]:
+                        ent["Keys"][key]["Description"] = rna_ui[key]["description"]
+                    if "subtype" in rna_ui[key]:
+                        ent["Keys"][key]["Type"] = type_save_matching[rna_ui[key]["subtype"]]
+                        
+            Entities.save_gamepack(Entities.Dict, "JKA.json")
+
+        return {'FINISHED'}
+
+def update_spawn_flag(self, context):
+    obj = bpy.context.active_object
+    if obj is None:
+        return
+    
+    spawnflag = 0
+    if obj.q3_dynamic_props.b1:
+        spawnflag += 1
+    if obj.q3_dynamic_props.b2:
+        spawnflag += 2
+    if obj.q3_dynamic_props.b4:
+        spawnflag += 4
+    if obj.q3_dynamic_props.b8:
+        spawnflag += 8
+    if obj.q3_dynamic_props.b16:
+        spawnflag += 16
+    if obj.q3_dynamic_props.b32:
+        spawnflag += 32
+    if obj.q3_dynamic_props.b64:
+        spawnflag += 64
+    if obj.q3_dynamic_props.b128:
+        spawnflag += 128
+    if obj.q3_dynamic_props.b256:
+        spawnflag += 256
+    if obj.q3_dynamic_props.b512:
+        spawnflag += 512
+    obj["spawnflags"] = spawnflag
+    if spawnflag == 0:
+        del obj["spawnflags"]
+        
+def update_model(self, context):
+    obj = bpy.context.active_object
+    if obj is None:
+        return
+    
+    if "model2" in obj:
+        obj["model2"] = obj.q3_dynamic_props.model.split(".")[0]
+        model_name = obj["model2"]
+    elif "model" in obj:
+        obj["model"] = obj.q3_dynamic_props.model.split(".")[0]
+        model_name = obj["model"]
+        
+    if model_name.endswith(".md3"):
+        model_name = model_name[:-len(".md3")]
+    
+    if model_name in bpy.data.meshes:
+        obj.data = bpy.data.meshes[model_name]
+    else:
+        zoffset = 0
+        if "zoffset" in obj:
+            zoffset = int(obj["zoffset"])
+
+        import_settings = ImportSettings()
+        import_settings.base_path = ""
+        import_settings.shader_dirs = "shaders/", "scripts/"
+        import_settings.preset = 'PREVIEW'
+            
+        obj.data = MD3.ImportMD3(model_name + ".md3", import_settings, zoffset)
+        obj.q3_dynamic_props.model = obj.data.name
+        
+        addon_name = __name__.split('.')[0]
+        prefs = context.preferences.addons[addon_name].preferences
+        import_settings.base_path = prefs.base_path
+        if not import_settings.base_path.endswith('/'):
+            import_settings.base_path = import_settings.base_path + '/'
+            
+        QuakeShader.build_quake_shaders(import_settings, [obj])
+        
+        
+#Properties like spawnflags and model 
+class DynamicProperties(PropertyGroup):
+    b1 : BoolProperty(
+         name = "",
+         default = False,
+         update=update_spawn_flag
+         )
+    b2 : BoolProperty(
+         name = "",
+         default = False,
+         update=update_spawn_flag
+         )
+    b4 : BoolProperty(
+         name = "",
+         default = False,
+         update=update_spawn_flag
+         )
+    b8 : BoolProperty(
+         name = "",
+         default = False,
+         update=update_spawn_flag
+         )
+    b16: BoolProperty(
+         name = "",
+         default = False,
+         update=update_spawn_flag
+         )
+    b32: BoolProperty(
+         name = "",
+         default = False,
+         update=update_spawn_flag
+         )
+    b64: BoolProperty(
+         name = "",
+         default = False,
+         update=update_spawn_flag
+         )
+    b128:BoolProperty(
+         name = "",
+         default = False,
+         update=update_spawn_flag
+         )
+    b256:BoolProperty(
+         name = "",
+         default = False,
+         update=update_spawn_flag
+         )
+    b512:BoolProperty(
+         name = "",
+         default = False,
+         update=update_spawn_flag
+         )
+    model:StringProperty(
+        name = "Model",
+        default = "Box",
+        update=update_model,
+        subtype= "FILE_PATH"
+        )
+    
 #Panels
-class Q3_PT_MappingPanel(bpy.types.Panel):
+class Q3_PT_ShaderPanel(bpy.types.Panel):
     bl_idname = "Q3_PT_shader_panel"
     bl_label = "Shaders"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Q3 Mapping"
+    bl_category = "Q3 Shaders"
     def draw(self, context):
         layout = self.layout
         
@@ -365,7 +393,226 @@ class Q3_PT_MappingPanel(bpy.types.Panel):
         row.scale_y = 1.0
         row.operator("q3mapping.reload_shader")
         layout.separator()
-       
+        
+filtered_keys = ["spawnflags", "classname", "origin", "angles", "angle", "_rna_ui", "q3_dynamic_props"]
+        
+class Q3_PT_EntityPanel(bpy.types.Panel):
+    bl_idname = "Q3_PT_entity_panel"
+    bl_label = "Selected Entity"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "Q3 Entities"
+    
+    @classmethod
+    def poll(self, context):
+        return (context.object is not None)
+    
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        obj = bpy.context.active_object
+        if "classname" in obj:
+            classname = obj["classname"].lower()
+            layout.prop(obj, '["classname"]')
+            # classname in dictionary?
+            if classname in Entities.Dict:
+                ent = Entities.Dict[classname]
+                box = None
+                #check all the flags
+                for flag in ent["Spawnflags"].items():
+                    if box == None:
+                        box = layout.box()
+                    box.prop(obj.q3_dynamic_props, flag_mapping[flag[1]["Bit"]], text = flag[0])
+                    
+                #now check all the keys
+                supported = None
+                unsupported = None
+                keys = ent["Keys"]
+                for prop in obj.keys():
+                    if prop.lower() not in filtered_keys:
+                        if prop.lower() == "model" and "model2" not in obj:
+                            if supported == None:
+                                supported = layout.box()
+                                supported.label(text = "Supported:")
+                            row = supported.row()
+                            row.prop(obj.q3_dynamic_props, "model", text="model")
+                            continue
+                        if prop.lower() == "model2":
+                            if supported == None:
+                                supported = layout.box()
+                                supported.label(text = "Supported:")
+                            row = supported.row()
+                            row.prop(obj.q3_dynamic_props, "model", text="model2")
+                            continue
+                        
+                        if prop.lower() in keys:
+                            if supported == None:
+                                supported = layout.box()
+                                supported.label(text = "Supported:")
+                            row = supported.row()
+                            row.prop(obj, '["' + prop + '"]')
+                            row.operator("q3.del_property", text="", icon="X").name = prop
+                        else:
+                            if unsupported == None:
+                                unsupported = layout.box()
+                                unsupported.label(text = "Unknown:")
+                            row = unsupported.row()
+                            row.prop(obj, '["' + prop + '"]')
+                            row.operator("q3.del_property", text="", icon="X").name = prop
+                for key in keys:
+                    test_key = obj.get(key.lower())
+                    if test_key == None:
+                        if supported == None:
+                            supported = layout.box()
+                            supported.label(text = "Supported:")
+                        row = supported.row()
+                        op = row.operator("q3.add_property", text="Add " + str(key)).name = key
+            else:
+                layout.label(text = "unknown entity")
+        else:
+            op = layout.operator("q3.add_property", text="Add classname").name = "classname"
+                
+class Q3_PT_EditEntityPanel(bpy.types.Panel):
+    bl_idname = "Q3_PT_edit_entity_panel"
+    bl_parent_id = "Q3_PT_entity_panel"
+    bl_options = {"DEFAULT_CLOSED"}
+    bl_label = "Edit Entity Definitions"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "Q3 Entities"
+    
+    @classmethod
+    def poll(self, context):
+        return (context.object is not None)
+    
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        obj = bpy.context.active_object
+        if "classname" in obj:
+            classname = obj["classname"].lower()
+            # classname in dictionary?
+            if classname not in Entities.Dict:
+                layout.operator("q3.add_entity_definition", text="Add " + obj["classname"].lower() + " to current Gamepack").name = obj["classname"].lower()
+            else:
+                ent = Entities.Dict[classname]
+                keys = ent["Keys"]
+                for prop in obj.keys():
+                    if prop.lower() not in filtered_keys:
+                        if prop.lower() not in keys:
+                            op = layout.operator("q3.add_key_definition", text="Add " + str(prop.lower()) + " to entity definition").name = prop.lower()
+                layout.operator("q3.update_entity_definition").name = classname
+                
+def GetEntityStringFromScene():
+    filtered_keys = ["_rna_ui", "q3_dynamic_props"]
+    worldspawn = []
+    entities = []
+    for obj in bpy.context.scene.objects:
+        if obj.type == 'MESH' and "classname" in obj:
+            
+            #only update position for now, I have no idea how rotations are handled ingame
+            zero_origin = Vector([0.0, 0.0, 0.0])
+            if obj.location != zero_origin:
+                obj["origin"] = [obj.location[0], obj.location[1], obj.location[2]]
+            
+            lines = []
+            lines.append("{")
+            for key in obj.keys():
+                if key.lower() not in filtered_keys:
+                    string = ""
+                    string = str(obj[key])
+                    #meeeeh nooooo, find better way!
+                    if string.startswith("<bpy id property array"):
+                        string = ""
+                        for i in obj[key].to_list():
+                            string += str(i) + " "
+                    lines.append("\"" + str(key) + "\" \"" + string.strip() + "\"")
+            lines.append("}")
+            
+            if obj["classname"] == "worldspawn":
+                worldspawn = lines
+            else:
+                entities.append(lines)
+    
+    out_str = ""
+    for line in worldspawn:
+        out_str += line + "\n"
+    for entity in entities:
+        for line in entity:
+            out_str += line + "\n"
+    out_str += "\0"
+    return out_str
+
+
+class ExportEnt(bpy.types.Operator, ExportHelper):
+    bl_idname = "q3.export_ent"
+    bl_label = "Export to .ent file"
+    bl_options = {"INTERNAL","REGISTER"}
+    filename_ext = ".ent"
+    filter_glob : StringProperty(default="*.ent", options={'HIDDEN'})
+    filepath : bpy.props.StringProperty(name="File", description="Where to write the .ent file", maxlen= 1024, default="")
+    def execute(self, context):
+        entities = GetEntityStringFromScene()
+        
+        f = open(self.filepath, "w")
+        f.write(entities)
+        f.close()
+        
+        return {'FINISHED'}
+
+class PatchBspEntities(bpy.types.Operator, ExportHelper):
+    bl_idname = "q3.patch_bsp_ents"
+    bl_label = "Patch entities in existing .bsp"
+    bl_options = {"INTERNAL","REGISTER"}
+    filename_ext = ".bsp"
+    filter_glob : StringProperty(default="*.bsp", options={'HIDDEN'})
+    filepath : bpy.props.StringProperty(name="File", description="Which .bsp file to patch", maxlen= 1024, default="")
+    create_backup : bpy.props.BoolProperty(name="Append a suffix to the output file (don't overwrite original file)", default = True)
+    def execute(self, context):
+        
+        bsp = BspClasses.BSP(self.filepath)
+        
+        #exchange entity lump
+        entities = GetEntityStringFromScene()
+        bsp.lumps["entities"].data = [BspClasses.entity([bytes(c, "ascii")]) for c in entities]
+        
+        #write bsp
+        bsp_bytes = bsp.to_bytes()
+        
+        name = self.filepath
+        if self.create_backup == True:
+            name = name.replace(".bsp","") + "_patched.bsp"
+            
+        try:
+            f = open(name, "wb")
+            f.write(bsp_bytes)
+            f.close()
+        except:
+            print("Failed writing: " + self.filepath.replace(".bsp","") + "_patched.bsp")
+        
+        return {'FINISHED'}
+
+class Q3_PT_EntPanel(bpy.types.Panel):
+    bl_name = "Q3_PT_ent_panel"
+    bl_label = "Export"
+    bl_options = {"DEFAULT_CLOSED"}
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "Q3 Entities"
+    bpy.types.Scene.filename : bpy.props.StringProperty(
+        name="Filename",
+        description="File to export to",
+        default="",
+        subtype="FILE_PATH"
+        )
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        layout.label(text = "Here you can export all the entities in the scene to different filetypes")
+        op = layout.operator("q3.export_ent", text="Export .ent")
+        #op = layout.operator("q3.export_map", text="Export .map") is it any different to .ent?
+        op = layout.operator("q3.patch_bsp_ents", text="Patch .bsp")
+
 class Reload_shader(bpy.types.Operator):
     """Reload Shaders"""
     bl_idname = "q3mapping.reload_shader"
@@ -380,6 +627,7 @@ class Reload_shader(bpy.types.Operator):
         import_settings = ImportSettings()
         import_settings.base_path = prefs.base_path
         import_settings.shader_dirs = "shaders/", "scripts/"
+        import_settings.preset = 'PREVIEW'
             
         if not import_settings.base_path.endswith('/'):
             import_settings.base_path = import_settings.base_path + '/'

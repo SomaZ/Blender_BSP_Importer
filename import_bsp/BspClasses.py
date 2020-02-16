@@ -1,7 +1,29 @@
+import imp
+
+if "bpy" not in locals():
+    import bpy
+
 if "struct" not in locals():
     import struct
     
+if "BspGeneric" in locals():
+    imp.reload( BspGeneric )
+else:
+    from . import BspGeneric
+    
+if "QuakeShader" in locals():
+    imp.reload( QuakeShader )
+else:
+    from . import QuakeShader
+    
+if "Entities" in locals():
+    imp.reload( Entities )
+else:
+    from . import Entities
+    
 import copy
+from time import perf_counter
+from bpy_extras.io_utils import unpack_list
 
 FLOAT = 4
 HALF = 2
@@ -33,22 +55,49 @@ class lump:
         file.seek(self.offset)
         for i in range(int(self.count)):
             self.data.append(self.data_class(struct.unpack(self.data_class.encoding, file.read(self.data_class.size))))
+            
+    def to_bytes(self):
+        self.count = len(self.data)
+        self.size = self.count * self.data_class.size
+        bytes = bytearray()
+        for i in range(self.count):
+            bytes+=(struct.pack(self.data_class.encoding, *self.data[i].to_array()))
+        return bytes
+
+def fillName(string, length):
+    new_str = string
+    while len(new_str) < length:
+        new_str += "\0"
+    return new_str
 
 #rbsp and ibsp
 class entity:
     size = 1
     encoding = "<c"
-    def __init__( self , array):
+    def __init__(self, array):
         self.char = array[0]
-
+    def to_array(self):
+        return [bytes(self.char)]
+    
 #rbsp and ibsp
 class texture:
     size = STRING + INT + INT
     encoding = "<64sii"
-    def __init__( self , array):
+    def __init__(self, array):
         self.name = array[0].decode("latin-1").strip("\0")
         self.flags = array[1]
         self.contents = array[2]
+    def to_array(self):
+        #TODO: Check encoding?
+        array = [None for i in range(3)]
+        array[0] = bytes(fillName(self.name, 64),"ascii")
+        array[1] = self.flags
+        array[2] = self.contents
+        return array
+    
+#string = fillName("testingaiowdjiooiaw3898127z3", 64)
+#print(bytes(string, 'ASCII'))
+#print(len(string))
 
 #rbsp and ibsp
 class plane:
@@ -57,6 +106,11 @@ class plane:
     def __init__ (self, array):
         self.normal = [array[0],array[1],array[2]]
         self.distance = array[3]
+    def to_array(self):
+        array = [None for i in range(4)]
+        array[0], array[1], array[2] = self.normal
+        array[3] = self.distance
+        return array
 
 #rbsp and ibsp
 class node:
@@ -67,6 +121,13 @@ class node:
         self.children = [array[1],array[2]]
         self.mins = [array[3],array[4],array[5]]
         self.maxs = [array[6],array[7],array[8]]
+    def to_array(self):
+        array = [None for i in range(9)]
+        array[0] = self.plane
+        array[1], array[2] = self.children
+        array[3], array[4], array[5] = self.mins
+        array[6], array[7], array[8] = self.maxs
+        return array
         
 #rbsp and ibsp
 class leaf:
@@ -81,6 +142,17 @@ class leaf:
         self.n_leaffaces = array[9]
         self.leafbrush = array[10]
         self.n_leafbrushes = array[11]
+    def to_array(self):
+        array = [None for i in range(12)]
+        array[0] = self.cluster
+        array[1] = self.area
+        array[2], array[3], array[4] = self.mins
+        array[5], array[6], array[7] = self.maxs
+        array[8] = self.leafface
+        array[9] = self.n_leaffaces
+        array[10] = self.leafbrush
+        array[11] = self.n_leafbrushes
+        return array
 
 #rbsp and ibsp
 class leafface:
@@ -88,6 +160,10 @@ class leafface:
     encoding = "<i"
     def __init__ (self, array):
         self.face = array[0]
+    def to_array(self):
+        array = [None for i in range(1)]
+        array[0] = self.face
+        return array
 
 #rbsp and ibsp    
 class leafbrush:
@@ -95,6 +171,10 @@ class leafbrush:
     encoding = "<i"
     def __init__ (self, array):
         self.brush = array[0]
+    def to_array(self):
+        array = [None for i in range(1)]
+        array[0] = self.brush
+        return array
 
 #rbsp and ibsp
 class model:
@@ -107,6 +187,15 @@ class model:
         self.n_faces = array[7]
         self.brush = array[8]
         self.n_brushes = array[9]
+    def to_array(self):
+        array = [None for i in range(10)]
+        array[0], array[1], array[2] = self.mins
+        array[3], array[4], array[5] = self.maxs
+        array[6] = self.face
+        array[7] = self.n_faces
+        array[8] = self.brush
+        array[9] = self.n_brushes
+        return array
 
 #rbsp and ibsp
 class brush:
@@ -116,6 +205,12 @@ class brush:
         self.brushside = array[0]
         self.n_brushsides = array[1]
         self.texture = array[2]
+    def to_array(self):
+        array = [None for i in range(3)]
+        array[0] = self.brushside
+        array[1] = self.n_brushsides
+        array[2] = self.texture
+        return array
 
 #rbsp
 class brushside_rbsp:
@@ -125,6 +220,12 @@ class brushside_rbsp:
         self.plane = array[0]
         self.texture = array[1]
         self.face = array[2]
+    def to_array(self):
+        array = [None for i in range(3)]
+        array[0] = self.plane
+        array[1] = self.texture
+        array[2] = self.face
+        return array
         
 #ibsp
 class brushside_ibsp:
@@ -133,6 +234,11 @@ class brushside_ibsp:
     def __init__ (self, array):
         self.plane = array[0]
         self.texture = array[1]
+    def to_array(self):
+        array = [None for i in range(2)]
+        array[0] = self.plane
+        array[1] = self.texture
+        return array
 
 #rbsp
 class vertex_rbsp:
@@ -150,6 +256,33 @@ class vertex_rbsp:
         self.color2  = [float(array[20]/255.0),float(array[21]/255.0),float(array[22]/255.0),float(array[23]/255.0)]
         self.color3  = [float(array[24]/255.0),float(array[25]/255.0),float(array[26]/255.0),float(array[27]/255.0)]
         self.color4  = [float(array[28]/255.0),float(array[29]/255.0),float(array[30]/255.0),float(array[31]/255.0)]
+    def to_array(self):
+        array = [None for i in range(32)]
+        array[0], array[1], array[2] = self.position
+        array[3] = self.texcoord[0]
+        array[4] = 1.0 - self.texcoord[1]
+        array[5], array[6] = self.lm1coord
+        array[7], array[8] = self.lm2coord
+        array[9], array[10] = self.lm3coord
+        array[11], array[12] = self.lm4coord
+        array[13], array[14], array[15] = self.normal
+        array[16] = int(self.color1[0] * 255.0)
+        array[17] = int(self.color1[1] * 255.0)
+        array[18] = int(self.color1[2] * 255.0)
+        array[19] = int(self.color1[3] * 255.0)
+        array[20] = int(self.color2[0] * 255.0)
+        array[21] = int(self.color2[1] * 255.0)
+        array[22] = int(self.color2[2] * 255.0)
+        array[23] = int(self.color2[3] * 255.0)
+        array[24] = int(self.color3[0] * 255.0)
+        array[25] = int(self.color3[1] * 255.0)
+        array[26] = int(self.color3[2] * 255.0)
+        array[27] = int(self.color3[3] * 255.0)
+        array[28] = int(self.color4[0] * 255.0)
+        array[29] = int(self.color4[1] * 255.0)
+        array[30] = int(self.color4[2] * 255.0)
+        array[31] = int(self.color4[3] * 255.0)
+        return array
 
 #ibsp
 class vertex_ibsp:
@@ -161,6 +294,18 @@ class vertex_ibsp:
         self.lm1coord = [array[5],array[6]]
         self.normal = [array[7],array[8],array[9]]
         self.color1  = [float(array[10]/255.0),float(array[11]/255.0),float(array[12]/255.0),float(array[13]/255.0)]
+    def to_array(self):
+        array = [None for i in range(14)]
+        array[0], array[1], array[2] = self.position
+        array[3] = self.texcoord[0]
+        array[4] = 1.0 - self.texcoord[1]
+        array[5], array[6] = self.lm1coord
+        array[7], array[8], array[9] = self.normal
+        array[10] = int(self.color1[0] * 255.0)
+        array[11] = int(self.color1[1] * 255.0)
+        array[12] = int(self.color1[2] * 255.0)
+        array[13] = int(self.color1[3] * 255.0)
+        return array
         
 #rbsp and ibsp
 class meshvert:
@@ -168,6 +313,10 @@ class meshvert:
     encoding = "<i"
     def __init__ (self, array):
         self.offset = array[0]
+    def to_array(self):
+        array = [None for i in range(1)]
+        array[0] = self.offset
+        return array
 
 #rbsp and ibsp
 class effect:
@@ -177,6 +326,12 @@ class effect:
         self.name = array[0].decode("utf-8").strip("\0")
         self.brush = array[1]
         self.visibleSide = array[2]
+    def to_array(self):
+        array = [None for i in range(3)]
+        array[0] = bytes(fillName(self.name, 64),"ascii")
+        array[1] = self.brush
+        array[2] = self.visibleSide
+        return array
 
 #rbsp
 class face_rbsp:
@@ -201,12 +356,58 @@ class face_rbsp:
         self.lm_vecs = [array[32],array[33],array[34],array[35],array[36],array[37],array[38],array[39],array[40]]
         self.patch_width = array[41]
         self.patch_height = array[42]
+    def to_array(self):
+        array = [None for i in range(43)]
+        array[0] = self.texture
+        array[1] = self.effect
+        array[2] = self.type
+        array[3] = self.vertex
+        array[4] = self.n_vertexes
+        array[5] = self.index
+        array[6] = self.n_indexes
+        array[7] = self.lm_styles[0]
+        array[8] = self.lm_styles[1]
+        array[9] = self.lm_styles[2]
+        array[10] = self.lm_styles[3]
+        array[11] = self.vertex_styles[0]
+        array[12] = self.vertex_styles[1]
+        array[13] = self.vertex_styles[2]
+        array[14] = self.vertex_styles[3]
+        array[15] = self.lm_indexes[0]
+        array[16] = self.lm_indexes[1]
+        array[17] = self.lm_indexes[2]
+        array[18] = self.lm_indexes[3]
+        array[19] = self.lm_x[0]
+        array[20] = self.lm_x[1]
+        array[21] = self.lm_x[2]
+        array[22] = self.lm_x[3]
+        array[23] = self.lm_y[0]
+        array[24] = self.lm_y[1]
+        array[25] = self.lm_y[2]
+        array[26] = self.lm_y[3]
+        array[27] = self.lm_width
+        array[28] = self.lm_height
+        array[29] = self.lm_origin[0]
+        array[30] = self.lm_origin[1]
+        array[31] = self.lm_origin[2]
+        array[32] = self.lm_vecs[0]
+        array[33] = self.lm_vecs[1]
+        array[34] = self.lm_vecs[2]
+        array[35] = self.lm_vecs[3]
+        array[36] = self.lm_vecs[4]
+        array[37] = self.lm_vecs[5]
+        array[38] = self.lm_vecs[6]
+        array[39] = self.lm_vecs[7]
+        array[40] = self.lm_vecs[8]
+        array[41] = self.patch_width
+        array[42] = self.patch_height
+        return array
         
 #ibsp
 class face_ibsp:
     size = 14*INT + 12*FLOAT
     encoding = "<iiiiiiiiiiiiffffffffffffii"
-    def __init__( self , array):
+    def __init__(self, array):
         self.texture = array[0]
         self.effect = array[1]
         self.type = array[2]
@@ -223,13 +424,44 @@ class face_ibsp:
         self.lm_vecs = [array[15],array[16],array[17],array[18],array[19],array[20],array[21],array[22],array[23]]
         self.patch_width = array[24]
         self.patch_height = array[25]
+    def to_array(self):
+        array = [None for i in range(26)]
+        array[0] = self.texture
+        array[1] = self.effect
+        array[2] = self.type
+        array[3] = self.vertex
+        array[4] = self.n_vertexes
+        array[5] = self.index
+        array[6] = self.n_indexes
+        array[7] = self.lm_indexes[0]
+        array[8] = self.lm_x[0]
+        array[9] = self.lm_y[0]
+        array[10] = self.lm_width
+        array[11] = self.lm_height
+        array[12] = self.lm_origin[0]
+        array[13] = self.lm_origin[1]
+        array[14] = self.lm_origin[2]
+        array[15] = self.lm_vecs[0]
+        array[16] = self.lm_vecs[1]
+        array[17] = self.lm_vecs[2]
+        array[18] = self.lm_vecs[3]
+        array[19] = self.lm_vecs[4]
+        array[20] = self.lm_vecs[5]
+        array[21] = self.lm_vecs[6]
+        array[22] = self.lm_vecs[7]
+        array[23] = self.lm_vecs[8]
+        array[24] = self.patch_width
+        array[25] = self.patch_height
+        return array
 
 #rbsp and ibsp
 class lightmap:
     size = 128*128*3*UBYTE
     encoding = "<49152B"
-    def __init__( self , array):
+    def __init__(self, array):
         self.map = array
+    def to_array(self):
+        return self.map
         
 #rbsp
 class lightgrid_rbsp:
@@ -246,26 +478,19 @@ class lightgrid_rbsp:
         self.direct4 = [array[21],array[22],array[23]]
         self.styles = [array[24],array[25],array[26],array[27]]
         self.lat_long = [array[28], array[29]]
-        if (    array[0] == 0 and
-                array[1] == 0 and
-                array[2] == 0 and
-                array[12] == 0 and
-                array[13] == 0 and
-                array[14] == 0 ):
-            self.styles[0] = 255
-        #min lighting
-        self.ambient1[0] = self.ambient1[0] + 32
-        self.ambient1[1] = self.ambient1[1] + 32
-        self.ambient1[2] = self.ambient1[2] + 32
-        self.ambient2[0] = self.ambient2[0] + 32
-        self.ambient2[1] = self.ambient2[1] + 32
-        self.ambient2[2] = self.ambient2[2] + 32
-        self.ambient3[0] = self.ambient3[0] + 32
-        self.ambient3[1] = self.ambient3[1] + 32
-        self.ambient3[2] = self.ambient3[2] + 32
-        self.ambient4[0] = self.ambient4[0] + 32
-        self.ambient4[1] = self.ambient4[1] + 32
-        self.ambient4[2] = self.ambient4[2] + 32
+    def to_array(self):
+        array = [None for i in range(30)]
+        array[0],array[1],array[2] = self.ambient1
+        array[3],array[4],array[5] = self.ambient2
+        array[6],array[7],array[8] = self.ambient3
+        array[9],array[10],array[11] = self.ambient4
+        array[12],array[13],array[14] = self.direct1
+        array[15],array[16],array[17] = self.direct2
+        array[18],array[19],array[20] = self.direct3
+        array[21],array[22],array[23] = self.direct4
+        array[24],array[25],array[26],array[27] = self.styles
+        array[28],array[29] = self.lat_long
+        return array
         
 #ibsp
 class lightgrid_ibsp:
@@ -275,10 +500,12 @@ class lightgrid_ibsp:
         self.ambient1 = [array[0],array[1],array[2]]
         self.direct1 = [array[3],array[4],array[5]]
         self.lat_long = [array[6], array[7]]
-        #min lighting
-        self.ambient1[0] = self.ambient1[0] + 32
-        self.ambient1[1] = self.ambient1[1] + 32
-        self.ambient1[2] = self.ambient1[2] + 32
+    def to_array(self):
+        array = [None for i in range(8)]
+        array[0],array[1],array[2] = self.ambient1
+        array[3],array[4],array[5] = self.direct1
+        array[6], array[7] = self.lat_long
+        return array
 
 #rbsp and ibsp?
 class visdata:
@@ -286,6 +513,8 @@ class visdata:
     encoding = "<B"
     def __init__(self, array):
         self.bit_set = array[0]
+    def to_array(self):
+        return [self.bit_set]
 
 #rbsp
 class lightgridarray:
@@ -293,7 +522,8 @@ class lightgridarray:
     encoding = "<H"
     def __init__(self, array):
         self.data = array[0]
-
+    def to_array(self):
+        return [self.data]
    
 class RBSP:
     BSP_MAGIC = b'RBSP'
@@ -380,6 +610,8 @@ class BSP:
         for format in bsp_formats:
             if format.BSP_MAGIC == magic_nr:
                 self.valid = True
+                self.magic_nr = magic_nr
+                self.version_nr = version_nr
                 self.lumps = copy.deepcopy(format.lumps)
                 self.lightgrid_size = format.lightgrid_size
                 self.lightgrid_inverse_size = format.lightgrid_inverse_size
@@ -395,9 +627,147 @@ class BSP:
         if self.valid:
             for lump in self.lumps:
                 self.lumps[lump].set_offset_size(struct.unpack("<ii", file.read(8)))
+                print(lump + "offset " + str(self.lumps[lump].offset) + " size " + str(self.lumps[lump].size))
             for lump in self.lumps:
                 self.lumps[lump].readFrom(file)
         else:
             print("Could not import the bsp. Bsp Version: " + str(magic_nr) + " " + str(version_nr))
                 
         file.close
+    def to_bytes(self):
+        bytes = bytearray()
+        bytes+=(self.magic_nr)
+        bytes+=(struct.pack("<i", self.version_nr))
+        
+        #get the bytes for every lump
+        #this automatically updates the size of every lump
+        lumps = {}
+        for lump in self.lumps:
+            print("convert " + lump + " to bytes")
+            lumps[lump] = self.lumps[lump].to_bytes()
+            
+        #finish the header
+        offset = 8 + (8 * len(self.lumps))
+        for lump in self.lumps:
+            bytes+=struct.pack("<ii", offset, self.lumps[lump].size)
+            offset += self.lumps[lump].size
+        print(bytes)
+        for lump in self.lumps:
+            bytes+=lumps[lump]
+
+        return bytes
+        
+def ImportBSP(import_settings):
+        
+    dataPath = import_settings.filepath
+    import_settings.log.append("----ImportBSP----")
+    import_settings.log.append("bsp: " + dataPath)
+
+    bsp = BSP(dataPath)
+
+    if bsp.valid:
+        #import lightmaps before packing vertex data 
+        #because of varying packed lightmap size
+        import_settings.log.append("----pack_lightmaps----")
+        time_start = perf_counter()
+        BspGeneric.pack_lightmaps(bsp, import_settings)
+        import_settings.log.append("took:" + str(perf_counter() - time_start) + " seconds")
+        
+        for model_index in range(int(bsp.lumps["models"].count)):
+            model = BspGeneric.blender_model_data()
+            model.get_bsp_model(bsp, model_index, import_settings)
+            
+            name = "*"+str(model_index)
+            
+            mesh = bpy.data.meshes.new( name )
+            mesh.from_pydata(model.vertices, [], model.face_vertices)
+
+            for texture_instance in model.material_names:
+                mat = bpy.data.materials.get(texture_instance)
+                if (mat == None):
+                    mat = bpy.data.materials.new(name=texture_instance)
+                mesh.materials.append(mat)
+                    
+            mesh.polygons.foreach_set("material_index", model.face_materials)
+                
+            for poly in mesh.polygons:
+                poly.use_smooth = True
+                
+            mesh.vertices.foreach_set("normal", unpack_list(model.normals))
+
+            mesh.vertex_layers_int.new(name="BSP_VERT_INDEX")
+            mesh.vertex_layers_int["BSP_VERT_INDEX"].data.foreach_set("value", model.vertex_bsp_indices)
+
+            mesh.uv_layers.new(do_init=False,name="UVMap")
+            mesh.uv_layers["UVMap"].data.foreach_set("uv", unpack_list(unpack_list(model.face_tcs)))
+
+            mesh.uv_layers.new(do_init=False,name="LightmapUV")
+            mesh.uv_layers["LightmapUV"].data.foreach_set("uv", unpack_list(unpack_list(model.face_lm1_tcs)))
+                
+            mesh.vertex_colors.new(name = "Color")
+            mesh.vertex_colors["Color"].data.foreach_set("color", unpack_list(unpack_list(model.face_vert_color)))
+                
+            if bsp.lightmaps > 1:
+                mesh.uv_layers.new(do_init=False,name="LightmapUV2")
+                mesh.uv_layers["LightmapUV2"].data.foreach_set("uv", unpack_list(unpack_list(model.face_lm2_tcs)))
+
+                mesh.uv_layers.new(do_init=False,name="LightmapUV3")
+                mesh.uv_layers["LightmapUV3"].data.foreach_set("uv", unpack_list(unpack_list(model.face_lm3_tcs)))
+
+                mesh.uv_layers.new(do_init=False,name="LightmapUV4")
+                mesh.uv_layers["LightmapUV4"].data.foreach_set("uv", unpack_list(unpack_list(model.face_lm4_tcs)))
+
+                mesh.vertex_colors.new(name = "Color2")
+                mesh.vertex_colors["Color2"].data.foreach_set("color", unpack_list(unpack_list(model.face_vert_color2)))
+
+                mesh.vertex_colors.new(name = "Color3")
+                mesh.vertex_colors["Color3"].data.foreach_set("color", unpack_list(unpack_list(model.face_vert_color3)))
+
+                mesh.vertex_colors.new(name = "Color4")
+                mesh.vertex_colors["Color4"].data.foreach_set("color", unpack_list(unpack_list(model.face_vert_color4)))
+                
+            #ugly hack to get the vertex alpha.....
+            mesh.vertex_colors.new(name = "Alpha")
+            mesh.vertex_colors["Alpha"].data.foreach_set("color", unpack_list(unpack_list(model.face_vert_alpha)))    
+                
+            #q3 renders with front culling as default
+            mesh.flip_normals()
+                
+            mesh.update()
+            mesh.validate()
+
+        #for vertex_group in model.vertex_groups:
+        #    bsp_obj.vertex_groups.new(name = vertex_group)
+        #    bsp_obj.vertex_groups[vertex_group].add(list(model.vertex_groups[vertex_group]), 1.0, "ADD")
+            
+        #import entities and get object list
+        import_settings.log.append("----ImportEntities----")
+        time_start = perf_counter()
+        ent_list = Entities.ImportEntities(bsp, import_settings)
+        
+        import_settings.log.append("took:" + str(perf_counter() - time_start) + " seconds")
+            
+        #import lightgrid after entitys because the grid size can change
+        import_settings.log.append("----pack_lightgrid----")
+        time_start = perf_counter()
+        BspGeneric.pack_lightgrid(bsp)
+        import_settings.log.append("took:" + str(perf_counter() - time_start) + " seconds")
+            
+        #create whiteimage before parsing shaders
+        BspGeneric.create_white_image()
+            
+        #init shader system
+        QuakeShader.init_shader_system(bsp)
+            
+        #build shaders
+        import_settings.log.append("----build_quake_shaders----")
+        time_start = perf_counter()
+        QuakeShader.build_quake_shaders(import_settings, ent_list)
+        import_settings.log.append("took:" + str(perf_counter() - time_start) + " seconds")
+            
+        vg = ent_list[0].vertex_groups.get("Decals")
+        if vg is not None:
+            modifier = ent_list[0].modifiers.new("polygonOffset", type = "DISPLACE")
+            modifier.vertex_group = "Decals"
+            modifier.strength = 0.2
+            modifier.name = "polygonOffset"

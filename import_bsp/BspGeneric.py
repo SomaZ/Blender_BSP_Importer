@@ -16,6 +16,7 @@ if "os" not in locals():
     import os
     
 import bpy
+import bmesh
 from math import floor, ceil, pi, sin, cos
 import mathutils
 
@@ -57,7 +58,7 @@ def pack_lightmaps(bsp, import_settings):
         lm_files = os.listdir(path)
         lm_list = [path + file_name
                     for file_name in lm_files
-                    if file_name.lower().startswith('lm_') and file_name.lower().endswith('.tga')]
+                    if file_name.lower().startswith('lm_') and (file_name.lower().endswith('.tga') or file_name.lower().endswith('.jpg'))]
         lightmap_size = 0
         for lm in lm_list:
             image = bpy.data.images.load(lm, check_existing=True)
@@ -349,20 +350,48 @@ class blender_model_data:
         model.face_vert_color3 = []
         model.face_vert_color4 = []
         model.face_vert_alpha = []
-        model.patch_vertices = set()
+        model.vertex_groups = {}#{"Patches" : set(),}
         model.material_names = []
         model.vertex_class = BSP.vertex_rbsp
         model.lightmaps = 4
         model.lightmap_size = 128
+        model.current_index = 0
+        model.current_sub_model = 0
+        model.index_mapping = []
         
-    def parse_bsp_surface(model, drawverts_lump, face, model_indices, shaders_lump, import_settings):
+    def parse_bsp_surface(model, bsp, face, shaders_lump, import_settings):
+        drawverts_lump = bsp.lumps["drawverts"].data
         index = face.index
         #bsp only stores triangles, so there are n_indexes/3 trinangles in this face
         for i in range(int(face.n_indexes / 3)):
+            
+            index_0 = face.vertex + bsp.lumps["drawindexes"].data[index + 0].offset
+            index_1 = face.vertex + bsp.lumps["drawindexes"].data[index + 1].offset
+            index_2 = face.vertex + bsp.lumps["drawindexes"].data[index + 2].offset
+            
+            if model.index_mapping[index_0] < 0:
+                model.index_mapping[index_0] = model.current_index
+                model.vertices.append(drawverts_lump[index_0].position)
+                model.normals.append(drawverts_lump[index_0].normal)
+                model.vertex_bsp_indices.append(index_0)
+                model.current_index += 1
+            if model.index_mapping[index_1] < 0:
+                model.index_mapping[index_1] = model.current_index
+                model.vertices.append(drawverts_lump[index_1].position)
+                model.normals.append(drawverts_lump[index_1].normal)
+                model.vertex_bsp_indices.append(index_1)
+                model.current_index += 1
+            if model.index_mapping[index_2] < 0:
+                model.index_mapping[index_2] = model.current_index
+                model.vertices.append(drawverts_lump[index_2].position)
+                model.normals.append(drawverts_lump[index_2].normal)
+                model.vertex_bsp_indices.append(index_2)
+                model.current_index += 1
+            
             indices = []
-            indices.append(face.vertex + model_indices[index + 0])
-            indices.append(face.vertex + model_indices[index + 1])
-            indices.append(face.vertex + model_indices[index + 2])
+            indices.append(model.index_mapping[index_0])
+            indices.append(model.index_mapping[index_1])
+            indices.append(model.index_mapping[index_2])
             tcs = []
             lm1_tcs = []
             colors = []
@@ -374,7 +403,7 @@ class blender_model_data:
                 colors3 = []
                 colors4 = []
             alphas = []
-            for face_index in indices:
+            for face_index in [index_0, index_1, index_2]:
                 tcs.append(drawverts_lump[face_index].texcoord)
                 
                 #packed lightmap tcs
@@ -428,7 +457,10 @@ class blender_model_data:
                 
             model.face_vert_alpha.append(alphas)
             
-    def parse_patch_surface(model, drawverts_lump, face, model_indices, shaders_lump, index, import_settings):
+    def parse_patch_surface(model, bsp, face, shaders_lump, import_settings):
+        drawverts_lump = bsp.lumps["drawverts"].data
+        
+        
         width = int(face.patch_width-1)
         height = int(face.patch_height-1)
                 
@@ -440,7 +472,7 @@ class blender_model_data:
             for j in range(face.patch_height):
                 vertex = drawverts_lump[face.vertex + j*face.patch_width + i]
                 ctrlPoints[j][i] = vertex
-                indicesPoints[j][i] = face.vertex + j*face.patch_width + i
+                indicesPoints[j][i] = model.index_mapping[face.vertex + j*face.patch_width + i]
                 
         for subd in range(import_settings.subdivisions):
             pos_w = 0
@@ -543,29 +575,29 @@ class blender_model_data:
                 model.vertices.append(patch[i1].position)
                 model.normals.append(patch[i1].normal)
                 model.vertex_bsp_indices.append(-1)
-                indicesPoints2[i1] = index
-                index+=1
+                indicesPoints2[i1] = model.current_index
+                model.current_index +=1
                 
             if (v2 < 0):
                 model.vertices.append(patch[i2].position)
                 model.normals.append(patch[i2].normal)
                 model.vertex_bsp_indices.append(-1)
-                indicesPoints2[i2] = index
-                index+=1
+                indicesPoints2[i2] = model.current_index
+                model.current_index +=1
                 
             if (v3 < 0):
                 model.vertices.append(patch[i3].position)
                 model.normals.append(patch[i3].normal)
                 model.vertex_bsp_indices.append(-1)
-                indicesPoints2[i3] = index
-                index+=1
+                indicesPoints2[i3] = model.current_index
+                model.current_index +=1
                 
             if (v4 < 0):
                 model.vertices.append(patch[i4].position)
                 model.normals.append(patch[i4].normal)
                 model.vertex_bsp_indices.append(-1)
-                indicesPoints2[i4] = index
-                index+=1
+                indicesPoints2[i4] = model.current_index
+                model.current_index +=1
                 
             material_suffix = ""
             if face.lm_indexes[0] < 0:
@@ -577,10 +609,10 @@ class blender_model_data:
             model.face_materials.append(model.material_names.index(material_name))
             
             model.face_vertices.append([indicesPoints2[i1], indicesPoints2[i2], indicesPoints2[i3], indicesPoints2[i4]])
-            model.patch_vertices.add(indicesPoints2[i1])
-            model.patch_vertices.add(indicesPoints2[i2])
-            model.patch_vertices.add(indicesPoints2[i3])
-            model.patch_vertices.add(indicesPoints2[i4])
+            #model.vertex_groups["Patches"].add(indicesPoints2[i1])
+            #model.vertex_groups["Patches"].add(indicesPoints2[i2])
+            #model.vertex_groups["Patches"].add(indicesPoints2[i3])
+            #model.vertex_groups["Patches"].add(indicesPoints2[i4])
             model.face_tcs.append([patch[i1].texcoord, patch[i2].texcoord, patch[i3].texcoord, patch[i4].texcoord])
             
             model.face_lm1_tcs.append([
@@ -625,31 +657,160 @@ class blender_model_data:
                     
             model.face_vert_alpha.append(alphas)
             
-        return index
+    def parse_brush(model, bsp, brush_id, import_settings):
+        brush = bsp.lumps["brushes"].data[brush_id]
+        shader = bsp.lumps["shaders"].data[brush.texture].name + ".vertex"
+        if not (shader in model.material_names):
+            model.material_names.append(shader)
             
-    def fill_bsp_data(model, bsp, import_settings):
+        brush_shader_id = model.material_names.index(shader)
+            
+        planes = []
+        for side in range(brush.n_brushsides):
+            brushside = bsp.lumps["brushsides"].data[brush.brushside + side]
+            plane = bsp.lumps["planes"].data[brushside.plane]
+            
+            normal = mathutils.Vector(plane.normal)
+            position = normal * plane.distance
+            #shader = bsp.lumps["shaders"].data[brushside.texture].name + ".vertex"
+            
+            #if not (shader in model.material_names):
+                #model.material_names.append(shader)
+            #model.face_materials.append(model.material_names.index(shader))
+            #mat_id = model.material_names.index(shader)
+            
+            planes.append([position, normal, brush_shader_id])
+
+        bm = bmesh.new()
+        uv_layer = bm.loops.layers.uv.verify()
+        bmesh.ops.create_cube(bm, size=65536, calc_uvs=True)
+        #bmesh bisect
+        #face from bisect + assign shader
+        for plane in planes:
+            geom = bm.verts[:] + bm.edges[:] + bm.faces[:]
+            vert_dict = bmesh.ops.bisect_plane(bm, geom = geom, dist = 0.1, plane_co = plane[0], plane_no = plane[1], clear_outer = True)
+            bmesh.ops.contextual_create(bm, geom=vert_dict["geom_cut"], mat_nr=plane[2], use_smooth=False)
         
+        me = bpy.data.meshes.new("Brush " + str(brush_id).zfill(4))
+        bm.to_mesh(me)
+        
+        #obj = bpy.data.objects.new("Brush " + str(brush_id).zfill(4), me)
+        #bpy.context.collection.objects.link(obj)
+        bm.verts.ensure_lookup_table()
+        bm.verts.index_update()
+        bm.verts.sort()
+        
+        bm.faces.ensure_lookup_table()
+        bm.faces.index_update()
+        bm.faces.sort()
+        
+        vert_mapping = [-2 for i in range(len(bm.verts))]
+        for vert in bm.verts:
+            vert_mapping[vert.index] = model.current_index
+            model.vertices.append(vert.co.copy())
+            model.normals.append(vert.normal.copy())
+            model.vertex_bsp_indices.append(-999)
+            model.current_index += 1
+        
+        for face in bm.faces:
+            face.normal_flip()
+            
+            indices = []
+            tcs = []
+            lmtcs = []
+            colors = []
+        
+            for vert, loop in zip(face.verts, face.loops):
+                indices.append(vert_mapping[vert.index])
+                tcs.append(loop[uv_layer].uv.copy())
+                lmtcs.append([0.0, 0.0])
+                colors.append([0.4, 0.4, 0.4, 1.0])
+            
+            material_index = brush_shader_id
+            #for plane in planes:
+                #if plane[1].dot(face.normal) > 0.99:
+                    #material_index = plane[2]
+                    #break
+    
+            model.face_materials.append(material_index)
+            model.face_vertices.append(indices)
+            model.face_tcs.append(tcs)
+            model.face_lm1_tcs.append(lmtcs)
+            model.face_vert_color.append(colors)
+            model.face_vert_alpha.append(colors)
+            if model.lightmaps > 1:
+                model.face_lm2_tcs.append(lmtcs)
+                model.face_lm3_tcs.append(lmtcs)
+                model.face_lm4_tcs.append(lmtcs)
+                model.face_vert_color2.append(colors)
+                model.face_vert_color3.append(colors)
+                model.face_vert_color4.append(colors)
+        bm.free()
+            
+    def get_bsp_model(model, bsp, id, import_settings):
+        #meh.... ugly fuck
+        if bsp.lightmaps != model.lightmaps:
+            model.lightmaps = bsp.lightmaps
+            model.lightmap_size = bsp.lightmap_size[0]
+            model.vertex_class = BSP.vertex_ibsp
+            
+        model.index_mapping = [-2 for i in range(int(bsp.lumps["drawverts"].count))]
+            
+        current_model = bsp.lumps["models"].data[id]
+        
+        model_face = current_model.face
+        for index in range(current_model.n_faces):
+            face = bsp.lumps["surfaces"].data[model_face + index]
+            #surface or mesh
+            if (face.type == 1 or face.type == 3):
+                model.parse_bsp_surface(bsp, face, bsp.lumps["shaders"].data, import_settings)
+            #patches
+            if (face.type == 2):
+                model.parse_patch_surface(bsp, face, bsp.lumps["shaders"].data, import_settings)
+                
+        if current_model.n_faces < 1:
+            model_brush = current_model.brush
+            for index in range(current_model.n_brushes):
+                brush_id = model_brush + index
+                model.parse_brush(bsp, brush_id, import_settings)
+
+    def fill_bsp_data(model, bsp, import_settings):
         #meh.... ugly fuck
         if bsp.lightmaps != model.lightmaps:
             model.lightmaps = bsp.lightmaps
             model.lightmap_size = bsp.lightmap_size[0]
             model.vertex_class = BSP.vertex_ibsp
         
-        index = 0
         for vertex_instance in bsp.lumps["drawverts"].data:
             model.vertices.append(vertex_instance.position)
             model.normals.append(vertex_instance.normal)
-            model.vertex_bsp_indices.append(index)
-            index+=1
+            model.vertex_bsp_indices.append(model.current_index)
+            model.current_index+=1
             
         for index_instance in bsp.lumps["drawindexes"].data:
             model.indices.append(index_instance.offset)
             
+        for model_instance in bsp.lumps["models"].data:
+            if model.current_sub_model == 0:
+                model.current_sub_model += 1
+                continue
+            
+            model_face = model_instance.face
+            indices = set()
+            for index in range(model_instance.n_faces):
+                face = bsp.lumps["surfaces"].data[model_face + index]
+                face_index = face.index
+                for i in range(int(face.n_indexes)):
+                    indices.add(face.vertex + model.indices[face_index + i])
+            if len(indices) > 0:
+                model.vertex_groups["*"+str(model.current_sub_model)] = indices
+            model.current_sub_model += 1
+            
         for face_instance in bsp.lumps["surfaces"].data:
             #surface or mesh
             if (face_instance.type == 1 or face_instance.type == 3):
-                model.parse_bsp_surface(bsp.lumps["drawverts"].data, face_instance, model.indices, bsp.lumps["shaders"].data, import_settings)
+                model.parse_bsp_surface(bsp.lumps["drawverts"].data, face_instance, bsp.lumps["shaders"].data, import_settings)
                 
             #patches
             if (face_instance.type == 2):
-                index = model.parse_patch_surface(bsp.lumps["drawverts"].data, face_instance, model.indices, bsp.lumps["shaders"].data, index, import_settings)
+                model.parse_patch_surface(bsp.lumps["drawverts"].data, face_instance, bsp.lumps["shaders"].data, import_settings)
