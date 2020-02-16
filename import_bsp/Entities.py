@@ -59,7 +59,7 @@ def ImportEntities(bsp, import_settings):
         elif l_close(line):
             if "distancecull" in ent:
                 clip_end = float(ent["distancecull"].replace('"',''))
-                    
+            
             if "gridsize" in ent:
                 bsp.lightgrid_size = ent["gridsize"]
                 bsp.lightgrid_inverse_size = [  1.0 / float(bsp.lightgrid_size[0]),
@@ -91,10 +91,13 @@ def ImportEntities(bsp, import_settings):
                     #check if model already loaded, make a copy of it, replace all the material names with new zoffset
                     me = MD3.ImportMD3(import_settings.base_path + model_name, import_settings, zoffset)
                     if me == None:
-                        print(import_settings.base_path + model_name + ".md3")
-                    me.name = mesh_name
+                        print(import_settings.base_path + model_name)
+                    else:
+                        map_objects.append(mesh_name)
+                        me.name = mesh_name
+                        
                     ob = bpy.data.objects.new(mesh_name, me)
-                    map_objects.append(mesh_name)
+                    
                 obj_list.append(ob)
             elif n_ent == 0:
                 me = bpy.data.meshes["*0"]

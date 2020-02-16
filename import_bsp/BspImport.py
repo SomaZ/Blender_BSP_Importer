@@ -372,7 +372,7 @@ class DynamicProperties(PropertyGroup):
          )
     model:StringProperty(
         name = "Model",
-        default = "Box",
+        default = "EntityBox",
         update=update_model,
         subtype= "FILE_PATH"
         )
@@ -394,8 +394,6 @@ class Q3_PT_ShaderPanel(bpy.types.Panel):
         row.operator("q3mapping.reload_shader")
         layout.separator()
         
-filtered_keys = ["spawnflags", "classname", "origin", "angles", "angle", "_rna_ui", "q3_dynamic_props"]
-        
 class Q3_PT_EntityPanel(bpy.types.Panel):
     bl_idname = "Q3_PT_entity_panel"
     bl_label = "Selected Entity"
@@ -411,12 +409,16 @@ class Q3_PT_EntityPanel(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         obj = bpy.context.active_object
+        
+        filtered_keys = ["classname", "spawnflags", "origin", "angles", "angle"]
+        
         if "classname" in obj:
             classname = obj["classname"].lower()
             layout.prop(obj, '["classname"]')
             # classname in dictionary?
             if classname in Entities.Dict:
                 ent = Entities.Dict[classname]
+                layout.label(text= ent["Describtion"])
                 box = None
                 #check all the flags
                 for flag in ent["Spawnflags"].items():
@@ -429,13 +431,15 @@ class Q3_PT_EntityPanel(bpy.types.Panel):
                 unsupported = None
                 keys = ent["Keys"]
                 for prop in obj.keys():
-                    if prop.lower() not in filtered_keys:
+                    # only show generic properties and filter 
+                    if prop.lower() not in filtered_keys and not hasattr(obj[prop], "to_dict"):
                         if prop.lower() == "model" and "model2" not in obj:
                             if supported == None:
                                 supported = layout.box()
                                 supported.label(text = "Supported:")
                             row = supported.row()
                             row.prop(obj.q3_dynamic_props, "model", text="model")
+                            row.operator("q3.del_property", text="", icon="X").name = prop
                             continue
                         if prop.lower() == "model2":
                             if supported == None:
@@ -443,6 +447,7 @@ class Q3_PT_EntityPanel(bpy.types.Panel):
                                 supported.label(text = "Supported:")
                             row = supported.row()
                             row.prop(obj.q3_dynamic_props, "model", text="model2")
+                            row.operator("q3.del_property", text="", icon="X").name = prop
                             continue
                         
                         if prop.lower() in keys:
@@ -489,6 +494,9 @@ class Q3_PT_EditEntityPanel(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         obj = bpy.context.active_object
+        
+        filtered_keys = ["classname", "spawnflags", "origin", "angles", "angle"]
+        
         if "classname" in obj:
             classname = obj["classname"].lower()
             # classname in dictionary?
@@ -498,7 +506,7 @@ class Q3_PT_EditEntityPanel(bpy.types.Panel):
                 ent = Entities.Dict[classname]
                 keys = ent["Keys"]
                 for prop in obj.keys():
-                    if prop.lower() not in filtered_keys:
+                    if prop.lower() not in filtered_keys and not hasattr(obj[prop], "to_dict"):
                         if prop.lower() not in keys:
                             op = layout.operator("q3.add_key_definition", text="Add " + str(prop.lower()) + " to entity definition").name = prop.lower()
                 layout.operator("q3.update_entity_definition").name = classname
@@ -513,12 +521,15 @@ def GetEntityStringFromScene():
             #only update position for now, I have no idea how rotations are handled ingame
             zero_origin = Vector([0.0, 0.0, 0.0])
             if obj.location != zero_origin:
-                obj["origin"] = [obj.location[0], obj.location[1], obj.location[2]]
+                if obj.location[0].is_integer() and obj.location[1].is_integer() and obj.location[2].is_integer():
+                    obj["origin"] = [int(obj.location[0]), int(obj.location[1]), int(obj.location[2])]
+                else:
+                    obj["origin"] = [obj.location[0], obj.location[1], obj.location[2]]
             
             lines = []
             lines.append("{")
             for key in obj.keys():
-                if key.lower() not in filtered_keys:
+                if key.lower() not in filtered_keys and not hasattr(obj[key], "to_dict"):
                     string = ""
                     string = str(obj[key])
                     #meeeeh nooooo, find better way!
@@ -555,9 +566,12 @@ class ExportEnt(bpy.types.Operator, ExportHelper):
         entities = GetEntityStringFromScene()
         
         f = open(self.filepath, "w")
-        f.write(entities)
+        try:
+            f.write(entities)
+        except:
+            print("Failed writing: " + self.filepath)
+            
         f.close()
-        
         return {'FINISHED'}
 
 class PatchBspEntities(bpy.types.Operator, ExportHelper):
@@ -582,14 +596,14 @@ class PatchBspEntities(bpy.types.Operator, ExportHelper):
         name = self.filepath
         if self.create_backup == True:
             name = name.replace(".bsp","") + "_patched.bsp"
-            
-        try:
-            f = open(name, "wb")
-            f.write(bsp_bytes)
-            f.close()
-        except:
-            print("Failed writing: " + self.filepath.replace(".bsp","") + "_patched.bsp")
         
+        f = open(name, "wb")
+        try:
+            f.write(bsp_bytes)
+        except:
+            print("Failed writing: " + name)
+            
+        f.close()
         return {'FINISHED'}
 
 class Q3_PT_EntPanel(bpy.types.Panel):
