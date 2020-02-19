@@ -88,6 +88,9 @@ class Operator(bpy.types.Operator, ImportHelper):
         import_settings.log.append("----import_scene.ja_bsp----")
         import_settings.filepath = self.filepath
         
+        #scene information
+        context.scene.id_tech_3_importer_preset = self.preset
+        
         BspClasses.ImportBSP(import_settings)
         
         #set world color to black to remove additional lighting

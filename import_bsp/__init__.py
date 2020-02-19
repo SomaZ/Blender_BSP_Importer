@@ -19,7 +19,7 @@
 bl_info = {
     "name": "Import id Tech 3 BSP",
     "author": "SomaZ",
-	"version": (0, 9, 3),
+	"version": (0, 9, 4),
     "description": "Importer for id Tech 3 BSP levels",
     "blender": (2, 81, 16),
     "location": "File > Import-Export",
@@ -40,9 +40,6 @@ if "BspImport" in locals():
     imp.reload( BspImport )
 else:
     from . import BspImport
-    
-if "PointerProperty" not in locals():
-    from bpy.props import PointerProperty
 
 # ------------------------------------------------------------------------
 #    store properties in the user preferences
@@ -59,25 +56,17 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
         maxlen=2048,
         )
 
-    #shader_dir : bpy.props.StringProperty(
-    #    name="shader dir",
-    #    description="Shader directory name",
-    #    default="shaders/",
-    #    maxlen=2048,
-    #    )
-
     def draw(self, context):
         layout = self.layout
         row = layout.row()
         row.prop(self, "base_path")
-        #layout.prop(self, "shader_dir")
 	
 classes = ( BspImport.Operator,
             BspImportAddonPreferences,
             BspImport.Q3_PT_ShaderPanel,
             BspImport.Q3_PT_EntityPanel,
             BspImport.Reload_shader,
-            BspImport.DynamicProperties,
+            #BspImport.DynamicProperties,
             BspImport.Add_property,
             BspImport.Del_property,
             BspImport.Add_entity_definition,
@@ -93,7 +82,9 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
     bpy.types.TOPBAR_MT_file_import.append(BspImport.menu_func)
-    bpy.types.Object.q3_dynamic_props = PointerProperty(type=BspImport.DynamicProperties)
+    bpy.types.Object.q3_dynamic_props = bpy.props.PointerProperty(type=BspImport.DynamicProperties)
+    bpy.types.Scene.id_tech_3_importer_preset = bpy.props.StringProperty(   name="id3 importer preset",
+                                                                            description="Last used importer preset" )
 
 def unregister():
     bpy.types.TOPBAR_MT_file_import.remove(BspImport.menu_func)
