@@ -406,7 +406,9 @@ class Q3_PT_EntityPanel(bpy.types.Panel):
     
     @classmethod
     def poll(self, context):
-        return (context.object is not None)
+        if "id_tech_3_importer_preset" in context.scene:
+            return (context.object is not None and context.scene.id_tech_3_importer_preset == "EDITING")
+        return False
     
     def draw(self, context):
         layout = self.layout
@@ -491,7 +493,9 @@ class Q3_PT_EditEntityPanel(bpy.types.Panel):
     
     @classmethod
     def poll(self, context):
-        return (context.object is not None)
+        if "id_tech_3_importer_preset" in context.scene:
+            return (context.object is not None and context.scene.id_tech_3_importer_preset == "EDITING")
+        return False
     
     def draw(self, context):
         layout = self.layout
@@ -565,6 +569,7 @@ class ExportEnt(bpy.types.Operator, ExportHelper):
     filename_ext = ".ent"
     filter_glob : StringProperty(default="*.ent", options={'HIDDEN'})
     filepath : bpy.props.StringProperty(name="File", description="Where to write the .ent file", maxlen= 1024, default="")
+    
     def execute(self, context):
         entities = GetEntityStringFromScene()
         
@@ -622,6 +627,12 @@ class Q3_PT_EntPanel(bpy.types.Panel):
         default="",
         subtype="FILE_PATH"
         )
+    @classmethod
+    def poll(self, context):
+        if "id_tech_3_importer_preset" in context.scene:
+            return (context.object is not None and context.scene.id_tech_3_importer_preset == "EDITING")
+        return False
+    
     def draw(self, context):
         layout = self.layout
         scene = context.scene
