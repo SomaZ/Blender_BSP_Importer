@@ -67,14 +67,17 @@ classes = ( BspImport.Operator,
             BspImport.Q3_PT_EntityPanel,
             BspImport.Reload_shader,
             BspImport.DynamicProperties,
+            BspImport.SceneProperties,
             BspImport.Add_property,
             BspImport.Del_property,
             BspImport.Add_entity_definition,
             BspImport.Add_key_definition,
             BspImport.Update_entity_definition,
-            BspImport.Q3_PT_EntPanel,
+            BspImport.Q3_PT_EntExportPanel,
             BspImport.ExportEnt,
             BspImport.PatchBspEntities,
+            BspImport.Q3_PT_PropertiesEntityPanel,
+            BspImport.Q3_PT_DescribtionEntityPanel,
             BspImport.Q3_PT_EditEntityPanel,
             )
 
@@ -83,6 +86,7 @@ def register():
         bpy.utils.register_class(cls)
     bpy.types.TOPBAR_MT_file_import.append(BspImport.menu_func)
     bpy.types.Object.q3_dynamic_props = bpy.props.PointerProperty(type=BspImport.DynamicProperties)
+    bpy.types.Scene.id_tech_3_settings = bpy.props.PointerProperty(type=BspImport.SceneProperties)
     bpy.types.Scene.id_tech_3_importer_preset = bpy.props.StringProperty(   name="id3 importer preset",
                                                                             description="Last used importer preset" )
 

@@ -27,7 +27,7 @@ def save_gamepack(dict, name):
         with open(file_path + name, 'w') as file:
             json.dump(dict, file, indent=4,)
 
-Dict = get_gamepack("JKA.json")
+Dict = get_gamepack("JKA_SP.json")
 
 misc_model_md3s = ["misc_model_static", "misc_model_breakable"]
 
@@ -51,12 +51,14 @@ def ImportEntities(bsp, import_settings):
     n_ent = 0
     mesh = None
     map_objects = ["*"+str(n) for n in range(int(bsp.lumps["models"].count))]
+    md3_objects = []
     obj_list = []
     ob = None
     for line in entities_string.splitlines():
         if l_open(line):
             ent.clear()
         elif l_close(line):
+            mesh_name = ""
             if "distancecull" in ent:
                 clip_end = float(ent["distancecull"].replace('"',''))
             
@@ -65,8 +67,21 @@ def ImportEntities(bsp, import_settings):
                 bsp.lightgrid_inverse_size = [  1.0 / float(bsp.lightgrid_size[0]),
                                                 1.0 / float(bsp.lightgrid_size[1]),
                                                 1.0 / float(bsp.lightgrid_size[2]) ]
+                                                
+            #force class model to be loaded
+            if ent["classname"].lower() in Dict:
+                if "Model" in Dict[ent["classname"].lower()]:
+                    if Dict[ent["classname"].lower()]["Model"].lower() != "box":
+                        print("Force model")
+                        ent["model"] = Dict[ent["classname"].lower()]["Model"].lower()
+                        print(ent["model"])
             
-            if "model" in ent:
+            if n_ent == 0:
+                me = bpy.data.meshes["*0"]
+                ob = bpy.data.objects.new("Entity " + (str(n_ent).zfill(4)), me)
+                obj_list.append(ob)
+                
+            elif "model" in ent:
                 #TODO properly handle this. Might have to merge both models
                 if "model2" in ent:
                     model_name = ent["model2"]
@@ -77,6 +92,7 @@ def ImportEntities(bsp, import_settings):
                 if ent["classname"] in misc_model_md3s:
                     # FIXME: what if the model is not md3?
                     mesh_name = model_name[:-len(".md3")]
+                    # FIXME: make zoffset driver based: create material hash, link zoffset prop to value in material
                     if "zoffset" in ent:
                         zoffset = int(ent["zoffset"].replace('"','')) + 1
                         mesh_name = mesh_name+".z"+str(zoffset)
@@ -89,20 +105,18 @@ def ImportEntities(bsp, import_settings):
                 else:
                     #TODO: Fix reimporting model when only the zoffset is different
                     #check if model already loaded, make a copy of it, replace all the material names with new zoffset
-                    me = MD3.ImportMD3(import_settings.base_path + model_name, import_settings, zoffset)
+                    me = MD3.ImportMD3(import_settings.base_path + model_name, zoffset)
                     if me == None:
-                        print(import_settings.base_path + model_name)
+                        print("Couldn't load " + import_settings.base_path + model_name)
                     else:
                         map_objects.append(mesh_name)
+                        md3_objects.append(mesh_name)
                         me.name = mesh_name
                         
                     ob = bpy.data.objects.new(mesh_name, me)
                     
                 obj_list.append(ob)
-            elif n_ent == 0:
-                me = bpy.data.meshes["*0"]
-                ob = bpy.data.objects.new("Entity " + (str(n_ent).zfill(4)), me)
-                obj_list.append(ob)
+                
             elif import_settings.preset == "EDITING":
                 if (mesh == None):
                     ent_object = bpy.ops.mesh.primitive_cube_add(size = 32.0, location=([0,0,0]))
@@ -126,11 +140,12 @@ def ImportEntities(bsp, import_settings):
                                 color = pow(float(color_str[0]), 1.0 / 2.2), pow(float(color_str[1]), 1.0 / 2.2), pow(float(color_str[2]), 1.0 / 2.2), 1.0
                                 node.inputs["Base Color"].default_value = color
                                 node.inputs["Emission"].default_value = color
-                                
                             ob.data.materials.append(mat)
                             
                     else:            
                         obj_list.append(ob)
+            
+            
             
             if ob != None:
                 ob.name = "Entity " + (str(n_ent).zfill(4))
@@ -182,15 +197,16 @@ def ImportEntities(bsp, import_settings):
                     
                 if "origin" in ent:
                     ob.location = ent["origin"]
-                if "modelscale" in ent:
-                    scale = (float(ent["modelscale"]),float(ent["modelscale"]),float(ent["modelscale"]))
-                    ob.scale = scale
-                if "modelscale_vec" in ent:
-                    ob.scale = ent["modelscale_vec"]
-                if "angle" in ent and ent["classname"] in misc_model_md3s:
-                    ob.rotation_euler = (0.0,0.0,radians(float(ent["angle"])))
-                if "angles" in ent:
-                    ob.rotation_euler = (radians(ent["angles"][2]),radians(ent["angles"][0]),radians(ent["angles"][1]))
+                if mesh_name in md3_objects:
+                    if "modelscale" in ent:
+                        scale = (float(ent["modelscale"]),float(ent["modelscale"]),float(ent["modelscale"]))
+                        ob.scale = scale
+                    if "modelscale_vec" in ent:
+                        ob.scale = ent["modelscale_vec"]
+                    if "angle" in ent :
+                        ob.rotation_euler = (0.0,0.0,radians(float(ent["angle"])))
+                    if "angles" in ent:
+                        ob.rotation_euler = (radians(ent["angles"][2]),radians(ent["angles"][0]),radians(ent["angles"][1]))
             ob = None
             n_ent += 1
         elif line != " ":

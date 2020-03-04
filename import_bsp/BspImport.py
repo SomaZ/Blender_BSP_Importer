@@ -41,11 +41,20 @@ if "StringProperty" not in locals():
 if "BoolProperty" not in locals():
     from bpy.props import BoolProperty
     
+if "EnumProperty" not in locals():
+    from bpy.props import EnumProperty
+    
+if "IntProperty" not in locals():
+    from bpy.props import IntProperty
+    
 if "PropertyGroup" not in locals():
     from bpy.types import PropertyGroup
     
 if "struct" not in locals():
     import struct
+    
+if "os" not in locals():
+    import os
     
 from mathutils import Vector
     
@@ -60,13 +69,13 @@ class Operator(bpy.types.Operator, ImportHelper):
     filename_ext = ".bsp"
     filter_glob : StringProperty(default="*.bsp", options={'HIDDEN'})
 
-    filepath : bpy.props.StringProperty(name="File Path", description="File path used for importing the BSP file", maxlen= 1024, default="")
-    preset : bpy.props.EnumProperty(name="Import preset", description="You can select wether you want to import a bsp for editing, rendering, or previewing.", default='PREVIEW', items=[
+    filepath : StringProperty(name="File Path", description="File path used for importing the BSP file", maxlen= 1024, default="")
+    preset : EnumProperty(name="Import preset", description="You can select wether you want to import a bsp for editing, rendering, or previewing.", default='PREVIEW', items=[
             ('PREVIEW', "Preview", "Trys to build eevee shaders, imports all misc_model_statics when available", 0),
             ('EDITING', "Editing", "Trys to build eevee shaders, imports all entitys", 1),
             #('RENDERING', "Rendering", "Trys to build fitting cycles shaders, only imports visable enities", 2),
         ])
-    subdivisions : bpy.props.IntProperty(name="Patch subdivisions", description="How often a patch is subdivided at import", default=2)
+    subdivisions : IntProperty(name="Patch subdivisions", description="How often a patch is subdivided at import", default=2)
 
     def execute(self, context):
         addon_name = __name__.split('.')[0]
@@ -125,7 +134,7 @@ class Del_property(bpy.types.Operator):
     bl_idname = "q3.del_property"
     bl_label = "Remove custom property"
     bl_options = {"UNDO","INTERNAL","REGISTER"}
-    name : bpy.props.StringProperty()
+    name : StringProperty()
     def execute(self, context):
         obj = bpy.context.active_object
         if self.name in obj:
@@ -152,10 +161,11 @@ class Add_property(bpy.types.Operator):
     bl_idname = "q3.add_property"
     bl_label = "Add custom property"
     bl_options = {"UNDO","INTERNAL","REGISTER"}
-    name : bpy.props.StringProperty()
+    name : StringProperty()
     def execute(self, context):
         ob = bpy.context.active_object
         key = self.name
+        
         if key == "classname":
             ob["classname"] = ""
             return {'FINISHED'}
@@ -186,7 +196,7 @@ class Add_entity_definition(bpy.types.Operator):
     bl_idname = "q3.add_entity_definition"
     bl_label = "Update entity definition"
     bl_options = {"INTERNAL","REGISTER"}
-    name : bpy.props.StringProperty()
+    name : StringProperty()
     
     def execute(self, context):
         obj = bpy.context.active_object
@@ -200,27 +210,38 @@ class Add_entity_definition(bpy.types.Operator):
                     }
 
         Entities.Dict[self.name] = new_entry
-        Entities.save_gamepack(Entities.Dict, "JKA.json")
+        Entities.save_gamepack(Entities.Dict, context.scene.id_tech_3_settings.gamepack)
         return {'FINISHED'}
     
 class Add_key_definition(bpy.types.Operator):
     bl_idname = "q3.add_key_definition"
     bl_label = "Update entity definition"
     bl_options = {"INTERNAL","REGISTER"}
-    name : bpy.props.StringProperty()
+    name : StringProperty()
     
     def execute(self, context):
         obj = bpy.context.active_object
+        
+        if self.name != "":
+            key = self.name
+        else:
+            scene = context.scene
+            if "id_tech_3_settings" in scene:
+                key = scene.id_tech_3_settings.new_prop_name
+            else:
+                print("Couldn't find new property name :(\n")
+                return
+            
         if "classname" in obj:
             classname = obj["classname"]
             if classname.lower() in Entities.Dict:
-                if self.name not in Entities.Dict[classname.lower()]["Keys"]:
-                    Entities.Dict[classname.lower()]["Keys"][self.name] = { "Type" : "STRING",
+                if key not in Entities.Dict[classname.lower()]["Keys"]:
+                    Entities.Dict[classname.lower()]["Keys"][key] = { "Type" : "STRING",
                                                                             "Description": "NOT DOCUMENTED YET"}
-                    Entities.save_gamepack(Entities.Dict, "JKA.json")
+                    Entities.save_gamepack(Entities.Dict, context.scene.id_tech_3_settings.gamepack)
         return {'FINISHED'}
 
-type_save_matching = {   "NONE"    : "STRING",
+type_save_matching = {  "NONE"    : "STRING",
                         "COLOR_GAMMA" : "COLOR",
                         "COLOR" : "COLOR",
 }
@@ -229,7 +250,7 @@ class Update_entity_definition(bpy.types.Operator):
     bl_idname = "q3.update_entity_definition"
     bl_label = "Update entity definition"
     bl_options = {"INTERNAL","REGISTER"}
-    name : bpy.props.StringProperty()
+    name : StringProperty()
     
     def execute(self, context):
         obj = bpy.context.active_object
@@ -248,7 +269,7 @@ class Update_entity_definition(bpy.types.Operator):
                     if "subtype" in rna_ui[key]:
                         ent["Keys"][key]["Type"] = type_save_matching[rna_ui[key]["subtype"]]
                         
-            Entities.save_gamepack(Entities.Dict, "JKA.json")
+            Entities.save_gamepack(Entities.Dict, context.scene.id_tech_3_settings.gamepack)
 
         return {'FINISHED'}
 
@@ -303,22 +324,25 @@ def update_model(self, context):
         zoffset = 0
         if "zoffset" in obj:
             zoffset = int(obj["zoffset"])
-
-        import_settings = ImportSettings()
-        import_settings.base_path = ""
-        import_settings.shader_dirs = "shaders/", "scripts/"
-        import_settings.preset = 'PREVIEW'
-            
-        obj.data = MD3.ImportMD3(model_name + ".md3", import_settings, zoffset)
-        obj.q3_dynamic_props.model = obj.data.name
         
         addon_name = __name__.split('.')[0]
         prefs = context.preferences.addons[addon_name].preferences
+        
+        import_settings = ImportSettings()
         import_settings.base_path = prefs.base_path
         if not import_settings.base_path.endswith('/'):
             import_settings.base_path = import_settings.base_path + '/'
+        import_settings.shader_dirs = "shaders/", "scripts/"
+        import_settings.preset = 'PREVIEW'
+        
+        if not model_name.replace("\\", "/").startswith(import_settings.base_path.replace("\\", "/")):
+            model_name = import_settings.base_path + model_name
+        
+        obj.data = MD3.ImportMD3(model_name + ".md3", import_settings, zoffset)
+        if obj.data != None:
+            obj.q3_dynamic_props.model = obj.data.name
             
-        QuakeShader.build_quake_shaders(import_settings, [obj])
+            QuakeShader.build_quake_shaders(import_settings, [obj])
         
         
 #Properties like spawnflags and model 
@@ -379,6 +403,34 @@ class DynamicProperties(PropertyGroup):
         update=update_model,
         subtype= "FILE_PATH"
         )
+        
+#Properties like spawnflags and model 
+class SceneProperties(PropertyGroup):
+    
+    def gamepack_list_cb(self, context):
+        file_path = bpy.utils.script_paths("addons/import_bsp/gamepacks/")[0]
+        gamepack_files = []
+        
+        try:
+            gamepack_files = sorted(f for f in os.listdir(file_path)
+                                    if f.endswith(".json"))
+        except Exception as e:
+            print('Could not open gamepack files ' + ", error: " + str(e))
+            
+        gamepack_list = [(gamepack, gamepack.split(".")[0], "")
+                       for gamepack in sorted(gamepack_files)]
+        
+        return gamepack_list
+    
+    new_prop_name: StringProperty(
+        name = "New Property",
+        default = "",
+        )
+    gamepack: EnumProperty(
+        items=gamepack_list_cb,
+        name="Gamepack",
+        description="List of available gamepacks"
+        )
     
 #Panels
 class Q3_PT_ShaderPanel(bpy.types.Panel):
@@ -415,15 +467,35 @@ class Q3_PT_EntityPanel(bpy.types.Panel):
         scene = context.scene
         obj = bpy.context.active_object
         
-        filtered_keys = ["classname", "spawnflags", "origin", "angles", "angle"]
+        #layout.prop(context.scene.id_tech_3_settings,"gamepack")
+        layout.label(text=context.scene.id_tech_3_settings.gamepack.split(".")[0])
         
         if "classname" in obj:
             classname = obj["classname"].lower()
             layout.prop(obj, '["classname"]')
-            # classname in dictionary?
+        else:
+            op = layout.operator("q3.add_property", text="Add classname").name = "classname"
+            
+class Q3_PT_PropertiesEntityPanel(bpy.types.Panel):
+    bl_idname = "Q3_PT_properties_entity_panel"
+    bl_parent_id = "Q3_PT_entity_panel"
+    bl_label = "Entity Properties"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "Q3 Entities"
+    
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        obj = bpy.context.active_object
+        
+        filtered_keys = ["classname", "spawnflags", "origin", "angles", "angle"]
+        
+        if "classname" in obj:
+            classname = obj["classname"].lower()
             if classname in Entities.Dict:
                 ent = Entities.Dict[classname]
-                layout.label(text= ent["Describtion"])
+                
                 box = None
                 #check all the flags
                 for flag in ent["Spawnflags"].items():
@@ -441,7 +513,6 @@ class Q3_PT_EntityPanel(bpy.types.Panel):
                         if prop.lower() == "model" and "model2" not in obj:
                             if supported == None:
                                 supported = layout.box()
-                                supported.label(text = "Supported:")
                             row = supported.row()
                             row.prop(obj.q3_dynamic_props, "model", text="model")
                             row.operator("q3.del_property", text="", icon="X").name = prop
@@ -449,7 +520,6 @@ class Q3_PT_EntityPanel(bpy.types.Panel):
                         if prop.lower() == "model2":
                             if supported == None:
                                 supported = layout.box()
-                                supported.label(text = "Supported:")
                             row = supported.row()
                             row.prop(obj.q3_dynamic_props, "model", text="model2")
                             row.operator("q3.del_property", text="", icon="X").name = prop
@@ -458,14 +528,13 @@ class Q3_PT_EntityPanel(bpy.types.Panel):
                         if prop.lower() in keys:
                             if supported == None:
                                 supported = layout.box()
-                                supported.label(text = "Supported:")
                             row = supported.row()
                             row.prop(obj, '["' + prop + '"]')
                             row.operator("q3.del_property", text="", icon="X").name = prop
                         else:
                             if unsupported == None:
                                 unsupported = layout.box()
-                                unsupported.label(text = "Unknown:")
+                                unsupported.label(text = "Unknown Properties:")
                             row = unsupported.row()
                             row.prop(obj, '["' + prop + '"]')
                             row.operator("q3.del_property", text="", icon="X").name = prop
@@ -474,13 +543,35 @@ class Q3_PT_EntityPanel(bpy.types.Panel):
                     if test_key == None:
                         if supported == None:
                             supported = layout.box()
-                            supported.label(text = "Supported:")
                         row = supported.row()
                         op = row.operator("q3.add_property", text="Add " + str(key)).name = key
             else:
-                layout.label(text = "unknown entity")
-        else:
-            op = layout.operator("q3.add_property", text="Add classname").name = "classname"
+                layout.label(text = "Unknown entity")
+                layout.label(text = 'You can add it via "Edit Entity Definitions"')
+            
+class Q3_PT_DescribtionEntityPanel(bpy.types.Panel):
+    bl_idname = "Q3_PT_describtion_entity_panel"
+    bl_parent_id = "Q3_PT_entity_panel"
+    bl_options = {"DEFAULT_CLOSED"}
+    bl_label = "Entity Describtion"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "Q3 Entities"
+    
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        obj = bpy.context.active_object
+        
+        if "classname" in obj:
+            classname = obj["classname"].lower()
+            if classname in Entities.Dict:
+                ent = Entities.Dict[classname]
+                for line in ent["Describtion"]:
+                    layout.label(text= line)
+            else:
+                layout.label(text = "Unknown entity")
+                layout.label(text = 'You can add it via "Edit Entity Definitions"')
                 
 class Q3_PT_EditEntityPanel(bpy.types.Panel):
     bl_idname = "Q3_PT_edit_entity_panel"
@@ -490,12 +581,6 @@ class Q3_PT_EditEntityPanel(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "Q3 Entities"
-    
-    @classmethod
-    def poll(self, context):
-        if "id_tech_3_importer_preset" in context.scene:
-            return (context.object is not None and context.scene.id_tech_3_importer_preset == "EDITING")
-        return False
     
     def draw(self, context):
         layout = self.layout
@@ -516,6 +601,12 @@ class Q3_PT_EditEntityPanel(bpy.types.Panel):
                     if prop.lower() not in filtered_keys and not hasattr(obj[prop], "to_dict"):
                         if prop.lower() not in keys:
                             op = layout.operator("q3.add_key_definition", text="Add " + str(prop.lower()) + " to entity definition").name = prop.lower()
+                            
+                row = layout.row()
+                row.prop(context.scene.id_tech_3_settings, 'new_prop_name')
+                row.operator("q3.add_key_definition", text="" , icon="PLUS").name = ""
+                
+                layout.separator()
                 layout.operator("q3.update_entity_definition").name = classname
                 
 def GetEntityStringFromScene():
@@ -588,8 +679,8 @@ class PatchBspEntities(bpy.types.Operator, ExportHelper):
     bl_options = {"INTERNAL","REGISTER"}
     filename_ext = ".bsp"
     filter_glob : StringProperty(default="*.bsp", options={'HIDDEN'})
-    filepath : bpy.props.StringProperty(name="File", description="Which .bsp file to patch", maxlen= 1024, default="")
-    create_backup : bpy.props.BoolProperty(name="Append a suffix to the output file (don't overwrite original file)", default = True)
+    filepath : StringProperty(name="File", description="Which .bsp file to patch", maxlen= 1024, default="")
+    create_backup : BoolProperty(name="Append a suffix to the output file (don't overwrite original file)", default = True)
     def execute(self, context):
         
         bsp = BspClasses.BSP(self.filepath)
@@ -614,19 +705,14 @@ class PatchBspEntities(bpy.types.Operator, ExportHelper):
         f.close()
         return {'FINISHED'}
 
-class Q3_PT_EntPanel(bpy.types.Panel):
+class Q3_PT_EntExportPanel(bpy.types.Panel):
     bl_name = "Q3_PT_ent_panel"
     bl_label = "Export"
     bl_options = {"DEFAULT_CLOSED"}
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "Q3 Entities"
-    bpy.types.Scene.filename : bpy.props.StringProperty(
-        name="Filename",
-        description="File to export to",
-        default="",
-        subtype="FILE_PATH"
-        )
+
     @classmethod
     def poll(self, context):
         if "id_tech_3_importer_preset" in context.scene:
