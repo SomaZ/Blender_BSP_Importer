@@ -77,23 +77,38 @@ class Bsp_Node(Generic_Node_Group):
         node_grid_origin = bsp_group.nodes.new(type="ShaderNodeCombineXYZ")
         node_grid_origin.name = "GridOrigin"
         node_grid_origin.location = (-1400,0)
-        node_grid_origin.inputs[0].default_value = bsp.lightgrid_origin[0]
-        node_grid_origin.inputs[1].default_value = bsp.lightgrid_origin[1]
-        node_grid_origin.inputs[2].default_value = bsp.lightgrid_origin[2]
+        if bsp != None:
+            node_grid_origin.inputs[0].default_value = bsp.lightgrid_origin[0]
+            node_grid_origin.inputs[1].default_value = bsp.lightgrid_origin[1]
+            node_grid_origin.inputs[2].default_value = bsp.lightgrid_origin[2]
+        else:
+            node_grid_origin.inputs[0].default_value = 0.0
+            node_grid_origin.inputs[1].default_value = 0.0
+            node_grid_origin.inputs[2].default_value = 0.0
         
         node_grid_cell_inv = bsp_group.nodes.new(type="ShaderNodeCombineXYZ")
         node_grid_cell_inv.name = "GridCellInvSize"
         node_grid_cell_inv.location = (-1400,-200)
-        node_grid_cell_inv.inputs[0].default_value = bsp.lightgrid_inverse_size[0]
-        node_grid_cell_inv.inputs[1].default_value = bsp.lightgrid_inverse_size[1]
-        node_grid_cell_inv.inputs[2].default_value = bsp.lightgrid_inverse_size[2]
+        if bsp != None:
+            node_grid_cell_inv.inputs[0].default_value = bsp.lightgrid_inverse_size[0]
+            node_grid_cell_inv.inputs[1].default_value = bsp.lightgrid_inverse_size[1]
+            node_grid_cell_inv.inputs[2].default_value = bsp.lightgrid_inverse_size[2]
+        else:
+            node_grid_cell_inv.inputs[0].default_value = 1.0
+            node_grid_cell_inv.inputs[1].default_value = 1.0
+            node_grid_cell_inv.inputs[2].default_value = 1.0
         
         node_grid_inv_dim = bsp_group.nodes.new(type="ShaderNodeCombineXYZ")
         node_grid_inv_dim.name = "GridInverseDimension"
         node_grid_inv_dim.location = (-1400,-400)
-        node_grid_inv_dim.inputs[0].default_value = bsp.lightgrid_inverse_dim[0]
-        node_grid_inv_dim.inputs[1].default_value = bsp.lightgrid_inverse_dim[1]
-        node_grid_inv_dim.inputs[2].default_value = bsp.lightgrid_inverse_dim[2]
+        if bsp != None:
+            node_grid_inv_dim.inputs[0].default_value = bsp.lightgrid_inverse_dim[0]
+            node_grid_inv_dim.inputs[1].default_value = bsp.lightgrid_inverse_dim[1]
+            node_grid_inv_dim.inputs[2].default_value = bsp.lightgrid_inverse_dim[2]
+        else:
+            node_grid_inv_dim.inputs[0].default_value = 1.0
+            node_grid_inv_dim.inputs[1].default_value = 1.0
+            node_grid_inv_dim.inputs[2].default_value = 1.0
         
         bsp_group.links.new(node_grid_origin.outputs["Vector"], group_outputs.inputs['LightGridOrigin'])
         bsp_group.links.new(node_grid_cell_inv.outputs["Vector"], group_outputs.inputs['LightGridInverseSize'])
@@ -506,32 +521,54 @@ class Lightgrid_Node(Generic_Node_Group):
         node_lower_tc.location = (0,-400)
         lightgrid_group.links.new(node_math_mult1.outputs[0], node_lower_tc.inputs["X"])
         lightgrid_group.links.new(node_math_add2.outputs[0], node_lower_tc.inputs["Y"])
+        
+        image_a1 = bpy.data.images.get("$lightgrid_ambient1")
+        if image_a1 != None:
+            node_a1_up = lightgrid_group.nodes.new(type='ShaderNodeTexImage')
+            node_a1_up.image = image_a1
+            node_a1_up.location = (200,0)
+            lightgrid_group.links.new(node_upper_tc.outputs[0], node_a1_up.inputs["Vector"])
             
-        node_a1_up = lightgrid_group.nodes.new(type='ShaderNodeTexImage')
-        node_a1_up.image = bpy.data.images["$lightgrid_ambient1"]
-        node_a1_up.location = (200,0)
-        lightgrid_group.links.new(node_upper_tc.outputs[0], node_a1_up.inputs["Vector"])
-        node_d1_up = lightgrid_group.nodes.new(type='ShaderNodeTexImage')
-        node_d1_up.image = bpy.data.images["$lightgrid_direct1"]
-        node_d1_up.location = (200,-400)
-        lightgrid_group.links.new(node_upper_tc.outputs[0], node_d1_up.inputs["Vector"])
-        node_vec_up = lightgrid_group.nodes.new(type='ShaderNodeTexImage')
-        node_vec_up.image = bpy.data.images["$lightgrid_vector"]
-        node_vec_up.location = (200,-800)
-        lightgrid_group.links.new(node_upper_tc.outputs[0], node_vec_up.inputs["Vector"])
-                
-        node_a1_low = lightgrid_group.nodes.new(type='ShaderNodeTexImage')
-        node_a1_low.image = bpy.data.images["$lightgrid_ambient1"]
-        node_a1_low.location = (200,-200)
-        lightgrid_group.links.new(node_lower_tc.outputs[0], node_a1_low.inputs["Vector"])
-        node_d1_low = lightgrid_group.nodes.new(type='ShaderNodeTexImage')
-        node_d1_low.image = bpy.data.images["$lightgrid_direct1"]
-        node_d1_low.location = (200,-600)
-        lightgrid_group.links.new(node_lower_tc.outputs[0], node_d1_low.inputs["Vector"])
-        node_vec_low = lightgrid_group.nodes.new(type='ShaderNodeTexImage')
-        node_vec_low.image = bpy.data.images["$lightgrid_vector"]
-        node_vec_low.location = (200,-1000)
-        lightgrid_group.links.new(node_lower_tc.outputs[0], node_vec_low.inputs["Vector"])
+            node_a1_low = lightgrid_group.nodes.new(type='ShaderNodeTexImage')
+            node_a1_low.image = image_a1
+            node_a1_low.location = (200,-200)
+            lightgrid_group.links.new(node_lower_tc.outputs[0], node_a1_low.inputs["Vector"])
+        else:
+            node_a1_up = lightgrid_group.nodes.new(type='ShaderNodeRGB')
+            node_a1_up.outputs[0].default_value = (0.3, 0.123, 0.0, 1.0)
+            node_a1_low = node_a1_up
+        
+        image_d1 = bpy.data.images.get("$lightgrid_ambient1")
+        if image_d1 != None:
+            node_d1_up = lightgrid_group.nodes.new(type='ShaderNodeTexImage')
+            node_d1_up.image = image_d1
+            node_d1_up.location = (200,-400)
+            lightgrid_group.links.new(node_upper_tc.outputs[0], node_d1_up.inputs["Vector"])
+            
+            node_d1_low = lightgrid_group.nodes.new(type='ShaderNodeTexImage')
+            node_d1_low.image = bpy.data.images["$lightgrid_direct1"]
+            node_d1_low.location = (200,-600)
+            lightgrid_group.links.new(node_lower_tc.outputs[0], node_d1_low.inputs["Vector"])
+        else:
+            node_d1_up = lightgrid_group.nodes.new(type='ShaderNodeRGB')
+            node_d1_up.outputs[0].default_value = (1.0, 1.0, 1.0, 1.0)
+            node_d1_low = node_d1_up
+            
+        image_vec = bpy.data.images.get("$lightgrid_ambient1")
+        if image_vec != None:
+            node_vec_up = lightgrid_group.nodes.new(type='ShaderNodeTexImage')
+            node_vec_up.image = image_vec
+            node_vec_up.location = (200,-800)
+            lightgrid_group.links.new(node_upper_tc.outputs[0], node_vec_up.inputs["Vector"])
+                    
+            node_vec_low = lightgrid_group.nodes.new(type='ShaderNodeTexImage')
+            node_vec_low.image = image_vec
+            node_vec_low.location = (200,-1000)
+            lightgrid_group.links.new(node_lower_tc.outputs[0], node_vec_low.inputs["Vector"])
+        else:
+            node_vec_up = lightgrid_group.nodes.new(type='ShaderNodeRGB')
+            node_vec_up.outputs[0].default_value = (0.5, 0.3, 0.2, 1.0)
+            node_vec_low = node_vec_up
                 
         node_math_fract = lightgrid_group.nodes.new(type="ShaderNodeMath")
         node_math_fract.operation = "FRACT"
@@ -564,31 +601,38 @@ class Lightgrid_Node(Generic_Node_Group):
         lightgrid_group.links.new(node_vec_up.outputs["Color"], node_out_vector.inputs["Color2"])
         lightgrid_group.links.new(node_math_fract.outputs[0], node_out_vector.inputs["Fac"])
         
+        node_out_vector_normalized = lightgrid_group.nodes.new(type="ShaderNodeVectorMath")
+        node_out_vector_normalized.name = "NormalizedVector"
+        node_out_vector_normalized.location = (900,-1000)
+        node_out_vector_normalized.operation = "NORMALIZE"
+        lightgrid_group.links.new(node_out_vector.outputs["Color"], node_out_vector_normalized.inputs["Vector"])
+        
+        
         node_attenuation = lightgrid_group.nodes.new(type="ShaderNodeVectorMath")
         node_attenuation.name = "DirectAttenuation"
         node_attenuation.operation = "DOT_PRODUCT"
-        node_attenuation.location = (800,-1000)
+        node_attenuation.location = (1200,-1000)
         lightgrid_group.links.new(node_geometry.outputs["Normal"], node_attenuation.inputs[0])
-        lightgrid_group.links.new(node_out_vector.outputs["Color"], node_attenuation.inputs[1])
+        lightgrid_group.links.new(node_out_vector_normalized.outputs["Vector"], node_attenuation.inputs[1])
         
         node_direct_light = lightgrid_group.nodes.new(type="ShaderNodeMixRGB")
         node_direct_light.name = "DirectLight"
         node_direct_light.blend_type = "MULTIPLY"
         node_direct_light.use_clamp = True
         node_direct_light.inputs[0].default_value = 1.0
-        node_direct_light.location = (800,-300)
+        node_direct_light.location = (1200,-300)
         lightgrid_group.links.new(node_out_direct.outputs["Color"], node_direct_light.inputs["Color1"])
         lightgrid_group.links.new(node_attenuation.outputs["Value"], node_direct_light.inputs["Color2"])
         
         node_grid_light = lightgrid_group.nodes.new(type="ShaderNodeVectorMath")
         node_grid_light.name = "GridLight"
         node_grid_light.operation = "ADD"
-        node_grid_light.location = (1000,-300)
+        node_grid_light.location = (1500,-300)
         lightgrid_group.links.new(node_direct_light.outputs["Color"], node_grid_light.inputs[0])
         lightgrid_group.links.new(node_out_ambient.outputs["Color"], node_grid_light.inputs[1])
         
         lightgrid_group.links.new(node_grid_light.outputs["Vector"], group_outputs.inputs['LightGridLight'])
-        lightgrid_group.links.new(node_out_vector.outputs["Color"], group_outputs.inputs['LightGridVector'])
+        lightgrid_group.links.new(node_out_vector_normalized.outputs["Vector"], group_outputs.inputs['LightGridVector'])
         return lightgrid_group
 
 class TcGen_Env_Node(Generic_Node_Group):
