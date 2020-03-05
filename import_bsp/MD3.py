@@ -13,6 +13,8 @@ if "Image" in locals():
     imp.reload( Image )
 else:
     from . import Image
+    
+from .Parsing import guess_model_name
 
 from math import pi, sin, cos, atan2, acos
 from mathutils import Matrix
@@ -23,15 +25,6 @@ HALF = 2
 INT = 4
 UBYTE = 1
 STRING = 64
-
-def guess_model_name(file_path):
-    split_name = file_path.split("/models/")
-    if len(split_name) > 1:
-        model_name = "models/" + (split_name[len(split_name)-1])
-    else:
-        split_name = split_name[0].split("/")
-        model_name = "models/" + split_name[len(split_name)-1]
-    return model_name
 
 class lump:
     def __init__(self, data_class):
@@ -337,11 +330,11 @@ def ImportMD3(model_name, zoffset):
         ofsSurfaces = struct.unpack("<i", file.read(4))[0]
         ofsEnd      = struct.unpack("<i", file.read(4))[0]
         
+        print(name + " name")
         print("\t" + str(ofsFrames) + " offset Frames")
         print("\t" + str(ofsTags) + " offset Tags")
         print("\t" + str(ofsSurfaces) + " offset Surfaces")
         print("\t" + str(ofsEnd) + " offset End")
-        print("\t" + name + " name")
         print("\t" + str(numFrames) + " frames")
         print("\t" + str(ofsFrames) + " ofsFrames")
         print("\t" + str(numTags) + " tags")
@@ -418,11 +411,12 @@ def ImportMD3(model_name, zoffset):
             face_shaders.append(surface.data[0].shaders.data[0])
             shaderindex += 1
             face_index_offset += n_indices
-            
-        if name.lower().endswith(".md3"):
-            name = name[:-len(".md3")]
-            
-        mesh = bpy.data.meshes.new( name )
+        
+        guessed_name = guess_model_name( model_name.lower() ).lower()
+        if guessed_name.endswith(".md3"):
+            guessed_name = guessed_name[:-len(".md3")]
+        
+        mesh = bpy.data.meshes.new( guessed_name )
         mesh.from_pydata(vertex_pos, [], face_indices)
             
         #oh man...

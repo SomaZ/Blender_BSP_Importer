@@ -56,6 +56,11 @@ if "struct" not in locals():
 if "os" not in locals():
     import os
     
+if "Parsing" in locals():
+    imp.reload( Parsing )
+else:
+    from .Parsing import *
+    
 from mathutils import Vector
     
 #empty class for now, we will see what to do with it
@@ -308,18 +313,25 @@ def update_model(self, context):
     if obj is None:
         return
     
+    if obj.data.name == obj.q3_dynamic_props.model:
+        return
+    
     if "model2" in obj:
         obj["model2"] = obj.q3_dynamic_props.model.split(".")[0]
         model_name = obj["model2"]
     elif "model" in obj:
         obj["model"] = obj.q3_dynamic_props.model.split(".")[0]
         model_name = obj["model"]
-        
+    
+    model_name = model_name.replace("\\", "/").lower()
     if model_name.endswith(".md3"):
         model_name = model_name[:-len(".md3")]
     
-    if model_name in bpy.data.meshes:
-        obj.data = bpy.data.meshes[model_name]
+    mesh_name = guess_model_name(model_name)
+    
+    if mesh_name in bpy.data.meshes:
+        obj.data = bpy.data.meshes[mesh_name]
+        obj.q3_dynamic_props.model = obj.data.name
     else:
         zoffset = 0
         if "zoffset" in obj:
@@ -335,10 +347,10 @@ def update_model(self, context):
         import_settings.shader_dirs = "shaders/", "scripts/"
         import_settings.preset = 'PREVIEW'
         
-        if not model_name.replace("\\", "/").startswith(import_settings.base_path.replace("\\", "/")):
+        if model_name.startswith("models/"):
             model_name = import_settings.base_path + model_name
-        
-        obj.data = MD3.ImportMD3(model_name + ".md3", import_settings, zoffset)
+            
+        obj.data = MD3.ImportMD3(model_name + ".md3", zoffset)
         if obj.data != None:
             obj.q3_dynamic_props.model = obj.data.name
             
