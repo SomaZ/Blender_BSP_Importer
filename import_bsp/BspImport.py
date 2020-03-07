@@ -313,15 +313,15 @@ def update_model(self, context):
     if obj is None:
         return
     
-    if obj.data.name == obj.q3_dynamic_props.model:
-        return
-    
     if "model2" in obj:
         obj["model2"] = obj.q3_dynamic_props.model.split(".")[0]
         model_name = obj["model2"]
     elif "model" in obj:
         obj["model"] = obj.q3_dynamic_props.model.split(".")[0]
         model_name = obj["model"]
+        
+    if obj.data.name == obj.q3_dynamic_props.model:
+        return
     
     model_name = model_name.replace("\\", "/").lower()
     if model_name.endswith(".md3"):
