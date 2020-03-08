@@ -36,10 +36,10 @@ import imp
 if "bpy" not in locals():
     import bpy
     
-if "BspImport" in locals():
-    imp.reload( BspImport )
+if "UI" in locals():
+    imp.reload( UI )
 else:
-    from . import BspImport
+    from . import UI
 
 # ------------------------------------------------------------------------
 #    store properties in the user preferences
@@ -61,45 +61,45 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
         row = layout.row()
         row.prop(self, "base_path")
 	
-classes = ( BspImport.Import_ID3_BSP,
-            BspImport.Import_ID3_MD3,
-            BspImport.Export_ID3_MD3,
+classes = ( UI.Import_ID3_BSP,
+            UI.Import_ID3_MD3,
+            UI.Export_ID3_MD3,
+            UI.Q3_PT_ShaderPanel,
+            UI.Q3_PT_EntityPanel,
+            UI.Reload_shader,
+            UI.DynamicProperties,
+            UI.SceneProperties,
+            UI.Add_property,
+            UI.Del_property,
+            UI.Add_entity_definition,
+            UI.Add_key_definition,
+            UI.Update_entity_definition,
+            UI.Q3_PT_EntExportPanel,
+            UI.ExportEnt,
+            UI.PatchBspEntities,
+            UI.Q3_PT_PropertiesEntityPanel,
+            UI.Q3_PT_DescribtionEntityPanel,
+            UI.Q3_PT_EditEntityPanel,
             BspImportAddonPreferences,
-            BspImport.Q3_PT_ShaderPanel,
-            BspImport.Q3_PT_EntityPanel,
-            BspImport.Reload_shader,
-            BspImport.DynamicProperties,
-            BspImport.SceneProperties,
-            BspImport.Add_property,
-            BspImport.Del_property,
-            BspImport.Add_entity_definition,
-            BspImport.Add_key_definition,
-            BspImport.Update_entity_definition,
-            BspImport.Q3_PT_EntExportPanel,
-            BspImport.ExportEnt,
-            BspImport.PatchBspEntities,
-            BspImport.Q3_PT_PropertiesEntityPanel,
-            BspImport.Q3_PT_DescribtionEntityPanel,
-            BspImport.Q3_PT_EditEntityPanel,
             )
 
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-    bpy.types.TOPBAR_MT_file_import.append(BspImport.menu_func_bsp_import)
-    bpy.types.TOPBAR_MT_file_import.append(BspImport.menu_func_md3_import)
-    bpy.types.TOPBAR_MT_file_export.append(BspImport.menu_func_md3_export)
+    bpy.types.TOPBAR_MT_file_import.append(UI.menu_func_bsp_import)
+    bpy.types.TOPBAR_MT_file_import.append(UI.menu_func_md3_import)
+    bpy.types.TOPBAR_MT_file_export.append(UI.menu_func_md3_export)
     
-    bpy.types.Object.q3_dynamic_props = bpy.props.PointerProperty(type=BspImport.DynamicProperties)
-    bpy.types.Scene.id_tech_3_settings = bpy.props.PointerProperty(type=BspImport.SceneProperties)
+    bpy.types.Object.q3_dynamic_props = bpy.props.PointerProperty(type=UI.DynamicProperties)
+    bpy.types.Scene.id_tech_3_settings = bpy.props.PointerProperty(type=UI.SceneProperties)
     bpy.types.Scene.id_tech_3_importer_preset = bpy.props.StringProperty(   name="id3 importer preset",
                                                                             description="Last used importer preset" )
 
 def unregister():
     
-    bpy.types.TOPBAR_MT_file_import.remove(BspImport.menu_func_bsp_import)
-    bpy.types.TOPBAR_MT_file_import.remove(BspImport.menu_func_md3_import)
-    bpy.types.TOPBAR_MT_file_export.remove(BspImport.menu_func_md3_export)
+    bpy.types.TOPBAR_MT_file_import.remove(UI.menu_func_bsp_import)
+    bpy.types.TOPBAR_MT_file_import.remove(UI.menu_func_md3_import)
+    bpy.types.TOPBAR_MT_file_export.remove(UI.menu_func_md3_export)
     
     for cls in classes:
         bpy.utils.unregister_class(cls)

@@ -102,6 +102,7 @@ class surface_factory:
         surfaces = {}
         self.surface_descriptors = []
         self.num_surfaces = 0
+        self.objects = objects
         #create a list for every material
         for obj in objects:
             if len(obj.data.materials) == 0:
@@ -143,13 +144,13 @@ class surface_factory:
                 self.surface_descriptors.append(surfaces[mat][i])
         return
                 
-    def clear_meshes(self, objects):
-        for obj in objects:
+    def clear_meshes(self):
+        for obj in self.objects:
             obj.to_mesh_clear()
                 
-    def update_meshes(self, objects):
+    def update_meshes(self):
         meshes = []
-        for obj_id, obj in enumerate(objects):
+        for obj_id, obj in enumerate(self.objects):
             mesh = obj.to_mesh()
             if not self.individual:
                 mesh.transform(obj.matrix_world)
@@ -678,10 +679,10 @@ def ExportMD3(file_path, objects, frame_list, individual):
         tags.append([new_tag])
     
     for frame in frame_list[1:]:
-        sf.clear_meshes(eval_mesh_objects)
+        sf.clear_meshes()
         bpy.context.scene.frame_set(frame)
         depsgraph.update()
-        sf.update_meshes(eval_mesh_objects)
+        sf.update_meshes()
         
         for surf_id, surf in enumerate(surface_descriptors):
             surfaces[surf_id].add_current_frame(surf)
