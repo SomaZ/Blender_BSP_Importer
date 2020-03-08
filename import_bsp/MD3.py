@@ -158,15 +158,6 @@ class surface_factory:
         for surface_descriptor in self.surface_descriptors:
             for map in surface_descriptor.vertex_mapping:
                 map.set_mesh(meshes[map.obj_id])
-                    
-def guess_model_name(file_path):
-    split_name = file_path.split("/models/")
-    if len(split_name) > 1:
-        model_name = "models/" + (split_name[len(split_name)-1])
-    else:
-        split_name = split_name[0].split("/")
-        model_name = "models/" + split_name[len(split_name)-1]
-    return model_name
 
 class lump:
     def __init__(self, data_class):
