@@ -521,6 +521,21 @@ class Q3_PT_ShaderPanel(bpy.types.Panel):
         row.operator("q3mapping.reload_shader")
         layout.separator()
         
+        lg_group = bpy.data.node_groups.get("LightGrid")
+        if lg_group != None:
+            col = layout.column()
+            if "Ambient light helper" in lg_group.nodes:
+                ambient = lg_group.nodes["Ambient light helper"].outputs[0]
+                col.prop(ambient, "default_value", text="Ambient light")
+            if "Direct light helper" in lg_group.nodes:
+                direct = lg_group.nodes["Direct light helper"].outputs[0]
+                col.prop(direct, "default_value", text="Direct light")
+            if "Light direction helper" in lg_group.nodes:
+                vec = lg_group.nodes["Light direction helper"].outputs[0]
+                col.prop(vec, "default_value", text="Light direction")
+                
+        
+        
 class Q3_PT_EntityPanel(bpy.types.Panel):
     bl_idname = "Q3_PT_entity_panel"
     bl_label = "Selected Entity"

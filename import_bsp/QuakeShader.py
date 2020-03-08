@@ -828,7 +828,7 @@ def build_quake_shaders(import_settings, object_list):
             split_name = m[0].material.name.split(".")
             shader_name = split_name[0]
         else:
-            shader_name = m.material.name
+            shader_name = m[0].material.name
             
         qs = quake_shader(m[0].material.name, m[0].material)
         if m[1]:

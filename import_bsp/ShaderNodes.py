@@ -535,6 +535,7 @@ class Lightgrid_Node(Generic_Node_Group):
             lightgrid_group.links.new(node_lower_tc.outputs[0], node_a1_low.inputs["Vector"])
         else:
             node_a1_up = lightgrid_group.nodes.new(type='ShaderNodeRGB')
+            node_a1_up.name = "Ambient light helper"
             node_a1_up.outputs[0].default_value = (0.3, 0.123, 0.0, 1.0)
             node_a1_low = node_a1_up
         
@@ -551,6 +552,7 @@ class Lightgrid_Node(Generic_Node_Group):
             lightgrid_group.links.new(node_lower_tc.outputs[0], node_d1_low.inputs["Vector"])
         else:
             node_d1_up = lightgrid_group.nodes.new(type='ShaderNodeRGB')
+            node_d1_up.name = "Direct light helper"
             node_d1_up.outputs[0].default_value = (1.0, 1.0, 1.0, 1.0)
             node_d1_low = node_d1_up
             
@@ -566,8 +568,9 @@ class Lightgrid_Node(Generic_Node_Group):
             node_vec_low.location = (200,-1000)
             lightgrid_group.links.new(node_lower_tc.outputs[0], node_vec_low.inputs["Vector"])
         else:
-            node_vec_up = lightgrid_group.nodes.new(type='ShaderNodeRGB')
-            node_vec_up.outputs[0].default_value = (0.5, 0.3, 0.2, 1.0)
+            node_vec_up = lightgrid_group.nodes.new(type='ShaderNodeNormal')
+            node_vec_up.name = "Light direction helper"
+            node_vec_up.outputs[0].default_value = (0.5, 0.3, 0.2)
             node_vec_low = node_vec_up
                 
         node_math_fract = lightgrid_group.nodes.new(type="ShaderNodeMath")
@@ -597,8 +600,8 @@ class Lightgrid_Node(Generic_Node_Group):
         node_out_vector = lightgrid_group.nodes.new(type="ShaderNodeMixRGB")
         node_out_vector.name = "Vector"
         node_out_vector.location = (600,-1000)
-        lightgrid_group.links.new(node_vec_low.outputs["Color"], node_out_vector.inputs["Color1"])
-        lightgrid_group.links.new(node_vec_up.outputs["Color"], node_out_vector.inputs["Color2"])
+        lightgrid_group.links.new(node_vec_low.outputs[0], node_out_vector.inputs["Color1"])
+        lightgrid_group.links.new(node_vec_up.outputs[0], node_out_vector.inputs["Color2"])
         lightgrid_group.links.new(node_math_fract.outputs[0], node_out_vector.inputs["Fac"])
         
         node_out_vector_normalized = lightgrid_group.nodes.new(type="ShaderNodeVectorMath")
@@ -606,7 +609,6 @@ class Lightgrid_Node(Generic_Node_Group):
         node_out_vector_normalized.location = (900,-1000)
         node_out_vector_normalized.operation = "NORMALIZE"
         lightgrid_group.links.new(node_out_vector.outputs["Color"], node_out_vector_normalized.inputs["Vector"])
-        
         
         node_attenuation = lightgrid_group.nodes.new(type="ShaderNodeVectorMath")
         node_attenuation.name = "DirectAttenuation"
