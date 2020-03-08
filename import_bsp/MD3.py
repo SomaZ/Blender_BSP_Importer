@@ -242,8 +242,15 @@ class MD3:
         size = INT + STRING + INT + INT + INT + INT + INT + INT + INT + INT + INT + INT
         encoding = "<4s64siiiiiiiiii"
         def __init__(self, array):
+            
+            first_0 = 64
+            for pos, i in enumerate(array[1]):
+                if i == 0:
+                    first_0 = pos
+                    break
+            reverse = 64-first_0
             self.magic =        array[0]
-            self.name =         array[1].decode("utf-8", errors="ignore").strip("\0")
+            self.name =         array[1][:-reverse].decode("utf-8", errors="ignore")
             self.flags =        array[2]
             self.n_frames =     array[3]
             self.n_shaders =    array[4]
@@ -347,7 +354,15 @@ class MD3:
             size = STRING + INT
             encoding = "<64si"
             def __init__(self, array):
-                self.name =     Image.remove_file_extension(array[0].decode("utf-8", errors="ignore").strip("\0"))
+                
+                first_0 = 64
+                for pos, i in enumerate(array[0]):
+                    if i == 0:
+                        first_0 = pos
+                        break
+                reverse = 64-first_0
+
+                self.name =     Image.remove_file_extension(array[0][:-reverse].decode("utf-8", errors="ignore"))
                 self.index =    array[1]
             def to_array(self):
                 array = [None for i in range(2)]
@@ -414,7 +429,15 @@ class MD3:
             self.max_bounds = [array[3],array[4],array[5]]
             self.local_origin = [array[6],array[7],array[8]]
             self.radius = array[9]
-            self.name = array[10].decode("utf-8", errors="ignore").strip("\0")
+            
+            first_0 = 64
+            for pos, i in enumerate(array[10]):
+                if i == 0:
+                    first_0 = pos
+                    break
+            reverse = 64-first_0
+                
+            self.name = array[10][:-reverse].decode("utf-8", errors="ignore")
         @classmethod
         def from_objects(cls, objects, individual):
             array = [0.0 for i in range(10)]
@@ -459,7 +482,14 @@ class MD3:
         size = STRING + 3*FLOAT + 9*FLOAT
         encoding = "<64s3f3f3f3f"
         def __init__(self, array):
-            self.name = array[0].decode("utf-8", errors="ignore").strip("\0")
+            first_0 = 64
+            for pos, i in enumerate(array[0]):
+                if i == 0:
+                    first_0 = pos
+                    break
+            reverse = 64-first_0
+            
+            self.name = array[0][:-reverse].decode("utf-8", errors="ignore")
             self.origin = [array[1],array[2],array[3]]
             self.axis_1 = [array[4],array[5],array[6]]
             self.axis_2 = [array[7],array[8],array[9]]
