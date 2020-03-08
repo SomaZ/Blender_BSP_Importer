@@ -818,7 +818,7 @@ class Reload_shader(bpy.types.Operator):
         if not import_settings.base_path.endswith('/'):
             import_settings.base_path = import_settings.base_path + '/'
             
-        objs = [bpy.context.view_layer.objects.active]
+        objs = [obj for obj in context.selected_objects if obj.type=="MESH"]
         
         for obj in objs:
             vg = obj.vertex_groups.get("Decals")

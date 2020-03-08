@@ -300,6 +300,14 @@ class quake_shader:
         node_output = shader.nodes.new(type='ShaderNodeOutputMaterial')
         node_output.name = "Output"
         node_output.location = (4200,0)
+    
+    def set_vertex_lit(shader):
+        shader.is_vertex_lit = True
+        shader.is_grid_lit = False
+        
+    def set_grid_lit(shader):
+        shader.is_vertex_lit = False
+        shader.is_grid_lit = True
         
     def get_node_by_name(shader, name):
         node = shader.nodes.get(name)
@@ -802,25 +810,36 @@ def build_quake_shaders(import_settings, object_list):
         return
     
     material_list = []
-    material_names = []
     for object in object_list:
+        force_vertex = False
+        force_grid = False
+        if "LightmapUV" not in object.data.uv_layers:
+            force_vertex = True
+            if "Color" not in object.data.vertex_colors:
+                force_grid = True
+        
         for m in object.material_slots:
-            if m.name not in material_names:
-                material_names.append(m.name)
-                material_list.append(m)
+            if m not in material_list:
+                material_list.append([m, force_vertex, force_grid])
     
     for m in material_list:
-        index = m.material.name.find('.')
+        index = m[0].material.name.find('.')
         if not (index == -1):
-            split_name = m.material.name.split(".")
+            split_name = m[0].material.name.split(".")
             shader_name = split_name[0]
         else:
             shader_name = m.material.name
             
+        qs = quake_shader(m[0].material.name, m[0].material)
+        if m[1]:
+            qs.set_vertex_lit()
+        if m[2]:
+            qs.set_grid_lit()
+            
         if shader_name in shaders:
-            shaders[l_format(shader_name)].append(quake_shader(m.material.name, m.material))
+            shaders[l_format(shader_name)].append(qs)
         else:
-            shaders.setdefault(l_format(shader_name),[]).append(quake_shader(m.material.name, m.material))
+            shaders.setdefault(l_format(shader_name),[]).append(qs)
             
     for shader_file in shader_list:
         with open(shader_file, encoding="latin-1") as lines:
