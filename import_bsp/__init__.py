@@ -61,7 +61,9 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
         row = layout.row()
         row.prop(self, "base_path")
 	
-classes = ( BspImport.Operator,
+classes = ( BspImport.Import_ID3_BSP,
+            BspImport.Import_ID3_MD3,
+            BspImport.Export_ID3_MD3,
             BspImportAddonPreferences,
             BspImport.Q3_PT_ShaderPanel,
             BspImport.Q3_PT_EntityPanel,
@@ -84,14 +86,21 @@ classes = ( BspImport.Operator,
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-    bpy.types.TOPBAR_MT_file_import.append(BspImport.menu_func)
+    bpy.types.TOPBAR_MT_file_import.append(BspImport.menu_func_bsp_import)
+    bpy.types.TOPBAR_MT_file_import.append(BspImport.menu_func_md3_import)
+    bpy.types.TOPBAR_MT_file_export.append(BspImport.menu_func_md3_export)
+    
     bpy.types.Object.q3_dynamic_props = bpy.props.PointerProperty(type=BspImport.DynamicProperties)
     bpy.types.Scene.id_tech_3_settings = bpy.props.PointerProperty(type=BspImport.SceneProperties)
     bpy.types.Scene.id_tech_3_importer_preset = bpy.props.StringProperty(   name="id3 importer preset",
                                                                             description="Last used importer preset" )
 
 def unregister():
-    bpy.types.TOPBAR_MT_file_import.remove(BspImport.menu_func)
+    
+    bpy.types.TOPBAR_MT_file_import.remove(BspImport.menu_func_bsp_import)
+    bpy.types.TOPBAR_MT_file_import.remove(BspImport.menu_func_md3_import)
+    bpy.types.TOPBAR_MT_file_export.remove(BspImport.menu_func_md3_export)
+    
     for cls in classes:
         bpy.utils.unregister_class(cls)
 

@@ -67,8 +67,7 @@ from mathutils import Vector
 class ImportSettings:
     pass
 
-### The new operator ###
-class Operator(bpy.types.Operator, ImportHelper):
+class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
     bl_idname = "import_scene.id3_bsp"
     bl_label = "Import ID3 engine BSP (.bsp)"
     filename_ext = ".bsp"
@@ -118,9 +117,68 @@ class Operator(bpy.types.Operator, ImportHelper):
         #    print(line)
             
         return {'FINISHED'}
+    
+class Import_ID3_MD3(bpy.types.Operator, ImportHelper):
+    bl_idname = "import_scene.id3_md3"
+    bl_label = "Import ID3 engine MD3 (.md3)"
+    filename_ext = ".md3"
+    filter_glob : StringProperty(default="*.md3", options={'HIDDEN'})
+
+    filepath : StringProperty(name="File Path", description="File path used for importing the BSP file", maxlen= 1024, default="")
+
+    def execute(self, context):
+        addon_name = __name__.split('.')[0]
+        self.prefs = context.preferences.addons[addon_name].preferences
         
-def menu_func(self, context):
-    self.layout.operator(Operator.bl_idname, text="ID3 BSP (.bsp)")
+        fixed_base_path = self.prefs.base_path
+        if not fixed_base_path.endswith('/'):
+            fixed_base_path = fixed_base_path + '/'
+        
+        #trace some things like paths and lightmap size
+        import_settings = ImportSettings()
+        import_settings.base_path = fixed_base_path
+        import_settings.shader_dirs = "shaders/", "scripts/"
+        import_settings.bsp_name = ""
+        import_settings.preset = "PREVIEW"
+        import_settings.filepath = self.filepath
+        
+        objs = MD3.ImportMD3Object(self.filepath)
+        QuakeShader.build_quake_shaders(import_settings, objs)
+        
+        return {'FINISHED'}
+    
+class Export_ID3_MD3(bpy.types.Operator, ExportHelper):
+    bl_idname = "export_scene.id3_md3"
+    bl_label = "Export ID3 engine MD3 (.md3)"
+    filename_ext = ".md3"
+    filter_glob : StringProperty(default="*.md3", options={'HIDDEN'})
+
+    filepath : StringProperty(name="File Path", description="File path used for importing the BSP file", maxlen= 1024, default="")
+    only_selected : BoolProperty(name = "Export only selected", description="Exports only selected Objects", default=False)
+    individual : BoolProperty(name="Local space coordinates", description="Uses every models local space coordinates instead of the world space")
+    start_frame : IntProperty(name="Start Frame", description="First frame to export", default = 0, min = 0)
+    end_frame : IntProperty(name="End Frame", description="Last frame to export", default = 1, min = 1)
+    def execute(self, context):
+        objects = context.scene.objects
+        if self.only_selected:
+            objects = context.selected_objects
+            
+        frame_list = range(self.start_frame, max(self.end_frame, self.start_frame+1))
+        status = MD3.ExportMD3(self.filepath, objects, frame_list, self.individual)
+        if status[0]:
+            return {'FINISHED'}
+        else:
+            self.report({"ERROR"}, status[1])
+            return {'CANCELLED'}
+        
+def menu_func_bsp_import(self, context):
+    self.layout.operator(Import_ID3_BSP.bl_idname, text="ID3 BSP (.bsp)")
+    
+def menu_func_md3_import(self, context):
+    self.layout.operator(Import_ID3_MD3.bl_idname, text="ID3 MD3 (.md3)")
+    
+def menu_func_md3_export(self, context):
+    self.layout.operator(Export_ID3_MD3.bl_idname, text="ID3 MD3 (.md3)")
     
 flag_mapping = {
     1 : "b1",
