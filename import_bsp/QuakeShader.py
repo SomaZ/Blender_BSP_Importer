@@ -616,10 +616,6 @@ class quake_shader:
                     shader_type = "MULTIPLY"
                     shader.mat.blend_method = "BLEND"
                     
-                if stage.blend.startswith("gl_one ") and not stage.blend.endswith("gl_one"):
-                    shader_type = "BLEND"
-                    shader.mat.blend_method = "OPAQUE"
-                    
                 if shader_type == "MULTIPLY" and color_out == None:
                     node_color = shader.nodes.new(type='ShaderNodeRGB')
                     node_color.location = shader.current_x_location, shader.current_y_location + 400
