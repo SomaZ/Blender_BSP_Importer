@@ -503,7 +503,7 @@ class MD3:
             tag = cls(array)
             tag.origin = empty.location.copy()
             matrix = empty.matrix_world.copy()
-            
+            matrix.transpose()
             tag.axis_1 = matrix[0].xyz
             tag.axis_2 = matrix[1].xyz
             tag.axis_3 = matrix[2].xyz
@@ -700,9 +700,9 @@ def ExportMD3(file_path, objects, frame_list, individual):
         surface_size += new_surface.tcs.size
         surface_size += new_surface.shaders.size
         
-    for new_tag in tags:
-        for tag_frame in new_tag:
-            tags_bytes += tag_frame.to_bytes()
+    for frame in range(len(frame_list)):
+        for new_tag in tags:
+            tags_bytes += new_tag[frame].to_bytes()
     
     md3_bytes = bytearray()
     md3_bytes+=(b'IDP3')
