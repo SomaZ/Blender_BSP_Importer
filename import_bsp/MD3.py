@@ -519,7 +519,7 @@ class MD3:
             return new_bytes
             
             
-def ImportMD3(model_name, zoffset):
+def ImportMD3(model_name, zoffset, import_tags):
     
     mesh = None
     skip = False
@@ -561,6 +561,23 @@ def ImportMD3(model_name, zoffset):
             
             surface_lumps.append(surface)
             ofsSurfaces += surface.data[0].off_end
+        
+        if import_tags:
+            tag_lump = lump(md3.tag)
+            tag_lump.set_offset_count([ofsTags, numTags])
+            tag_lump.readFrom(file)
+            
+            for tag in range(numTags):
+                bpy.ops.object.empty_add(type="ARROWS")
+                tag_obj = bpy.context.object
+                tag_obj.name = tag_lump.data[tag].name
+                matrix = Matrix.Identity(4)
+                matrix[0] = [*tag_lump.data[tag].axis_1, 0.0]
+                matrix[1] = [*tag_lump.data[tag].axis_2, 0.0]
+                matrix[2] = [*tag_lump.data[tag].axis_3, 0.0]
+                matrix.transpose()
+                matrix.translation = tag_lump.data[tag].origin
+                tag_obj.matrix_world = matrix
             
         vertex_pos = []
         vertex_nor = []
@@ -637,8 +654,8 @@ def ImportMD3(model_name, zoffset):
     file.close
     return mesh
 
-def ImportMD3Object(file_path):
-    mesh = ImportMD3(file_path, 0)
+def ImportMD3Object(file_path, import_tags):
+    mesh = ImportMD3(file_path, 0, import_tags)
     ob = bpy.data.objects.new(mesh.name, mesh)
     bpy.context.collection.objects.link(ob)
     return [ob]

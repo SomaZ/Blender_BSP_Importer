@@ -125,7 +125,7 @@ class Import_ID3_MD3(bpy.types.Operator, ImportHelper):
     filter_glob : StringProperty(default="*.md3", options={'HIDDEN'})
 
     filepath : StringProperty(name="File Path", description="File path used for importing the BSP file", maxlen= 1024, default="")
-
+    import_tags : BoolProperty(name="Import Tags", description="Whether to import the md3 tags or not", default = True )
     def execute(self, context):
         addon_name = __name__.split('.')[0]
         self.prefs = context.preferences.addons[addon_name].preferences
@@ -144,7 +144,7 @@ class Import_ID3_MD3(bpy.types.Operator, ImportHelper):
         
         fixed_filepath = self.filepath.replace("\\", "/")
         
-        objs = MD3.ImportMD3Object(fixed_filepath)
+        objs = MD3.ImportMD3Object(fixed_filepath, self.import_tags)
         QuakeShader.build_quake_shaders(import_settings, objs)
         
         return {'FINISHED'}
@@ -374,13 +374,13 @@ def update_model(self, context):
         return
     
     if "model2" in obj:
-        obj["model2"] = obj.q3_dynamic_props.model.split(".")[0]
+        obj["model2"] = obj.q3_dynamic_props.model.split(".")[0] + ".md3"
         model_name = obj["model2"]
     elif "model" in obj:
-        obj["model"] = obj.q3_dynamic_props.model.split(".")[0]
+        obj["model"] = obj.q3_dynamic_props.model.split(".")[0] + ".md3"
         model_name = obj["model"]
         
-    if obj.data.name == obj.q3_dynamic_props.model:
+    if obj.data.name == obj.q3_dynamic_props.model.split(".")[0]:
         return
     
     model_name = model_name.replace("\\", "/").lower()
@@ -410,7 +410,7 @@ def update_model(self, context):
         if model_name.startswith("models/"):
             model_name = import_settings.base_path + model_name
             
-        obj.data = MD3.ImportMD3(model_name + ".md3", zoffset)
+        obj.data = MD3.ImportMD3(model_name + ".md3", zoffset, False)
         if obj.data != None:
             obj.q3_dynamic_props.model = obj.data.name
             
