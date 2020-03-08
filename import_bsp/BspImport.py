@@ -142,7 +142,9 @@ class Import_ID3_MD3(bpy.types.Operator, ImportHelper):
         import_settings.preset = "PREVIEW"
         import_settings.filepath = self.filepath
         
-        objs = MD3.ImportMD3Object(self.filepath)
+        fixed_filepath = self.filepath.replace("\\", "/")
+        
+        objs = MD3.ImportMD3Object(fixed_filepath)
         QuakeShader.build_quake_shaders(import_settings, objs)
         
         return {'FINISHED'}
