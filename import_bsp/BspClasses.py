@@ -488,6 +488,7 @@ class lightgrid_rbsp:
         self.direct4 = [array[21],array[22],array[23]]
         self.styles = [array[24],array[25],array[26],array[27]]
         self.lat_long = [array[28], array[29]]
+        self.hash = hash(tuple(array))
     def to_array(self):
         array = [None for i in range(30)]
         array[0],array[1],array[2] = self.ambient1

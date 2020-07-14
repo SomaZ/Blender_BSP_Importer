@@ -836,34 +836,35 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
         
         bsp = BspClasses.BSP(self.filepath)
         
-        objs = [obj for obj in context.selected_objects if obj.type=="MESH"]
-        for obj in objs:
-            mesh = obj.to_mesh()
-            mesh.calc_loop_triangles()
-            #check if its an imported bsp data set
-            if mesh.vertex_layers_int.get("BSP_VERT_INDEX") is not None:
-                #patch all vertices of this mesh
-                for triangle in mesh.loop_triangles:
-                    for vertex, loop in zip(triangle.vertices, triangle.loops):
-                        #get the vertex position in the bsp file
-                        bsp_vert_index = mesh.vertex_layers_int["BSP_VERT_INDEX"].data[vertex].value
-                        if bsp_vert_index < 0:
-                            continue
-                        bsp_vert = bsp.lumps["drawverts"].data[bsp_vert_index]
-                        if self.patch_tcs:
-                            bsp_vert.texcoord = mesh.uv_layers["UVMap"].data[loop].uv
-                        if self.patch_lm_tcs:
-                            bsp_vert.lm1coord = mesh.uv_layers["LightmapUV"].data[loop].uv
-                        if self.patch_normals:
-                            bsp_vert.normal = mesh.vertices[vertex].normal.copy()
-                            if in_mesh.has_custom_normals:
-                                bsp_vert.normal = mesh.loops[loop].normal.copy()
-                        if self.patch_colors:
-                            bsp_vert.color1 = mesh.vertex_colors["Color"].data[loop].color
-                            bsp_vert.color1[3] = mesh.vertex_colors["Alpha"].data[loop].color[0]
-            else:
-                self.report({"ERROR"}, "Not a valid mesh for patching")
-                return {'CANCELLED'}
+        if self.patch_colors or self.patch_normals or self.patch_lm_tcs or self.patch_tcs:
+            objs = [obj for obj in context.selected_objects if obj.type=="MESH"]
+            for obj in objs:
+                mesh = obj.to_mesh()
+                mesh.calc_loop_triangles()
+                #check if its an imported bsp data set
+                if mesh.vertex_layers_int.get("BSP_VERT_INDEX") is not None:
+                    #patch all vertices of this mesh
+                    for triangle in mesh.loop_triangles:
+                        for vertex, loop in zip(triangle.vertices, triangle.loops):
+                            #get the vertex position in the bsp file
+                            bsp_vert_index = mesh.vertex_layers_int["BSP_VERT_INDEX"].data[vertex].value
+                            if bsp_vert_index < 0:
+                                continue
+                            bsp_vert = bsp.lumps["drawverts"].data[bsp_vert_index]
+                            if self.patch_tcs:
+                                bsp_vert.texcoord = mesh.uv_layers["UVMap"].data[loop].uv
+                            if self.patch_lm_tcs:
+                                bsp_vert.lm1coord = mesh.uv_layers["LightmapUV"].data[loop].uv
+                            if self.patch_normals:
+                                bsp_vert.normal = mesh.vertices[vertex].normal.copy()
+                                if in_mesh.has_custom_normals:
+                                    bsp_vert.normal = mesh.loops[loop].normal.copy()
+                            if self.patch_colors:
+                                bsp_vert.color1 = mesh.vertex_colors["Color"].data[loop].color
+                                bsp_vert.color1[3] = mesh.vertex_colors["Alpha"].data[loop].color[0]
+                else:
+                    self.report({"ERROR"}, "Not a valid mesh for patching")
+                    return {'CANCELLED'}
         
         if self.patch_lm_tcs or self.patch_tcs:
             lightmap_size = bsp.lightmap_size[0]
@@ -970,6 +971,7 @@ class Prepare_Lightmap_Baking(bpy.types.Operator):
                 obj.select_set(False)
                 mesh = obj.data
                 if mesh.name.startswith("*"):
+                    bpy.context.view_layer.objects.active = obj
                     obj.select_set(True)
                     if "LightmapUV" in mesh.uv_layers:
                         mesh.uv_layers["LightmapUV"].active = True

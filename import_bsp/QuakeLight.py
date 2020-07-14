@@ -256,8 +256,12 @@ def storeLightgrid(bsp):
         return None
     
     color_scale = 1.0
+    current_pixel_mapping = 0
+    hash_table = {}
     
     for pixel in range(vec_image.size[0] * vec_image.size[1]):
+        #TODO: check if pixel in leaf
+        
         x = vec_pixels[pixel * 4 + 0]
         y = vec_pixels[pixel * 4 + 1]
         z = vec_pixels[pixel * 4 + 2]
@@ -273,13 +277,6 @@ def storeLightgrid(bsp):
                                 dir_pixels[4 * pixel + 1],
                                 dir_pixels[4 * pixel + 2]],
                                 color_scale)
-                                
-        #amb = [ amb_pixels[4 * pixel + 0],
-        #        amb_pixels[4 * pixel + 1],
-        #        amb_pixels[4 * pixel + 2]]
-        #dir = [ dir_pixels[4 * pixel + 0],
-        #        dir_pixels[4 * pixel + 1],
-        #        dir_pixels[4 * pixel + 2]]
         
         array = []
         if bsp.lightmaps == 4:
@@ -323,8 +320,22 @@ def storeLightgrid(bsp):
             array.append(lat)
             array.append(lon)
             
-        bsp.lumps["lightgrid"].add(array)
-        bsp.lumps["lightgridarray"].add([pixel])
+        if bsp.use_lightgridarray:
+            current_hash = hash(tuple(array))
+            found_twin = -1
+            if current_hash in hash_table:
+                found_twin = hash_table[current_hash]
+                
+            if found_twin == -1:
+                bsp.lumps["lightgrid"].add(array)
+                bsp.lumps["lightgridarray"].add([current_pixel_mapping])
+                hash_table[current_hash] = current_pixel_mapping
+                current_pixel_mapping += 1
+            else:
+                bsp.lumps["lightgridarray"].add([found_twin])
+                
+        else:
+            bsp.lumps["lightgrid"].add(array)
 
 def luma (color):
     return Vector.dot(color, Vector((0.299, 0.587, 0.114)))
