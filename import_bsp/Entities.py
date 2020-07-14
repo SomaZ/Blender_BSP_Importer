@@ -113,6 +113,16 @@ def ImportEntities(bsp, import_settings):
                         md3_objects.append(mesh_name)
                         me.name = mesh_name
                         
+                    if me == None:
+                        if (mesh == None):
+                            ent_object = bpy.ops.mesh.primitive_cube_add(size = 32.0, location=([0,0,0]))
+                            ent_object = bpy.context.object
+                            ent_object.name = "EntityBox"
+                            mesh = ent_object.data
+                            mesh.name = "EntityMesh"
+                            bpy.data.objects.remove(ent_object, do_unlink=True)
+                        me = mesh
+                        
                     ob = bpy.data.objects.new(mesh_name, me)
                     
                 obj_list.append(ob)

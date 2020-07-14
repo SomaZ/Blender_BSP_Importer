@@ -20,6 +20,11 @@ if "BspClasses" in locals():
 else:
     from . import BspClasses
     
+if "BspGeneric" in locals():
+    imp.reload( BspGeneric )
+else:
+    from . import BspGeneric
+    
 if "Entities" in locals():
     imp.reload( Entities )
 else:
@@ -34,6 +39,11 @@ if "QuakeShader" in locals():
     imp.reload( QuakeShader )
 else:
     from . import QuakeShader
+    
+if "QuakeLight" in locals():
+    imp.reload( QuakeLight )
+else:
+    from . import QuakeLight
     
 if "StringProperty" not in locals():
     from bpy.props import StringProperty
@@ -77,7 +87,7 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
     preset : EnumProperty(name="Import preset", description="You can select wether you want to import a bsp for editing, rendering, or previewing.", default='PREVIEW', items=[
             ('PREVIEW', "Preview", "Trys to build eevee shaders, imports all misc_model_statics when available", 0),
             ('EDITING', "Editing", "Trys to build eevee shaders, imports all entitys", 1),
-            #('RENDERING', "Rendering", "Trys to build fitting cycles shaders, only imports visable enities", 2),
+            ('RENDERING', "Rendering", "Trys to build fitting cycles shaders, only imports visable enities", 2),
         ])
     subdivisions : IntProperty(name="Patch subdivisions", description="How often a patch is subdivided at import", default=2)
 
@@ -518,7 +528,9 @@ class Q3_PT_ShaderPanel(bpy.types.Panel):
         
         row = layout.row()
         row.scale_y = 1.0
-        row.operator("q3mapping.reload_shader")
+        row.operator("q3mapping.reload_preview_shader")
+        row = layout.row()
+        row.operator("q3mapping.reload_render_shader")
         layout.separator()
         
         lg_group = bpy.data.node_groups.get("LightGrid")
@@ -534,6 +546,12 @@ class Q3_PT_ShaderPanel(bpy.types.Panel):
                 vec = lg_group.nodes["Light direction helper"].outputs[0]
                 col.prop(vec, "default_value", text="Light direction")
                 
+        emission_group = bpy.data.node_groups.get("EmissionScaleNode")
+        if emission_group != None:
+            col = layout.column()
+            if "Emission scale" in emission_group.nodes:
+                scale = emission_group.nodes["Emission scale"].outputs[0]
+                col.prop(scale, "default_value", text="Shader Emission Scale")
         
         
 class Q3_PT_EntityPanel(bpy.types.Panel):
@@ -543,16 +561,13 @@ class Q3_PT_EntityPanel(bpy.types.Panel):
     bl_region_type = "UI"
     bl_category = "Q3 Entities"
     
-    @classmethod
-    def poll(self, context):
-        if "id_tech_3_importer_preset" in context.scene:
-            return (context.object is not None and context.scene.id_tech_3_importer_preset == "EDITING")
-        return False
-    
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         obj = bpy.context.active_object
+        
+        if obj == None:
+            return
         
         #layout.prop(context.scene.id_tech_3_settings,"gamepack")
         layout.label(text=context.scene.id_tech_3_settings.gamepack.split(".")[0])
@@ -575,6 +590,9 @@ class Q3_PT_PropertiesEntityPanel(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         obj = bpy.context.active_object
+        
+        if obj == None:
+            return
         
         filtered_keys = ["classname", "spawnflags", "origin", "angles", "angle"]
         
@@ -650,6 +668,9 @@ class Q3_PT_DescribtionEntityPanel(bpy.types.Panel):
         scene = context.scene
         obj = bpy.context.active_object
         
+        if obj == None:
+            return
+        
         if "classname" in obj:
             classname = obj["classname"].lower()
             if classname in Entities.Dict:
@@ -674,6 +695,9 @@ class Q3_PT_EditEntityPanel(bpy.types.Panel):
         scene = context.scene
         obj = bpy.context.active_object
         
+        if obj == None:
+            return
+        
         filtered_keys = ["classname", "spawnflags", "origin", "angles", "angle"]
         
         if "classname" in obj:
@@ -695,6 +719,7 @@ class Q3_PT_EditEntityPanel(bpy.types.Panel):
                 
                 layout.separator()
                 layout.operator("q3.update_entity_definition").name = classname
+                
                 
 def GetEntityStringFromScene():
     filtered_keys = ["_rna_ui", "q3_dynamic_props"]
@@ -781,7 +806,7 @@ class PatchBspEntities(bpy.types.Operator, ExportHelper):
         
         name = self.filepath
         if self.create_backup == True:
-            name = name.replace(".bsp","") + "_patched.bsp"
+            name = name.replace(".bsp","") + "_ent_patched.bsp"
         
         f = open(name, "wb")
         try:
@@ -791,7 +816,220 @@ class PatchBspEntities(bpy.types.Operator, ExportHelper):
             
         f.close()
         return {'FINISHED'}
+    
+class PatchBspData(bpy.types.Operator, ExportHelper):
+    bl_idname = "q3.patch_bsp_data"
+    bl_label = "Patch data in existing .bsp"
+    bl_options = {"INTERNAL","REGISTER"}
+    filename_ext = ".bsp"
+    filter_glob : StringProperty(default="*.bsp", options={'HIDDEN'})
+    filepath : StringProperty(name="File", description="Which .bsp file to patch", maxlen= 1024, default="")
+    create_backup : BoolProperty(name="Append a suffix to the output file (don't overwrite original file)", default = True)
+    patch_lm_tcs : BoolProperty(name="Lightmap texture coordinates", default = True)
+    patch_tcs : BoolProperty(name="Texture coordinates", default = False)
+    patch_normals : BoolProperty(name="Normals", default = False)
+    patch_lightmaps : BoolProperty(name="Lightmaps", default = True)
+    patch_colors : BoolProperty(name="Vertex Colors", default = False)
+    patch_lightgrid : BoolProperty(name = "Light Grid", default = False)
+    #TODO Shader lump + shader assignments
+    def execute(self, context):
+        
+        bsp = BspClasses.BSP(self.filepath)
+        
+        objs = [obj for obj in context.selected_objects if obj.type=="MESH"]
+        for obj in objs:
+            mesh = obj.to_mesh()
+            mesh.calc_loop_triangles()
+            #check if its an imported bsp data set
+            if mesh.vertex_layers_int.get("BSP_VERT_INDEX") is not None:
+                #patch all vertices of this mesh
+                for triangle in mesh.loop_triangles:
+                    for vertex, loop in zip(triangle.vertices, triangle.loops):
+                        #get the vertex position in the bsp file
+                        bsp_vert_index = mesh.vertex_layers_int["BSP_VERT_INDEX"].data[vertex].value
+                        if bsp_vert_index < 0:
+                            continue
+                        bsp_vert = bsp.lumps["drawverts"].data[bsp_vert_index]
+                        if self.patch_tcs:
+                            bsp_vert.texcoord = mesh.uv_layers["UVMap"].data[loop].uv
+                        if self.patch_lm_tcs:
+                            bsp_vert.lm1coord = mesh.uv_layers["LightmapUV"].data[loop].uv
+                        if self.patch_normals:
+                            bsp_vert.normal = mesh.vertices[vertex].normal.copy()
+                            if in_mesh.has_custom_normals:
+                                bsp_vert.normal = mesh.loops[loop].normal.copy()
+                        if self.patch_colors:
+                            bsp_vert.color1 = mesh.vertex_colors["Color"].data[loop].color
+                            bsp_vert.color1[3] = mesh.vertex_colors["Alpha"].data[loop].color[0]
+            else:
+                self.report({"ERROR"}, "Not a valid mesh for patching")
+                return {'CANCELLED'}
+        
+        if self.patch_lm_tcs or self.patch_tcs:
+            lightmap_size = bsp.lightmap_size[0]
+            lightmap_image = bpy.data.images.get("$lightmap")
+            packed_width, packed_height = lightmap_image.size
+            packed_lightmap_size = packed_width
+            fixed_vertices = []
+            #fix lightmap tcs and tcs, set lightmap ids
+            for bsp_surf in bsp.lumps["surfaces"].data:
+                #fix lightmap tcs and tcs for patches
+                if bsp_surf.type == 2:
+                    width = int(bsp_surf.patch_width-1)
+                    height = int(bsp_surf.patch_height-1)
+                    ctrlPoints = [[0 for x in range(bsp_surf.patch_width)] for y in range(bsp_surf.patch_height)]
+                    for i in range(bsp_surf.patch_width):
+                        for j in range(bsp_surf.patch_height):
+                            ctrlPoints[j][i] = bsp.lumps["drawverts"].data[bsp_surf.vertex + j*bsp_surf.patch_width + i]
+                            
+                    for i in range(width+1):
+                        for j in range(1, height, 2):
+                            if self.patch_lm_tcs:
+                                ctrlPoints[j][i].lm1coord[0] = (4.0 * ctrlPoints[j][i].lm1coord[0] - ctrlPoints[j+1][i].lm1coord[0] - ctrlPoints[j-1][i].lm1coord[0]) * 0.5
+                                ctrlPoints[j][i].lm1coord[1] = (4.0 * ctrlPoints[j][i].lm1coord[1] - ctrlPoints[j+1][i].lm1coord[1] - ctrlPoints[j-1][i].lm1coord[1]) * 0.5
+                            if self.patch_tcs:
+                                ctrlPoints[j][i].texcoord[0] = (4.0 * ctrlPoints[j][i].texcoord[0] - ctrlPoints[j+1][i].texcoord[0] - ctrlPoints[j-1][i].texcoord[0]) * 0.5
+                                ctrlPoints[j][i].texcoord[1] = (4.0 * ctrlPoints[j][i].texcoord[1] - ctrlPoints[j+1][i].texcoord[1] - ctrlPoints[j-1][i].texcoord[1]) * 0.5
+                    for j in range(height+1):
+                        for i in range(1, width, 2):
+                            if self.patch_lm_tcs:
+                                ctrlPoints[j][i].lm1coord[0] = (4.0 * ctrlPoints[j][i].lm1coord[0] - ctrlPoints[j][i+1].lm1coord[0] - ctrlPoints[j][i-1].lm1coord[0]) * 0.5
+                                ctrlPoints[j][i].lm1coord[1] = (4.0 * ctrlPoints[j][i].lm1coord[1] - ctrlPoints[j][i+1].lm1coord[1] - ctrlPoints[j][i-1].lm1coord[1]) * 0.5
+                            if self.patch_tcs:
+                                ctrlPoints[j][i].texcoord[0] = (4.0 * ctrlPoints[j][i].texcoord[0] - ctrlPoints[j][i+1].texcoord[0] - ctrlPoints[j][i-1].texcoord[0]) * 0.5
+                                ctrlPoints[j][i].texcoord[1] = (4.0 * ctrlPoints[j][i].texcoord[1] - ctrlPoints[j][i+1].texcoord[1] - ctrlPoints[j][i-1].texcoord[1]) * 0.5
+                
+                if self.patch_lm_tcs:               
+                    #set new lightmap ids
+                    #TODO: need to find another way when we want to convert vertex lit surfaces to lightmapped ones
+                    vertices = set()
+                    if bsp_surf.lm_indexes[0] >= 0:
+                        lightmap_id = -3
+                        if bsp_surf.type != 2:
+                            for i in range(int(bsp_surf.n_indexes)):
+                                bsp_vert_index = bsp_surf.vertex + bsp.lumps["drawindexes"].data[bsp_surf.index + i].offset
+                                vertices.add(bsp_vert_index)
+                                bsp_vert = bsp.lumps["drawverts"].data[bsp_vert_index]
+                                lightmap_id = BspGeneric.get_lm_id(bsp_vert.lm1coord, lightmap_size, packed_lightmap_size)
+                        else:
+                            for i in range(bsp_surf.patch_width):
+                                for j in range(bsp_surf.patch_height):
+                                    bsp_vert_index = bsp_surf.vertex + j*bsp_surf.patch_width + i
+                                    vertices.add(bsp_vert_index)
+                                    bsp_vert = bsp.lumps["drawverts"].data[bsp_vert_index]
+                                    lightmap_id = BspGeneric.get_lm_id(bsp_vert.lm1coord, lightmap_size, packed_lightmap_size)
+                        if lightmap_id >= 0:
+                            bsp_surf.lm_indexes[0] = lightmap_id
+                
+                    #unpack lightmap tcs
+                    for i in vertices:
+                        bsp_vert = bsp.lumps["drawverts"].data[i]
+                        BspGeneric.unpack_lm_tc(bsp_vert.lm1coord, lightmap_size, packed_lightmap_size)
+        
+        #get number of lightmaps
+        n_lightmaps = 0
+        for bsp_surf in bsp.lumps["surfaces"].data:
+            #handle lightmap ids with lightstyles
+            for i in range(bsp.lightmaps):
+                if bsp_surf.lm_indexes[i] > n_lightmaps:
+                    n_lightmaps = bsp_surf.lm_indexes[i]
+            
+        #store lightmap
+        if self.patch_lightmaps:
+            QuakeLight.storeLighmaps(bsp, n_lightmaps + 1)
+        
+        #store lightgrid
+        if self.patch_lightgrid:
+            QuakeLight.storeLightgrid(bsp)
+            
+        #write bsp
+        bsp_bytes = bsp.to_bytes()
+        
+        name = self.filepath
+        if self.create_backup == True:
+            name = name.replace(".bsp","") + "_data_patched.bsp"
+        
+        f = open(name, "wb")
+        try:
+            f.write(bsp_bytes)
+        except:
+            print("Failed writing: " + name)
+            
+        f.close()
+        return {'FINISHED'}
+    
+class Prepare_Lightmap_Baking(bpy.types.Operator):
+    bl_idname = "q3.prepare_lm_baking"
+    bl_label = "Prepare Lightmap Baking"
+    bl_options = {"INTERNAL","REGISTER"}
+    
+    def execute(self, context):
+        bpy.context.view_layer.objects.active = None
+        for obj in bpy.context.scene.objects:
+            if obj.type=="MESH":
+                obj.select_set(False)
+                mesh = obj.data
+                if mesh.name.startswith("*"):
+                    obj.select_set(True)
+                    if "LightmapUV" in mesh.uv_layers:
+                        mesh.uv_layers["LightmapUV"].active = True
+                        
+        for mat in bpy.data.materials:
+            node_tree = mat.node_tree
+            if node_tree == None:
+                continue
+            
+            nodes = node_tree.nodes
+            for node in nodes:
+                node.select = False
+                
+            if "Baking Image" in nodes:
+                nodes["Baking Image"].select = True
+                nodes.active = nodes["Baking Image"]
+        
+        return {'FINISHED'}
+    
+class Store_Vertex_Colors(bpy.types.Operator):
+    bl_idname = "q3.store_vertex_colors"
+    bl_label = "Store Vertex Colors"
+    bl_options = {"INTERNAL","REGISTER"}
+    
+    def execute(self, context):
+        objs = [obj for obj in context.selected_objects if obj.type=="MESH"]
+        for obj in objs:
+            mesh = obj.data
+            #TODO: handle lightsyles
+            if not QuakeLight.bake_uv_to_vc(mesh, "LightmapUV", "Color"):
+                self.report({"ERROR"}, "Couldn't find lightmap or vertexmap")
+                return {'CANCELLED'}
+        
+        return {'FINISHED'}
+    
+class Create_Lightgrid(bpy.types.Operator):
+    bl_idname = "q3.create_lightgrid"
+    bl_label = "Create Lightgrid"
+    bl_options = {"INTERNAL","REGISTER"}
+    
+    def execute(self, context):
+        if QuakeLight.create_lightgrid() == False:
+            self.report({"ERROR"}, "Couldn't create lightgrid")
+            return {'CANCELLED'}
+        
+        return {'FINISHED'}
 
+class Convert_Baked_Lightgrid(bpy.types.Operator):
+    bl_idname = "q3.convert_baked_lightgrid"
+    bl_label = "Convert Baked Lightgrid"
+    bl_options = {"INTERNAL","REGISTER"}
+    
+    def execute(self, context):
+        if QuakeLight.createLightGridTextures() == False:
+            self.report({"ERROR"}, "Couldn't convert baked lightgrid textures")
+            return {'CANCELLED'}
+        
+        return {'FINISHED'}
+    
+    
 class Q3_PT_EntExportPanel(bpy.types.Panel):
     bl_name = "Q3_PT_ent_panel"
     bl_label = "Export"
@@ -812,12 +1050,29 @@ class Q3_PT_EntExportPanel(bpy.types.Panel):
         layout.label(text = "Here you can export all the entities in the scene to different filetypes")
         op = layout.operator("q3.export_ent", text="Export .ent")
         #op = layout.operator("q3.export_map", text="Export .map") is it any different to .ent?
-        op = layout.operator("q3.patch_bsp_ents", text="Patch .bsp")
+        op = layout.operator("q3.patch_bsp_ents", text="Patch .bsp Entities")
+        
+        
+class Q3_PT_DataExportPanel(bpy.types.Panel):
+    bl_idname = "Q3_PT_data_export_panel"
+    bl_label = "Patch BSP Data"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "Q3 Data"
+    
+    def draw(self, context):
+        layout = self.layout
+        
+        op = layout.operator("q3.prepare_lm_baking", text="Prepare Lightmap Baking")
+        op = layout.operator("q3.create_lightgrid", text="Create Lightgrid")
+        op = layout.operator("q3.convert_baked_lightgrid", text="Convert Baked Lightgrid")
+        op = layout.operator("q3.store_vertex_colors", text="Vertmap to Vertex Colors")
+        op = layout.operator("q3.patch_bsp_data", text="Patch .bsp Data")
 
-class Reload_shader(bpy.types.Operator):
+class Reload_preview_shader(bpy.types.Operator):
     """Reload Shaders"""
-    bl_idname = "q3mapping.reload_shader"
-    bl_label = "Reload Shaders"
+    bl_idname = "q3mapping.reload_preview_shader"
+    bl_label = "Reload Eevee Shaders"
     bl_options = {'REGISTER', 'UNDO'}
     
     def execute(self, context):
@@ -829,6 +1084,44 @@ class Reload_shader(bpy.types.Operator):
         import_settings.base_path = prefs.base_path
         import_settings.shader_dirs = "shaders/", "scripts/"
         import_settings.preset = 'PREVIEW'
+            
+        if not import_settings.base_path.endswith('/'):
+            import_settings.base_path = import_settings.base_path + '/'
+            
+        objs = [obj for obj in context.selected_objects if obj.type=="MESH"]
+        
+        for obj in objs:
+            vg = obj.vertex_groups.get("Decals")
+            if vg is not None:
+                obj.vertex_groups.remove(vg)
+        
+        QuakeShader.build_quake_shaders(import_settings, objs)
+        
+        for obj in objs:
+            vg = obj.vertex_groups.get("Decals")
+            if vg is not None:
+                modifier = obj.modifiers.new("polygonOffset", type = "DISPLACE")
+                modifier.vertex_group = "Decals"
+                modifier.strength = 0.1
+                modifier.name = "polygonOffset"
+            
+        return {'FINISHED'}
+    
+class Reload_render_shader(bpy.types.Operator):
+    """Reload Shaders"""
+    bl_idname = "q3mapping.reload_render_shader"
+    bl_label = "Reload Cycles Shaders"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        addon_name = __name__.split('.')[0]
+        prefs = context.preferences.addons[addon_name].preferences
+        
+        #TODO: write shader dir to scene and read this
+        import_settings = ImportSettings()
+        import_settings.base_path = prefs.base_path
+        import_settings.shader_dirs = "shaders/", "scripts/"
+        import_settings.preset = 'RENDERING'
             
         if not import_settings.base_path.endswith('/'):
             import_settings.base_path = import_settings.base_path + '/'

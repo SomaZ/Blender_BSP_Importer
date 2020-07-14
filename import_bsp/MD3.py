@@ -438,7 +438,7 @@ class MD3:
                     break
             reverse = 64-first_0
                 
-            self.name = array[10][:-reverse].decode("utf-8", errors="ignore")
+            self.name = array[10][:-reverse].decode("ascii", errors="ignore")
         @classmethod
         def from_objects(cls, objects, individual):
             array = [0.0 for i in range(10)]
@@ -539,6 +539,7 @@ def ImportMD3(model_name, zoffset, import_tags):
         
     if (not skip):
         name        = file.read(64).decode("utf-8", errors="ignore").strip("\0")
+        print("Import MD3: " + name)
         flags       = struct.unpack("<i", file.read(4))[0]
         numFrames   = struct.unpack("<i", file.read(4))[0]
         numTags     = struct.unpack("<i", file.read(4))[0]
@@ -548,6 +549,17 @@ def ImportMD3(model_name, zoffset, import_tags):
         ofsTags     = struct.unpack("<i", file.read(4))[0]
         ofsSurfaces = struct.unpack("<i", file.read(4))[0]
         ofsEnd      = struct.unpack("<i", file.read(4))[0]
+        
+        print("flags: " + str(flags))
+        print("numFrames: " + str(numFrames))
+        print("numTags: " + str(numTags))
+        print("numSurfaces: " + str(numSurfaces))
+        print("numSkins: " + str(numSkins))
+        
+        print("ofsFrames: " + str(ofsFrames))
+        print("ofsTags: " + str(ofsTags))
+        print("ofsSurfaces: " + str(ofsSurfaces))
+        print("ofsEnd: " + str(ofsEnd))
         
         surface_lumps = []
         for surface_lump in range(numSurfaces):
@@ -561,6 +573,16 @@ def ImportMD3(model_name, zoffset, import_tags):
             
             surface_lumps.append(surface)
             ofsSurfaces += surface.data[0].off_end
+            
+        frames = lump(md3.frame)
+        frames.set_offset_count([ofsFrames, numFrames])
+        frames.readFrom(file)
+        for frame_id, frame in enumerate(frames.data):
+            print("\tFrame Nr " + str(frame_id))
+            print("\t\tName: " + str(frame.name))
+            print("\t\tLocal Origin: " + str(frame.local_origin))
+            print("\t\tRadius: " + str(frame.radius))
+            
         
         if import_tags:
             tag_lump = lump(md3.tag)
@@ -591,7 +613,8 @@ def ImportMD3(model_name, zoffset, import_tags):
         
         #vertex groups
         surfaces = {}
-        for surface in surface_lumps:
+        for surface_id, surface in enumerate(surface_lumps):
+            print("\tSurface Nr " + str(surface_id))
             n_indices = 0
             surface_indices = []
             for vertex, tc in zip(surface.data[0].vertices.data, surface.data[0].tcs.data):
@@ -611,7 +634,12 @@ def ImportMD3(model_name, zoffset, import_tags):
                 face_tcs.append(vertex_tc[triangle_indices[1]])
                 face_tcs.append(vertex_tc[triangle_indices[2]])
                 face_material_index.append(shaderindex)
-                    
+            
+            print("\t\tnumTriangles: " + str(len(surface.data[0].triangles.data)))
+            print("\t\tnumShaders: " + str(len(surface.data[0].shaders.data)))
+            for shader_id, shader in enumerate(surface.data[0].shaders.data):
+                print("\t\t\t" + str(shader_id) + ": " + str(shader.name))
+            
             surfaces[surface.data[0].name] = unpack_list(surface_indices)
             face_shaders.append(surface.data[0].shaders.data[0])
             shaderindex += 1

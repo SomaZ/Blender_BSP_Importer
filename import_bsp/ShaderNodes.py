@@ -38,6 +38,9 @@ def create_static_node(shader, name):
     elif name == "BaseReflectionVector":
         node = shader.nodes.new(type="ShaderNodeGroup")
         node.node_tree = Base_Light_Vector_Node.get_node_tree(None)
+    elif name == "EmissionScaleNode":
+        node = shader.nodes.new(type="ShaderNodeGroup")
+        node.node_tree = Emission_Node.get_node_tree(None)
     else:
         print("unrecognized static node: ", name)
         return None
@@ -86,34 +89,81 @@ class Bsp_Node(Generic_Node_Group):
             node_grid_origin.inputs[1].default_value = 0.0
             node_grid_origin.inputs[2].default_value = 0.0
         
-        node_grid_cell_inv = bsp_group.nodes.new(type="ShaderNodeCombineXYZ")
-        node_grid_cell_inv.name = "GridCellInvSize"
-        node_grid_cell_inv.location = (-1400,-200)
+        node_grid_size = bsp_group.nodes.new(type="ShaderNodeCombineXYZ")
+        node_grid_size.name = "GridSize"
+        node_grid_size.location = (-1400,-200)
         if bsp != None:
-            node_grid_cell_inv.inputs[0].default_value = bsp.lightgrid_inverse_size[0]
-            node_grid_cell_inv.inputs[1].default_value = bsp.lightgrid_inverse_size[1]
-            node_grid_cell_inv.inputs[2].default_value = bsp.lightgrid_inverse_size[2]
+            node_grid_size.inputs[0].default_value = bsp.lightgrid_size[0]
+            node_grid_size.inputs[1].default_value = bsp.lightgrid_size[1]
+            node_grid_size.inputs[2].default_value = bsp.lightgrid_size[2]
         else:
-            node_grid_cell_inv.inputs[0].default_value = 1.0
-            node_grid_cell_inv.inputs[1].default_value = 1.0
-            node_grid_cell_inv.inputs[2].default_value = 1.0
+            node_grid_size.inputs[0].default_value = 1.0
+            node_grid_size.inputs[1].default_value = 1.0
+            node_grid_size.inputs[2].default_value = 1.0
+            
+        node_grid_inv_size = bsp_group.nodes.new(type="ShaderNodeVectorMath")
+        node_grid_inv_size.name = "GridInvSize"
+        node_grid_inv_size.location = (-900,-200)
+        node_grid_inv_size.operation = "DIVIDE"
+        node_grid_inv_size.inputs[0].default_value = [1.0, 1.0, 1.0]
+        bsp_group.links.new(node_grid_size.outputs["Vector"], node_grid_inv_size.inputs[1])
         
-        node_grid_inv_dim = bsp_group.nodes.new(type="ShaderNodeCombineXYZ")
-        node_grid_inv_dim.name = "GridInverseDimension"
-        node_grid_inv_dim.location = (-1400,-400)
+        node_grid_dim = bsp_group.nodes.new(type="ShaderNodeCombineXYZ")
+        node_grid_dim.name = "GridDimensions"
+        node_grid_dim.location = (-1400,-400)
         if bsp != None:
-            node_grid_inv_dim.inputs[0].default_value = bsp.lightgrid_inverse_dim[0]
-            node_grid_inv_dim.inputs[1].default_value = bsp.lightgrid_inverse_dim[1]
-            node_grid_inv_dim.inputs[2].default_value = bsp.lightgrid_inverse_dim[2]
+            node_grid_dim.inputs[0].default_value = bsp.lightgrid_dim[0]
+            node_grid_dim.inputs[1].default_value = bsp.lightgrid_dim[1]*bsp.lightgrid_dim[2]
+            node_grid_dim.inputs[2].default_value = bsp.lightgrid_dim[2]
         else:
-            node_grid_inv_dim.inputs[0].default_value = 1.0
-            node_grid_inv_dim.inputs[1].default_value = 1.0
-            node_grid_inv_dim.inputs[2].default_value = 1.0
+            node_grid_dim.inputs[0].default_value = 1.0
+            node_grid_dim.inputs[1].default_value = 1.0
+            node_grid_dim.inputs[2].default_value = 1.0
+            
+        node_grid_inv_dim = bsp_group.nodes.new(type="ShaderNodeVectorMath")
+        node_grid_inv_dim.name = "GridInvDim"
+        node_grid_inv_dim.location = (-900,-400)
+        node_grid_inv_dim.operation = "DIVIDE"
+        node_grid_inv_dim.inputs[0].default_value = [1.0, 1.0, 1.0]
+        bsp_group.links.new(node_grid_dim.outputs["Vector"], node_grid_inv_dim.inputs[1])
         
         bsp_group.links.new(node_grid_origin.outputs["Vector"], group_outputs.inputs['LightGridOrigin'])
-        bsp_group.links.new(node_grid_cell_inv.outputs["Vector"], group_outputs.inputs['LightGridInverseSize'])
+        bsp_group.links.new(node_grid_inv_size.outputs["Vector"], group_outputs.inputs['LightGridInverseSize'])
         bsp_group.links.new(node_grid_inv_dim.outputs["Vector"], group_outputs.inputs['LightGridInverseDimension'])
         return bsp_group
+    
+class Emission_Node(Generic_Node_Group):
+    name = 'EmissionScaleNode'
+    @classmethod
+    def create_node_tree(self, bsp):
+        emission_group = bpy.data.node_groups.new(self.name, 'ShaderNodeTree')
+        
+        group_inputs = emission_group.nodes.new('NodeGroupInput')
+        group_inputs.location = (-1600,0)
+        emission_group.inputs.new('NodeSocketColor','Color')
+        emission_group.inputs.new('NodeSocketFloat','Light')
+        emission_group.inputs['Light'].default_value = 1.0
+        
+        group_outputs = emission_group.nodes.new('NodeGroupOutput')
+        group_outputs.location = (1300,0)
+        emission_group.outputs.new('NodeSocketColor','OutColor')
+        
+        shader_emission = emission_group.nodes.new(type="ShaderNodeVectorMath")
+        shader_emission.operation = "SCALE"
+        emission_group.links.new(group_inputs.outputs["Color"], shader_emission.inputs["Vector"])
+        emission_group.links.new(group_inputs.outputs["Light"], shader_emission.inputs["Scale"])
+        
+        scale = emission_group.nodes.new(type="ShaderNodeValue")
+        scale.outputs[0].default_value = 1.0
+        scale.name = "Emission scale"
+        
+        out_emission = emission_group.nodes.new(type="ShaderNodeVectorMath")
+        out_emission.operation = "SCALE"
+        emission_group.links.new(shader_emission.outputs[0], out_emission.inputs["Vector"])
+        emission_group.links.new(scale.outputs[0], out_emission.inputs["Scale"])
+        
+        emission_group.links.new(out_emission.outputs["Vector"], group_outputs.inputs['OutColor'])
+        return emission_group
     
 class Base_Light_Vector_Node(Generic_Node_Group):
     name = "BaseReflectionVector"
@@ -539,7 +589,7 @@ class Lightgrid_Node(Generic_Node_Group):
             node_a1_up.outputs[0].default_value = (0.3, 0.123, 0.0, 1.0)
             node_a1_low = node_a1_up
         
-        image_d1 = bpy.data.images.get("$lightgrid_ambient1")
+        image_d1 = bpy.data.images.get("$lightgrid_direct1")
         if image_d1 != None:
             node_d1_up = lightgrid_group.nodes.new(type='ShaderNodeTexImage')
             node_d1_up.image = image_d1
@@ -547,7 +597,7 @@ class Lightgrid_Node(Generic_Node_Group):
             lightgrid_group.links.new(node_upper_tc.outputs[0], node_d1_up.inputs["Vector"])
             
             node_d1_low = lightgrid_group.nodes.new(type='ShaderNodeTexImage')
-            node_d1_low.image = bpy.data.images["$lightgrid_direct1"]
+            node_d1_low.image = image_d1
             node_d1_low.location = (200,-600)
             lightgrid_group.links.new(node_lower_tc.outputs[0], node_d1_low.inputs["Vector"])
         else:
@@ -556,7 +606,7 @@ class Lightgrid_Node(Generic_Node_Group):
             node_d1_up.outputs[0].default_value = (1.0, 1.0, 1.0, 1.0)
             node_d1_low = node_d1_up
             
-        image_vec = bpy.data.images.get("$lightgrid_ambient1")
+        image_vec = bpy.data.images.get("$lightgrid_vector")
         if image_vec != None:
             node_vec_up = lightgrid_group.nodes.new(type='ShaderNodeTexImage')
             node_vec_up.image = image_vec

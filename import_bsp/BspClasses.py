@@ -55,7 +55,17 @@ class lump:
         file.seek(self.offset)
         for i in range(int(self.count)):
             self.data.append(self.data_class(struct.unpack(self.data_class.encoding, file.read(self.data_class.size))))
-            
+    
+    def clear(self):
+        self.data = []
+        self.count = 0
+        self.size = 0
+        
+    def add(self, array):
+        self.data.append(self.data_class(array))
+        self.count += 1
+        self.size = self.count * self.data_class.size
+        
     def to_bytes(self):
         self.count = len(self.data)
         self.size = self.count * self.data_class.size
@@ -536,6 +546,7 @@ class RBSP:
     lightgrid_origin = [0.0,0.0,0.0]
     lightgrid_z_step = 0.0
     lightgrid_inverse_dim = [0.0,0.0,0.0]
+    lightgrid_dim = [0.0,0.0,0.0]
     
     lightmap_size = [128,128]
     lightmaps = 4
@@ -573,6 +584,7 @@ class IBSP:
     lightgrid_origin = [0.0,0.0,0.0]
     lightgrid_z_step = 0.0
     lightgrid_inverse_dim = [0.0,0.0,0.0]
+    lightgrid_dim = [0.0,0.0,0.0]
     
     lightmap_size = [128,128]
     lightmaps = 1
@@ -618,6 +630,7 @@ class BSP:
                 self.lightgrid_origin = format.lightgrid_origin
                 self.lightgrid_z_step = format.lightgrid_z_step
                 self.lightgrid_inverse_dim = format.lightgrid_inverse_dim
+                self.lightgrid_dim =format.lightgrid_dim
                 self.lightmap_size = format.lightmap_size
                 self.lightmaps = format.lightmaps
                 self.lightstyles = format.lightstyles
@@ -735,7 +748,15 @@ def ImportBSP(import_settings):
                 
             mesh.update()
             mesh.validate()
-
+            
+            #import brushes as shadow casters maybe?
+            #TODO: Refactor properly. Rethink the idea (good way to handle this?)
+            #if import_settings.preset == "RENDERING":
+            #    import_settings.preset = "BRUSHES"
+            #    model = BspGeneric.blender_model_data()
+            #    model.get_bsp_model(bsp, model_index, import_settings)
+            #    import_settings.preset = "RENDERING"
+                
         #for vertex_group in model.vertex_groups:
         #    bsp_obj.vertex_groups.new(name = vertex_group)
         #    bsp_obj.vertex_groups[vertex_group].add(list(model.vertex_groups[vertex_group]), 1.0, "ADD")
@@ -751,6 +772,12 @@ def ImportBSP(import_settings):
         import_settings.log.append("----pack_lightgrid----")
         time_start = perf_counter()
         BspGeneric.pack_lightgrid(bsp)
+        import_settings.log.append("BSP Lightgrid Origin: " + str(bsp.lightgrid_origin))
+        import_settings.log.append("BSP Lightgrid Size: " + str(bsp.lightgrid_size))
+        dimensions =   [1.0 / bsp.lightgrid_inverse_dim[0],
+                        1.0 / bsp.lightgrid_inverse_dim[1],
+                        1.0 / bsp.lightgrid_inverse_dim[2]]
+        import_settings.log.append("BSP Lightgrid Dimensions: " + str(dimensions))
         import_settings.log.append("took:" + str(perf_counter() - time_start) + " seconds")
             
         #create whiteimage before parsing shaders

@@ -5,9 +5,9 @@
 
 if "struct" not in locals():
     import struct
-    
+
+import imp
 if "BspClasses" in locals():
-    import imp
     imp.reload( BspClasses )
 else:
     from . import BspClasses as BSP
@@ -116,9 +116,6 @@ def pack_lightmaps(bsp, import_settings):
         return
         
     packed_lm_size = import_settings.packed_lightmap_size
-        
-    #create dummy image
-    image = create_new_image("$lightmap", packed_lm_size, packed_lm_size)
     
     numPixels = packed_lm_size*packed_lm_size*4
     #max_colum = ceil((lightmaps_lump.count-1) / PACKED_LM_SIZE)
@@ -148,7 +145,10 @@ def pack_lightmaps(bsp, import_settings):
             pixels[4 * pixel + 1] = (float(lightmaps[lightmap_id][pixel_id*color_components + 1])/color_scale)
             pixels[4 * pixel + 2] = (float(lightmaps[lightmap_id][pixel_id*color_components + 2])/color_scale)
             pixels[4 * pixel + 3] = (float(1.0))
+            
+    image = create_new_image("$lightmap", packed_lm_size, packed_lm_size)
     image.pixels = pixels
+    image.pack()
     
 def pack_lm_tc(tc, lightmap_id, lightmap_size, packed_lm_size):
     
@@ -164,6 +164,30 @@ def pack_lm_tc(tc, lightmap_id, lightmap_size, packed_lm_size):
     
     packed_tc = [tc[0]*scale_value+x,tc[1]*scale_value+y]
     return packed_tc
+
+def get_lm_id(tc, lightmap_size, packed_lm_size):
+    row = tc[0]*packed_lm_size
+    colum = tc[1]*packed_lm_size
+    quadrant_x = floor(row/lightmap_size)
+    quadrant_y = floor(colum/lightmap_size)
+    
+    scale = packed_lm_size / lightmap_size
+    return floor(quadrant_x + (scale * quadrant_y))
+
+def unpack_lm_tc(tc, lightmap_size, packed_lm_size):
+    row = tc[0]*packed_lm_size
+    colum = tc[1]*packed_lm_size
+    quadrant_x = floor(row/lightmap_size)
+    quadrant_y = floor(colum/lightmap_size)
+    
+    scale = packed_lm_size / lightmap_size
+    lightmap_id = floor(quadrant_x + (scale * quadrant_y))
+    
+    quadrant_scale = lightmap_size / packed_lm_size
+    
+    tc[0] = (tc[0] - (quadrant_x * quadrant_scale)) * scale
+    tc[1] = (tc[1] - (quadrant_y * quadrant_scale)) * scale
+    return lightmap_id
 
 #appends a 3 component byte color to a pixel list
 def append_byte_to_color_list(byte_color, list, scale):
@@ -186,15 +210,16 @@ def pack_lightgrid(bsp):
                 bsp.lightgrid_size[1] * floor( world_maxs[1] / bsp.lightgrid_size[1]),
                 bsp.lightgrid_size[2] * floor( world_maxs[2] / bsp.lightgrid_size[2]) ]
                 
-    lightgrid_dimensions = [ floor((maxs[0] - lightgrid_origin[0]) / bsp.lightgrid_size[0] + 1),
-                             floor((maxs[1] - lightgrid_origin[1]) / bsp.lightgrid_size[1] + 1),
-                             floor((maxs[2] - lightgrid_origin[2]) / bsp.lightgrid_size[2] + 1) ]
+    lightgrid_dimensions = [ (maxs[0] - lightgrid_origin[0]) / bsp.lightgrid_size[0] + 1,
+                             (maxs[1] - lightgrid_origin[1]) / bsp.lightgrid_size[1] + 1,
+                             (maxs[2] - lightgrid_origin[2]) / bsp.lightgrid_size[2] + 1 ]
                              
     bsp.lightgrid_inverse_dim = [   1.0 / lightgrid_dimensions[0],
                                     1.0 / (lightgrid_dimensions[1]*lightgrid_dimensions[2]),
                                     1.0 / lightgrid_dimensions[2] ]
                                     
     bsp.lightgrid_z_step = 1.0 / lightgrid_dimensions[2]
+    bsp.lightgrid_dim = lightgrid_dimensions
     
     a1_pixels = []
     a2_pixels = []
@@ -260,9 +285,11 @@ def pack_lightgrid(bsp):
     
     ambient1 = create_new_image("$lightgrid_ambient1", lightgrid_dimensions[0], lightgrid_dimensions[1]*lightgrid_dimensions[2])
     ambient1.pixels = a1_pixels
+    ambient1.pack()
     
     direct1 = create_new_image("$lightgrid_direct1", lightgrid_dimensions[0], lightgrid_dimensions[1]*lightgrid_dimensions[2])
     direct1.pixels = d1_pixels
+    direct1.pack()
     
     if bsp.lightmaps > 1:
         ambient2 = create_new_image("$lightgrid_ambient2", lightgrid_dimensions[0], lightgrid_dimensions[1]*lightgrid_dimensions[2])
@@ -271,21 +298,26 @@ def pack_lightgrid(bsp):
         ambient2.pixels = a2_pixels
         ambient3.pixels = a3_pixels
         ambient4.pixels = a4_pixels
+        ambient2.pack() 
+        ambient3.pack() 
+        ambient4.pack() 
         direct2 = create_new_image("$lightgrid_direct2", lightgrid_dimensions[0], lightgrid_dimensions[1]*lightgrid_dimensions[2])
         direct3 = create_new_image("$lightgrid_direct3", lightgrid_dimensions[0], lightgrid_dimensions[1]*lightgrid_dimensions[2])
         direct4 = create_new_image("$lightgrid_direct4", lightgrid_dimensions[0], lightgrid_dimensions[1]*lightgrid_dimensions[2])
         direct2.pixels = d2_pixels
         direct3.pixels = d3_pixels
         direct4.pixels = d4_pixels
-    
+        direct2.pack() 
+        direct3.pack() 
+        direct4.pack() 
     lightvec = create_new_image( "$lightgrid_vector", 
                                     lightgrid_dimensions[0], 
                                     lightgrid_dimensions[1]*lightgrid_dimensions[2],
                                     True)
     lightvec.colorspace_settings.name = "Non-Color"
-    
-    lightvec.pixels = l_pixels
-        
+    lightvec.pixels = l_pixels      
+    lightvec.pack()  
+            
 def lerpVertices(vertex1, vertex2, vertex_class, lightmaps):
     vertexArray = []
     vertexArray.append((vertex1.position[0] + vertex2.position[0])/2.0)
@@ -460,7 +492,6 @@ class blender_model_data:
     def parse_patch_surface(model, bsp, face, shaders_lump, import_settings):
         drawverts_lump = bsp.lumps["drawverts"].data
         
-        
         width = int(face.patch_width-1)
         height = int(face.patch_height-1)
                 
@@ -468,94 +499,114 @@ class blender_model_data:
         
         ctrlPoints = [[0 for x in range(MAX_GRID_SIZE)] for y in range(MAX_GRID_SIZE)]
         indicesPoints = [[0 for x in range(MAX_GRID_SIZE)] for y in range(MAX_GRID_SIZE)]
+        bspPoints = [[-1 for x in range(MAX_GRID_SIZE)] for y in range(MAX_GRID_SIZE)]
         for i in range(face.patch_width):
             for j in range(face.patch_height):
                 vertex = drawverts_lump[face.vertex + j*face.patch_width + i]
                 ctrlPoints[j][i] = vertex
+                bspPoints[j][i] = face.vertex + j*face.patch_width + i
                 indicesPoints[j][i] = model.index_mapping[face.vertex + j*face.patch_width + i]
                 
-        for subd in range(import_settings.subdivisions):
-            pos_w = 0
-            pos_h = 0
-            added_width = 0
-            added_height = 0
-            #add new colums
-            for i in range(width//2):
-                if ((width + 2) > MAX_GRID_SIZE):
-                    break
-                pos_w = i * 2 + added_width
-                width += 2
-                added_width +=2
-                #build new vertices
-                for j in range(height+1):
-                    prev = lerpVertices(ctrlPoints[j][pos_w], ctrlPoints[j][pos_w+1], model.vertex_class, model.lightmaps)
-                    next = lerpVertices(ctrlPoints[j][pos_w+1], ctrlPoints[j][pos_w+2], model.vertex_class, model.lightmaps)
-                    midl = lerpVertices(prev, next, model.vertex_class, model.lightmaps)
-                
-                    #replace peak
-                    for x in range(width):
-                        k = width - x
-                        if (k <= pos_w+3):
-                            break
-                        ctrlPoints[j][k] = ctrlPoints[j][k-2]
-                        indicesPoints[j][k] = indicesPoints[j][k-2]
-                        
-                    ctrlPoints[j][pos_w + 1] = prev;
-                    ctrlPoints[j][pos_w + 2] = midl;
-                    ctrlPoints[j][pos_w + 3] = next;
-                    indicesPoints[j][pos_w + 1] = -2;
-                    indicesPoints[j][pos_w + 2] = -2;
-                    indicesPoints[j][pos_w + 3] = -2;
+        if import_settings.subdivisions > 0:
+            for subd in range(import_settings.subdivisions):
+                pos_w = 0
+                pos_h = 0
+                added_width = 0
+                added_height = 0
+                #add new colums
+                for i in range(width//2):
+                    if ((width + 2) > MAX_GRID_SIZE):
+                        break
+                    pos_w = i * 2 + added_width
+                    width += 2
+                    added_width +=2
+                    #build new vertices
+                    for j in range(height+1):
+                        prev = lerpVertices(ctrlPoints[j][pos_w], ctrlPoints[j][pos_w+1], model.vertex_class, model.lightmaps)
+                        next = lerpVertices(ctrlPoints[j][pos_w+1], ctrlPoints[j][pos_w+2], model.vertex_class, model.lightmaps)
+                        midl = lerpVertices(prev, next, model.vertex_class, model.lightmaps)
                     
-            #add new rows
-            for j in range(height//2):
-                if ((height + 2) > MAX_GRID_SIZE):
-                    break
-                pos_h = j * 2 + added_height
-                height += 2
-                added_height +=2
-                #build new vertices
-                for i in range(width+1):
-                    prev = lerpVertices(ctrlPoints[pos_h][i], ctrlPoints[pos_h+1][i], model.vertex_class, model.lightmaps)
-                    next = lerpVertices(ctrlPoints[pos_h+1][i], ctrlPoints[pos_h+2][i], model.vertex_class, model.lightmaps)
-                    midl = lerpVertices(prev, next, model.vertex_class, model.lightmaps)
-                
-                    #replace peak
-                    for x in range(height):
-                        k = height - x
-                        if (k <= pos_h+3):
-                            break
-                        ctrlPoints[k][i] = ctrlPoints[k-2][i]
-                        indicesPoints[k][i] = indicesPoints[k-2][i]
+                        #replace peak
+                        for x in range(width):
+                            k = width - x
+                            if (k <= pos_w+3):
+                                break
+                            ctrlPoints[j][k] = ctrlPoints[j][k-2]
+                            indicesPoints[j][k] = indicesPoints[j][k-2]
+                            
+                        ctrlPoints[j][pos_w + 1] = prev;
+                        ctrlPoints[j][pos_w + 2] = midl;
+                        ctrlPoints[j][pos_w + 3] = next;
+                        indicesPoints[j][pos_w + 1] = -2;
+                        indicesPoints[j][pos_w + 2] = -2;
+                        indicesPoints[j][pos_w + 3] = -2;
                         
-                    ctrlPoints[pos_h + 1][i] = prev;
-                    ctrlPoints[pos_h + 2][i] = midl;
-                    ctrlPoints[pos_h + 3][i] = next;
-                    indicesPoints[pos_h + 1][i] = -2;
-                    indicesPoints[pos_h + 2][i] = -2;
-                    indicesPoints[pos_h + 3][i] = -2;
+                #add new rows
+                for j in range(height//2):
+                    if ((height + 2) > MAX_GRID_SIZE):
+                        break
+                    pos_h = j * 2 + added_height
+                    height += 2
+                    added_height +=2
+                    #build new vertices
+                    for i in range(width+1):
+                        prev = lerpVertices(ctrlPoints[pos_h][i], ctrlPoints[pos_h+1][i], model.vertex_class, model.lightmaps)
+                        next = lerpVertices(ctrlPoints[pos_h+1][i], ctrlPoints[pos_h+2][i], model.vertex_class, model.lightmaps)
+                        midl = lerpVertices(prev, next, model.vertex_class, model.lightmaps)
+                    
+                        #replace peak
+                        for x in range(height):
+                            k = height - x
+                            if (k <= pos_h+3):
+                                break
+                            ctrlPoints[k][i] = ctrlPoints[k-2][i]
+                            indicesPoints[k][i] = indicesPoints[k-2][i]
+                            
+                        ctrlPoints[pos_h + 1][i] = prev;
+                        ctrlPoints[pos_h + 2][i] = midl;
+                        ctrlPoints[pos_h + 3][i] = next;
+                        indicesPoints[pos_h + 1][i] = -2;
+                        indicesPoints[pos_h + 2][i] = -2;
+                        indicesPoints[pos_h + 3][i] = -2;
         
-        #now smooth the rest of the points
-        for i in range(width+1):
-            for j in range(1, height, 2):
-                prev = lerpVertices(ctrlPoints[j][i], ctrlPoints[j+1][i], model.vertex_class, model.lightmaps)
-                next = lerpVertices(ctrlPoints[j][i], ctrlPoints[j-1][i], model.vertex_class, model.lightmaps)
-                ctrlPoints[j][i] = lerpVertices(prev, next, model.vertex_class, model.lightmaps)
-                indicesPoints[j][i] = -4;
-                
-        for j in range(height+1):
-            for i in range(1, width, 2):
-                prev = lerpVertices(ctrlPoints[j][i], ctrlPoints[j][i+1], model.vertex_class, model.lightmaps)
-                next = lerpVertices(ctrlPoints[j][i], ctrlPoints[j][i-1], model.vertex_class, model.lightmaps)
-                ctrlPoints[j][i] = lerpVertices(prev, next, model.vertex_class, model.lightmaps)
-                indicesPoints[j][i] = -4;       
-        
+        if import_settings.subdivisions > -1:
+            #now smooth the rest of the points
+            for i in range(width+1):
+                for j in range(1, height, 2):
+                    prev = lerpVertices(ctrlPoints[j][i], ctrlPoints[j+1][i], model.vertex_class, model.lightmaps)
+                    next = lerpVertices(ctrlPoints[j][i], ctrlPoints[j-1][i], model.vertex_class, model.lightmaps)
+                    midl = lerpVertices(prev, next, model.vertex_class, model.lightmaps)
+                    
+                    ctrlPoints[j][i] = midl
+                    if (indicesPoints[j][i] < 0):
+                        indicesPoints[j][i] = -4;
+                        
+            for j in range(height+1):
+                for i in range(1, width, 2):
+                    prev = lerpVertices(ctrlPoints[j][i], ctrlPoints[j][i+1], model.vertex_class, model.lightmaps)
+                    next = lerpVertices(ctrlPoints[j][i], ctrlPoints[j][i-1], model.vertex_class, model.lightmaps)
+                    midl = lerpVertices(prev, next, model.vertex_class, model.lightmaps)
+                    
+                    ctrlPoints[j][i] = midl
+                    if (indicesPoints[j][i] < 0):
+                        indicesPoints[j][i] = -4;
+                        
+        #fix bsp indices
+        fixed_bsp_indices = [[-1 for x in range(width+1)] for y in range(height+1)]
+        step_w = int((width+1)/(face.patch_width-1))
+        step_h = int((height+1)/(face.patch_height-1))
+        for w, i in enumerate(range(0, width+1, step_w)):
+            for h, j in enumerate(range(0, height+1, step_h)):
+                fixed_bsp_indices[j][i] = bspPoints[h][w]
+            
         indicesPoints2 = []
+        bspPoints2 = []
         patch = []
         for j in range(height+1):
             for i in range(width+1):
                 patch.append(ctrlPoints[j][i])
                 indicesPoints2.append(indicesPoints[j][i])
+                bspPoints2.append(fixed_bsp_indices[j][i])
         
         for patch_face_index in range(width*height + height - 1):
             #end of row?
@@ -574,28 +625,28 @@ class blender_model_data:
             if (v1 < 0):
                 model.vertices.append(patch[i1].position)
                 model.normals.append(patch[i1].normal)
-                model.vertex_bsp_indices.append(-1)
+                model.vertex_bsp_indices.append(bspPoints2[i1])
                 indicesPoints2[i1] = model.current_index
                 model.current_index +=1
                 
             if (v2 < 0):
                 model.vertices.append(patch[i2].position)
                 model.normals.append(patch[i2].normal)
-                model.vertex_bsp_indices.append(-1)
+                model.vertex_bsp_indices.append(bspPoints2[i2])
                 indicesPoints2[i2] = model.current_index
                 model.current_index +=1
                 
             if (v3 < 0):
                 model.vertices.append(patch[i3].position)
                 model.normals.append(patch[i3].normal)
-                model.vertex_bsp_indices.append(-1)
+                model.vertex_bsp_indices.append(bspPoints2[i3])
                 indicesPoints2[i3] = model.current_index
                 model.current_index +=1
                 
             if (v4 < 0):
                 model.vertices.append(patch[i4].position)
                 model.normals.append(patch[i4].normal)
-                model.vertex_bsp_indices.append(-1)
+                model.vertex_bsp_indices.append(bspPoints2[i4])
                 indicesPoints2[i4] = model.current_index
                 model.current_index +=1
                 
@@ -666,36 +717,45 @@ class blender_model_data:
         brush_shader_id = model.material_names.index(shader)
             
         planes = []
+        brush_materials = []
         for side in range(brush.n_brushsides):
             brushside = bsp.lumps["brushsides"].data[brush.brushside + side]
             plane = bsp.lumps["planes"].data[brushside.plane]
             
             normal = mathutils.Vector(plane.normal)
             position = normal * plane.distance
-            #shader = bsp.lumps["shaders"].data[brushside.texture].name + ".vertex"
+            shader = bsp.lumps["shaders"].data[brushside.texture].name + ".vertex"
             
-            #if not (shader in model.material_names):
-                #model.material_names.append(shader)
-            #model.face_materials.append(model.material_names.index(shader))
-            #mat_id = model.material_names.index(shader)
+            if not (shader in model.material_names):
+                model.material_names.append(shader)
             
-            planes.append([position, normal, brush_shader_id])
-
+            if not (shader in brush_materials):
+                brush_materials.append(shader)
+                
+            mat_id = brush_materials.index(shader)
+            planes.append([position, normal, mat_id])
+            
+        me = bpy.data.meshes.new("Brush " + str(brush_id).zfill(4))
+        for texture_instance in brush_materials:
+            mat = bpy.data.materials.get(texture_instance)
+            if (mat == None):
+                mat = bpy.data.materials.new(name=texture_instance)
+            me.materials.append(mat)
+            
         bm = bmesh.new()
-        uv_layer = bm.loops.layers.uv.verify()
+        bm.from_mesh(me)
         bmesh.ops.create_cube(bm, size=65536, calc_uvs=True)
+        uv_layer = bm.loops.layers.uv.verify()
         #bmesh bisect
         #face from bisect + assign shader
         for plane in planes:
             geom = bm.verts[:] + bm.edges[:] + bm.faces[:]
             vert_dict = bmesh.ops.bisect_plane(bm, geom = geom, dist = 0.1, plane_co = plane[0], plane_no = plane[1], clear_outer = True)
-            bmesh.ops.contextual_create(bm, geom=vert_dict["geom_cut"], mat_nr=plane[2], use_smooth=False)
+            bm_faces = bmesh.ops.contextual_create(bm, geom=vert_dict["geom_cut"], mat_nr=plane[2], use_smooth=False)["faces"]
+            #if mat_nr would actually work, this wouldnt be needed :/
+            for f in bm_faces:
+                f.material_index = plane[2]
         
-        me = bpy.data.meshes.new("Brush " + str(brush_id).zfill(4))
-        bm.to_mesh(me)
-        
-        #obj = bpy.data.objects.new("Brush " + str(brush_id).zfill(4), me)
-        #bpy.context.collection.objects.link(obj)
         bm.verts.ensure_lookup_table()
         bm.verts.index_update()
         bm.verts.sort()
@@ -703,6 +763,17 @@ class blender_model_data:
         bm.faces.ensure_lookup_table()
         bm.faces.index_update()
         bm.faces.sort()
+        bm.to_mesh(me)
+        
+        if import_settings.preset == "BRUSHES":
+            collection = bpy.data.collections.get("Brushes")
+            if collection == None:
+                collection = bpy.data.collections.new("Brushes")
+                bpy.context.scene.collection.children.link(collection)
+            
+            obj = bpy.data.objects.new("Brush " + str(brush_id).zfill(4), me)
+            bpy.data.collections["Brushes"].objects.link(obj)
+            return
         
         vert_mapping = [-2 for i in range(len(bm.verts))]
         for vert in bm.verts:
@@ -713,8 +784,6 @@ class blender_model_data:
             model.current_index += 1
         
         for face in bm.faces:
-            face.normal_flip()
-            
             indices = []
             tcs = []
             lmtcs = []
@@ -726,12 +795,9 @@ class blender_model_data:
                 lmtcs.append([0.0, 0.0])
                 colors.append([0.4, 0.4, 0.4, 1.0])
             
+            face.normal_flip()
             material_index = brush_shader_id
-            #for plane in planes:
-                #if plane[1].dot(face.normal) > 0.99:
-                    #material_index = plane[2]
-                    #break
-    
+                
             model.face_materials.append(material_index)
             model.face_vertices.append(indices)
             model.face_tcs.append(tcs)
@@ -757,22 +823,29 @@ class blender_model_data:
         model.index_mapping = [-2 for i in range(int(bsp.lumps["drawverts"].count))]
             
         current_model = bsp.lumps["models"].data[id]
-        
-        model_face = current_model.face
-        for index in range(current_model.n_faces):
-            face = bsp.lumps["surfaces"].data[model_face + index]
-            #surface or mesh
-            if (face.type == 1 or face.type == 3):
-                model.parse_bsp_surface(bsp, face, bsp.lumps["shaders"].data, import_settings)
-            #patches
-            if (face.type == 2):
-                model.parse_patch_surface(bsp, face, bsp.lumps["shaders"].data, import_settings)
-                
-        if current_model.n_faces < 1:
+                    
+        if import_settings.preset == "BRUSHES":
             model_brush = current_model.brush
             for index in range(current_model.n_brushes):
                 brush_id = model_brush + index
                 model.parse_brush(bsp, brush_id, import_settings)
+        else:
+            model_face = current_model.face
+            for index in range(current_model.n_faces):
+                face = bsp.lumps["surfaces"].data[model_face + index]
+                #surface or mesh
+                if (face.type == 1 or face.type == 3):
+                    model.parse_bsp_surface(bsp, face, bsp.lumps["shaders"].data, import_settings)
+                #patches
+                if (face.type == 2):
+                    model.parse_patch_surface(bsp, face, bsp.lumps["shaders"].data, import_settings)
+                    
+            if import_settings.preset == 'EDITING':
+                if current_model.n_faces < 1:
+                    model_brush = current_model.brush
+                    for index in range(current_model.n_brushes):
+                        brush_id = model_brush + index
+                        model.parse_brush(bsp, brush_id, import_settings)
 
     def fill_bsp_data(model, bsp, import_settings):
         #meh.... ugly fuck

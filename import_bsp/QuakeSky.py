@@ -12,7 +12,7 @@ import math
 import bgl
 import gpu
 from gpu_extras.batch import batch_for_shader
-from mathutils import Matrix
+from mathutils import Matrix, Vector
 
 vertex_shader = '''
     in int vertex_id;
@@ -224,5 +224,58 @@ def make_equirectangular_from_sky(base_path, sky_name):
         image = bpy.data.images.new(sky_name, width=equi_w, height=equi_h)
     image.scale(equi_w, equi_h)
     image.pixels = buffer
-    
+    image.pack()
     return image
+
+def add_sun(shader, function, sun_parms, i):
+    
+    color = [0.0, 0.0, 0.0]
+    intensity = 1.0
+    parms = sun_parms.split()
+    rotation = [0.0, 0.0]
+    name = shader + "_" + function + "." + str(i)
+     
+    if function == "sun":
+        if len(parms) != 6:
+            print("not enogh sun parameters")
+            return False
+    elif function == "q3map_sun":
+        if len(parms) != 6:
+            print("not enogh q3map_sun parameters")
+            return False
+    elif function == "q3map_sunext":
+        if len(parms) != 8:
+            print("not enogh q3map_sunext parameters")
+            return False
+    elif function == "q3gl2_sun":
+        if len(parms) != 9:
+            print("not enogh q3gl2_sun parameters")
+            return False
+        
+    color = Vector((float(parms[0]), float(parms[1]), float(parms[2])))
+    color.normalize()
+    intensity = float(parms[3]) / 255.0
+    rotation = [float(parms[4]), float(parms[5])]
+    
+    obj_vec = Vector((0.0, 0.0, -1.0))
+    light_vec = Vector((0.0, 0.0, 0.0))
+    rotation[0] = rotation[0] / 180.0 * math.pi
+    rotation[1] = rotation[1] / 180.0 * math.pi
+    light_vec[0] = -math.cos(rotation[0]) * math.cos(rotation[1])
+    light_vec[1] = -math.sin(rotation[0]) * math.cos(rotation[1])
+    light_vec[2] = -math.sin(rotation[1])
+    
+    sun = bpy.data.lights.get(name)
+    if sun == None:
+        sun = bpy.data.lights.new(name=name, type='SUN')
+        sun.energy = intensity 
+        sun.shadow_cascade_max_distance = 12000
+        sun.color = color
+        
+    obj = bpy.data.objects.get(name)
+    if obj == None:
+        obj = bpy.data.objects.new(name=name, object_data=sun)
+        bpy.context.collection.objects.link(obj)
+        obj.rotation_euler = obj_vec.rotation_difference( light_vec ).to_euler()
+    
+    return True
