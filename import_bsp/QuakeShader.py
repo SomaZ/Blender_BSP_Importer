@@ -1053,7 +1053,8 @@ class quake_shader:
 
 #TODO: overwrite existing Bsp Node instead of making a new one?
 def init_shader_system(bsp):
-    ShaderNodes.Bsp_Node.create_node_tree(bsp)
+    bsp_node = ShaderNodes.Bsp_Node.create_node_tree(bsp)
+    bsp_node.use_fake_user = True
 
 def build_quake_shaders(import_settings, object_list):
     base_path = import_settings.base_path

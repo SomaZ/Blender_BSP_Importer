@@ -231,57 +231,71 @@ def pack_lightgrid(bsp):
     d4_pixels = []
     l_pixels = []
     
-    num_elements = lightgrid_dimensions[0] * lightgrid_dimensions[1] * lightgrid_dimensions[2]
+    num_elements = int(lightgrid_dimensions[0]*lightgrid_dimensions[1]*lightgrid_dimensions[2])
+    num_elements_bsp = bsp.lumps["lightgridarray"].count if bsp.use_lightgridarray else bsp.lumps["lightgrid"].count
     
-    for pixel in range(int(lightgrid_dimensions[0]*lightgrid_dimensions[1]*lightgrid_dimensions[2])):
-        
-        if bsp.use_lightgridarray:
-            index = bsp.lumps["lightgridarray"].data[pixel].data
-        else:
-            index = pixel
-        
-        ambient1 = mathutils.Vector((0,0,0))
-        ambient2 = mathutils.Vector((0,0,0))
-        ambient3 = mathutils.Vector((0,0,0))
-        ambient4 = mathutils.Vector((0,0,0))
-        direct1 = mathutils.Vector((0,0,0))
-        direct2 = mathutils.Vector((0,0,0))
-        direct3 = mathutils.Vector((0,0,0))
-        direct4 = mathutils.Vector((0,0,0))
-        l = mathutils.Vector((0,0,0))
-        
-        ambient1 = bsp.lumps["lightgrid"].data[index].ambient1
-        direct1 = bsp.lumps["lightgrid"].data[index].direct1
-        if bsp.lightmaps > 1:
-            ambient2 = bsp.lumps["lightgrid"].data[index].ambient2
-            ambient3 = bsp.lumps["lightgrid"].data[index].ambient3
-            ambient4 = bsp.lumps["lightgrid"].data[index].ambient4
-            direct2 = bsp.lumps["lightgrid"].data[index].direct2
-            direct3 = bsp.lumps["lightgrid"].data[index].direct3
-            direct4 = bsp.lumps["lightgrid"].data[index].direct4
+    if num_elements == num_elements_bsp:
+        for pixel in range(num_elements):
             
-        lat = (bsp.lumps["lightgrid"].data[index].lat_long[0]/255.0) * 2.0 * pi
-        long = (bsp.lumps["lightgrid"].data[index].lat_long[1]/255.0) * 2.0 * pi
+            if bsp.use_lightgridarray:
+                index = bsp.lumps["lightgridarray"].data[pixel].data
+            else:
+                index = pixel
             
-        slat = sin(lat)
-        clat = cos(lat)
-        slong = sin(long)
-        clong = cos(long)
+            ambient1 = mathutils.Vector((0,0,0))
+            ambient2 = mathutils.Vector((0,0,0))
+            ambient3 = mathutils.Vector((0,0,0))
+            ambient4 = mathutils.Vector((0,0,0))
+            direct1 = mathutils.Vector((0,0,0))
+            direct2 = mathutils.Vector((0,0,0))
+            direct3 = mathutils.Vector((0,0,0))
+            direct4 = mathutils.Vector((0,0,0))
+            l = mathutils.Vector((0,0,0))
             
-        l = mathutils.Vector((clat * slong, slat * slong, clong)).normalized()
-        
-        color_scale = 1.0/255.0
-        append_byte_to_color_list(ambient1, a1_pixels, color_scale)
-        append_byte_to_color_list(direct1, d1_pixels, color_scale)
-        if bsp.lightmaps > 1:
-            append_byte_to_color_list(ambient2, a2_pixels, color_scale)
-            append_byte_to_color_list(ambient3, a3_pixels, color_scale)
-            append_byte_to_color_list(ambient4, a4_pixels, color_scale)
-            append_byte_to_color_list(direct2, d2_pixels, color_scale)
-            append_byte_to_color_list(direct3, d3_pixels, color_scale)
-            append_byte_to_color_list(direct4, d4_pixels, color_scale)
+            ambient1 = bsp.lumps["lightgrid"].data[index].ambient1
+            direct1 = bsp.lumps["lightgrid"].data[index].direct1
+            if bsp.lightmaps > 1:
+                ambient2 = bsp.lumps["lightgrid"].data[index].ambient2
+                ambient3 = bsp.lumps["lightgrid"].data[index].ambient3
+                ambient4 = bsp.lumps["lightgrid"].data[index].ambient4
+                direct2 = bsp.lumps["lightgrid"].data[index].direct2
+                direct3 = bsp.lumps["lightgrid"].data[index].direct3
+                direct4 = bsp.lumps["lightgrid"].data[index].direct4
+                
+            lat = (bsp.lumps["lightgrid"].data[index].lat_long[0]/255.0) * 2.0 * pi
+            long = (bsp.lumps["lightgrid"].data[index].lat_long[1]/255.0) * 2.0 * pi
+                
+            slat = sin(lat)
+            clat = cos(lat)
+            slong = sin(long)
+            clong = cos(long)
+                
+            l = mathutils.Vector((clat * slong, slat * slong, clong)).normalized()
             
-        append_byte_to_color_list(l, l_pixels, 1.0)
+            color_scale = 1.0/255.0
+            append_byte_to_color_list(ambient1, a1_pixels, color_scale)
+            append_byte_to_color_list(direct1, d1_pixels, color_scale)
+            if bsp.lightmaps > 1:
+                append_byte_to_color_list(ambient2, a2_pixels, color_scale)
+                append_byte_to_color_list(ambient3, a3_pixels, color_scale)
+                append_byte_to_color_list(ambient4, a4_pixels, color_scale)
+                append_byte_to_color_list(direct2, d2_pixels, color_scale)
+                append_byte_to_color_list(direct3, d3_pixels, color_scale)
+                append_byte_to_color_list(direct4, d4_pixels, color_scale)
+                
+            append_byte_to_color_list(l, l_pixels, 1.0)
+    else:
+        a1_pixels = [0.0 for i in range(num_elements*4)]
+        a2_pixels = [0.0 for i in range(num_elements*4)]
+        a3_pixels = [0.0 for i in range(num_elements*4)]
+        a4_pixels = [0.0 for i in range(num_elements*4)]
+        d1_pixels = [0.0 for i in range(num_elements*4)]
+        d2_pixels = [0.0 for i in range(num_elements*4)]
+        d3_pixels = [0.0 for i in range(num_elements*4)]
+        d4_pixels = [0.0 for i in range(num_elements*4)]
+        l_pixels = [0.0 for i in range(num_elements*4)]
+        print("Lightgridarray mismatch!")
+        print(str(num_elements) + " != " + str(num_elements_bsp))
     
     ambient1 = create_new_image("$lightgrid_ambient1", lightgrid_dimensions[0], lightgrid_dimensions[1]*lightgrid_dimensions[2])
     ambient1.pixels = a1_pixels

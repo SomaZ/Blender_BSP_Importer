@@ -48,11 +48,11 @@ def colorNormalize(color, scale):
 
 def bake_uv_to_vc(mesh, uv_layer, vertex_layer):
 
-    lightmap = bpy.data.images.get("$lightmap")
-    vertexmap = bpy.data.images.get("$vertmap")
+    lightmap = bpy.data.images.get("$lightmap_bake")
+    vertexmap = bpy.data.images.get("$vertmap_bake")
     
     if lightmap == None or vertexmap == None:
-        return False
+        return False, "Could not find $lightmap_bake or $vertmap_bake"
     
     lm_width = lightmap.size[0]
     lm_height = lightmap.size[1]
@@ -85,12 +85,14 @@ def bake_uv_to_vc(mesh, uv_layer, vertex_layer):
             # bilinear sampling here instead
             target = [round(_clamp_uv(uv_coords.x) * (width - 1)), round(_clamp_uv(uv_coords.y) * (height - 1))]
             index = ( target[1] * width + target[0] ) * 4
+            
+            color = colorNormalize([local_pixels[index], local_pixels[index + 1], local_pixels[index + 2]], 1.0)
 
-            mesh.vertex_colors[vertex_layer].data[loop_idx].color[0] = local_pixels[index]
-            mesh.vertex_colors[vertex_layer].data[loop_idx].color[1] = local_pixels[index + 1]
-            mesh.vertex_colors[vertex_layer].data[loop_idx].color[2] = local_pixels[index + 2]
-            mesh.vertex_colors[vertex_layer].data[loop_idx].color[3] = local_pixels[index + 3]
-    return True
+            mesh.vertex_colors[vertex_layer].data[loop_idx].color[0] = color[0]
+            mesh.vertex_colors[vertex_layer].data[loop_idx].color[1] = color[1]
+            mesh.vertex_colors[vertex_layer].data[loop_idx].color[2] = color[2]
+            #mesh.vertex_colors[vertex_layer].data[loop_idx].color[3] = 1.0
+    return True, "Vertex colors succesfully added to mesh"
 
 def storeLighmaps(bsp, n_lightmaps):
     lm_size = bsp.lightmap_size[0]
@@ -98,7 +100,10 @@ def storeLighmaps(bsp, n_lightmaps):
     color_scale = 1.0
     
     #get lightmap image
-    image = bpy.data.images.get("$lightmap")
+    image = bpy.data.images.get("$lightmap_bake")
+    if image == None:
+        return False, "Could not find $lightmap_bake"
+    
     local_pixels = list(image.pixels[:])
     
     packed_width, packed_height = image.size
@@ -128,8 +133,7 @@ def storeLighmaps(bsp, n_lightmaps):
                                         local_pixels[4 * pixel + 1],
                                         local_pixels[4 * pixel + 2]],
                                         color_scale)
-            if outColor[0] < 0 or outColor[0] > 1.0 or outColor[1] < 0 or outColor[1] > 1.0 or outColor[2] < 0 or outColor[2] > 1.0:
-                print(outColor)
+            
             lightmaps[lightmap_id][pixel_id*color_components + 0] = int(outColor[0] * 255)
             lightmaps[lightmap_id][pixel_id*color_components + 1] = int(outColor[1] * 255)
             lightmaps[lightmap_id][pixel_id*color_components + 2] = int(outColor[2] * 255)
@@ -146,6 +150,7 @@ def storeLighmaps(bsp, n_lightmaps):
     #fill lightmap lump
     for i in range(n_lightmaps):
         bsp.lumps["lightmaps"].add(lightmaps[i])
+    return True, "Lightmaps succesfully added to BSP"
         
 def create_lightgrid():
     
@@ -219,6 +224,7 @@ def create_lightgrid():
                                             width=lightgrid_dimensions[0], 
                                             height=lightgrid_dimensions[1]*lightgrid_dimensions[2],
                                             float_buffer=True)
+            image.use_fake_user = True
         node_image.image = image
     return True
         
@@ -226,7 +232,6 @@ def encode_normal(normal):
     x, y, z = normal
     l = sqrt( ( x * x ) + ( y * y ) + ( z * z ) )
     if l == 0:
-        print("zero length found!")
         return bytes((0, 0))
     x = x/l
     y = y/l
@@ -237,46 +242,48 @@ def encode_normal(normal):
     lat  = int(round(acos(z) * 255 / (2.0 * pi))) & 0xff
     return lat, long
 
-def storeLightgrid(bsp):
+def packLightgridData(  bsp, 
+                        void_pixels, 
+                        amb_pixels, 
+                        dir_pixels, 
+                        vec_pixels, 
+                        lightgrid_origin, 
+                        lightgrid_dimensions, 
+                        lightgrid_size, 
+                        compression_level
+                        ):
     #clear lightgrid data
     bsp.lumps["lightgrid"].clear()
     if bsp.use_lightgridarray:
         bsp.lumps["lightgridarray"].clear()
-        
-    vec_image = bpy.data.images.get("$Vector")
-    dir_image = bpy.data.images.get("$Direct")
-    amb_image = bpy.data.images.get("$Ambient")
     
-    vec_pixels = vec_image.pixels[:]
-    dir_pixels = dir_image.pixels[:]
-    amb_pixels = amb_image.pixels[:]
-    
-    if vec_image == None or dir_image == None or amb_image == None:
-        print("Images not properly baked for storing in the bsp")
-        return None
-    
-    color_scale = 1.0
     current_pixel_mapping = 0
     hash_table = {}
+    hash_table_diff = {}
+    hash_table_count = {}
+    num_pixels = int(lightgrid_dimensions[0] * lightgrid_dimensions[1] * lightgrid_dimensions[2])
     
-    for pixel in range(vec_image.size[0] * vec_image.size[1]):
-        #TODO: check if pixel in leaf
-        
-        x = vec_pixels[pixel * 4 + 0]
-        y = vec_pixels[pixel * 4 + 1]
-        z = vec_pixels[pixel * 4 + 2]
-        
-        lat, lon = encode_normal([x,y,z])
-        
-        amb = colorNormalize([  amb_pixels[4 * pixel + 0],
-                                amb_pixels[4 * pixel + 1],
-                                amb_pixels[4 * pixel + 2]],
-                                color_scale)
-                                
-        dir = colorNormalize([  dir_pixels[4 * pixel + 0],
-                                dir_pixels[4 * pixel + 1],
-                                dir_pixels[4 * pixel + 2]],
-                                color_scale)
+    for pixel in range(num_pixels):
+        if void_pixels[pixel]:
+            lat, lon = encode_normal([0,0,0])
+            amb = [0.0, 0.0, 0.0]
+            dir = [0.0, 0.0, 0.0]
+        else:   
+            x = vec_pixels[pixel * 4 + 0]
+            y = vec_pixels[pixel * 4 + 1]
+            z = vec_pixels[pixel * 4 + 2]
+            
+            lat, lon = encode_normal([x,y,z])
+            
+            amb = colorNormalize([  amb_pixels[4 * pixel + 0],
+                                    amb_pixels[4 * pixel + 1],
+                                    amb_pixels[4 * pixel + 2]],
+                                    1.0)
+                                    
+            dir = colorNormalize([  dir_pixels[4 * pixel + 0],
+                                    dir_pixels[4 * pixel + 1],
+                                    dir_pixels[4 * pixel + 2]],
+                                    1.0)
         
         array = []
         if bsp.lightmaps == 4:
@@ -308,8 +315,8 @@ def storeLightgrid(bsp):
             array.append(0)
             array.append(0)
             array.append(0)
-            array.append(lat)
-            array.append(lon)
+            array.append(int(lat))
+            array.append(int(lon))
         else:
             array.append(int(amb[0] * 255))
             array.append(int(amb[1] * 255))
@@ -317,25 +324,187 @@ def storeLightgrid(bsp):
             array.append(int(dir[0] * 255))
             array.append(int(dir[1] * 255))
             array.append(int(dir[2] * 255))
-            array.append(lat)
-            array.append(lon)
+            array.append(int(lat))
+            array.append(int(lon))
+        
+        hashing_array = []
+        hashing_diff = []
+        for i in range(len(array)):
+            hashing_array.append(array[i] - array[i]%compression_level)
+            hashing_diff.append(array[i]%compression_level)
             
         if bsp.use_lightgridarray:
-            current_hash = hash(tuple(array))
+            current_hash = hash(tuple(hashing_array))
             found_twin = -1
             if current_hash in hash_table:
                 found_twin = hash_table[current_hash]
                 
             if found_twin == -1:
-                bsp.lumps["lightgrid"].add(array)
+                bsp.lumps["lightgrid"].add(hashing_array)
                 bsp.lumps["lightgridarray"].add([current_pixel_mapping])
                 hash_table[current_hash] = current_pixel_mapping
+                hash_table_diff[current_hash] = hashing_diff
+                hash_table_count[current_hash] = 1
                 current_pixel_mapping += 1
             else:
                 bsp.lumps["lightgridarray"].add([found_twin])
+                for index, diff in enumerate(hash_table_diff[current_hash]):
+                    diff += hashing_diff[index]
+                hash_table_count[current_hash] += 1
                 
         else:
             bsp.lumps["lightgrid"].add(array)
+            
+    max_add = compression_level-1
+    if compression_level > 1:
+        for grid_point in bsp.lumps["lightgrid"].data:
+            grid_array = grid_point.to_array()
+            hashing_array = []
+            for i in range(len(array)):
+                hashing_array.append(grid_array[i] - grid_array[i]%compression_level)
+            current_hash = hash(tuple(hashing_array))
+            diff_array = hash_table_diff[current_hash]
+            divisor = hash_table_count[current_hash]
+            for i in range(len(diff_array)):
+                diff_array[i] = min(int(round(diff_array[i] / divisor)), max_add)
+                
+            if bsp.lightmaps == 4:
+                grid_point.ambient1[0] += diff_array[0]
+                grid_point.ambient1[1] += diff_array[1]
+                grid_point.ambient1[2] += diff_array[2]
+                grid_point.ambient2[0] += diff_array[3]
+                grid_point.ambient2[1] += diff_array[4]
+                grid_point.ambient2[2] += diff_array[5]
+                grid_point.ambient3[0] += diff_array[6]
+                grid_point.ambient3[1] += diff_array[7]
+                grid_point.ambient3[2] += diff_array[8]
+                grid_point.ambient4[0] += diff_array[9]
+                grid_point.ambient4[1] += diff_array[10]
+                grid_point.ambient4[2] += diff_array[11]
+                grid_point.direct1[0] += diff_array[12]
+                grid_point.direct1[1] += diff_array[13]
+                grid_point.direct1[2] += diff_array[14]
+                grid_point.direct2[0] += diff_array[15]
+                grid_point.direct2[1] += diff_array[16]
+                grid_point.direct2[2] += diff_array[17]
+                grid_point.direct3[0] += diff_array[18]
+                grid_point.direct3[1] += diff_array[19]
+                grid_point.direct3[2] += diff_array[20]
+                grid_point.direct4[0] += diff_array[21]
+                grid_point.direct4[1] += diff_array[22]
+                grid_point.direct4[2] += diff_array[23]
+                grid_point.styles[0] += diff_array[24]
+                grid_point.styles[1] += diff_array[25]
+                grid_point.styles[2] += diff_array[26]
+                grid_point.styles[3] += diff_array[27]
+                grid_point.lat_long[0] += diff_array[28]
+                grid_point.lat_long[1] += diff_array[29]
+            else:
+                grid_point.ambient1[0] += diff_array[0]
+                grid_point.ambient1[1] += diff_array[1]
+                grid_point.ambient1[2] += diff_array[2]
+                grid_point.direct1[0] += diff_array[3]
+                grid_point.direct1[1] += diff_array[4]
+                grid_point.direct1[2] += diff_array[5]
+                grid_point.lat_long[0] += diff_array[6]
+                grid_point.lat_long[1] += diff_array[7]
+            
+    return current_pixel_mapping
+    
+def storeLightgrid(bsp):
+    vec_image = bpy.data.images.get("$Vector")
+    dir_image = bpy.data.images.get("$Direct")
+    amb_image = bpy.data.images.get("$Ambient")
+    
+    vec_pixels = vec_image.pixels[:]
+    dir_pixels = dir_image.pixels[:]
+    amb_pixels = amb_image.pixels[:]
+    
+    if vec_image == None or dir_image == None or amb_image == None:
+        print("Images not properly baked for storing in the bsp")
+        return False, "Images not properly baked for storing in the bsp"
+    
+    bsp_group = bpy.data.node_groups.get("BspInfo")
+    if bsp_group == None:
+        print("BspInfo Node not Found")
+        return False, "BspInfo Node not Found"
+    
+    world_mins = bsp.lumps["models"].data[0].mins
+    world_maxs = bsp.lumps["models"].data[0].maxs
+    
+    lightgrid_origin = [    bsp.lightgrid_size[0] * ceil( world_mins[0] / bsp.lightgrid_size[0]),
+                            bsp.lightgrid_size[1] * ceil( world_mins[1] / bsp.lightgrid_size[1]),
+                            bsp.lightgrid_size[2] * ceil( world_mins[2] / bsp.lightgrid_size[2]) ]
+                            
+    maxs = [    bsp.lightgrid_size[0] * floor( world_maxs[0] / bsp.lightgrid_size[0]),
+                bsp.lightgrid_size[1] * floor( world_maxs[1] / bsp.lightgrid_size[1]),
+                bsp.lightgrid_size[2] * floor( world_maxs[2] / bsp.lightgrid_size[2]) ]
+                
+    lightgrid_dimensions = [ (maxs[0] - lightgrid_origin[0]) / bsp.lightgrid_size[0] + 1,
+                             (maxs[1] - lightgrid_origin[1]) / bsp.lightgrid_size[1] + 1,
+                             (maxs[2] - lightgrid_origin[2]) / bsp.lightgrid_size[2] + 1 ]
+    lightgrid_size = bsp.lightgrid_size
+    
+    #get all lightgrid points that are in the void
+    void_pixels = [True for i in range(vec_image.size[0] * vec_image.size[1])]
+    for index, leaf in enumerate(bsp.lumps["leafs"].data):
+        if leaf.area == -1:
+            continue
+        
+        start = [-lightgrid_origin[0], -lightgrid_origin[1], -lightgrid_origin[2]]
+        start[0] += leaf.mins[0]
+        start[1] += leaf.mins[1]
+        start[2] += leaf.mins[2]
+        start[0] = round(start[0] / lightgrid_size[0])
+        start[1] = round(start[1] / lightgrid_size[1])
+        start[2] = round(start[2] / lightgrid_size[2])
+        steps = [leaf.maxs[0]-leaf.mins[0], leaf.maxs[1]-leaf.mins[1], leaf.maxs[2]-leaf.mins[2]]
+        steps[0] = int(ceil(steps[0] / lightgrid_size[0]))
+        steps[1] = int(ceil(steps[1] / lightgrid_size[1]))
+        steps[2] = int(ceil(steps[2] / lightgrid_size[2]))
+        
+        for z in range(steps[2]):
+            for y in range(steps[1]):
+                for x in range(steps[0]):
+                    min_x = x+start[0]
+                    min_y = y+start[1]
+                    min_z = z+start[2]
+                    if min_x >= 0 and min_y >= 0 and min_z >= 0:
+                        id = (min_z)*lightgrid_dimensions[0]*lightgrid_dimensions[1]
+                        id += (min_y)*lightgrid_dimensions[0]
+                        id += (min_x)
+                        void_pixels[int(id)] = False
+                        
+    if bsp.use_lightgridarray:
+        num_elements = 65535
+        compression_pow = 0
+        while num_elements > 65534:
+            compression_level = int(pow(2, compression_pow))
+            num_elements = packLightgridData(  bsp, 
+                                void_pixels, 
+                                amb_pixels, 
+                                dir_pixels, 
+                                vec_pixels, 
+                                lightgrid_origin, 
+                                lightgrid_dimensions, 
+                                lightgrid_size, 
+                                compression_level
+                                )
+            print("Current lightgrid compression level: " + str(compression_pow))
+            compression_pow += 1
+        return True, "Lightgrid compression level: " + str(compression_pow)
+    else:
+        packLightgridData(  bsp, 
+                            void_pixels, 
+                            amb_pixels, 
+                            dir_pixels, 
+                            vec_pixels, 
+                            lightgrid_origin, 
+                            lightgrid_dimensions, 
+                            lightgrid_size, 
+                            1
+                            )
+    return True, "Did not compress the lightgrid"
 
 def luma (color):
     return Vector.dot(color, Vector((0.299, 0.587, 0.114)))
@@ -378,6 +547,7 @@ def createLightGridTextures():
     for i, buf in enumerate(buffers):
         if buf == None:
             buffers[i] = bpy.data.images.new(buffer_names[i], width=width, height=height, float_buffer=True)
+            buffers[i].use_fake_user = True
     
     normals = [ Vector((-0.1876, 0.5773, 0.7947)),      # Grid_00
                 Vector((-0.6071, 0.0000, 0.7947)),      # Grid_01

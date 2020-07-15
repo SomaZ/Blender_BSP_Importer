@@ -511,6 +511,7 @@ class lightgrid_ibsp:
         self.ambient1 = [array[0],array[1],array[2]]
         self.direct1 = [array[3],array[4],array[5]]
         self.lat_long = [array[6], array[7]]
+        self.hash = hash(tuple(array))
     def to_array(self):
         array = [None for i in range(8)]
         array[0],array[1],array[2] = self.ambient1

@@ -937,11 +937,15 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
             
         #store lightmap
         if self.patch_lightmaps:
-            QuakeLight.storeLighmaps(bsp, n_lightmaps + 1)
+            success, message = QuakeLight.storeLighmaps(bsp, n_lightmaps + 1)
+            if not success:
+                self.report({"ERROR"}, message)
         
         #store lightgrid
         if self.patch_lightgrid:
-            QuakeLight.storeLightgrid(bsp)
+            success, message = QuakeLight.storeLightgrid(bsp)
+            if not success:
+                self.report({"ERROR"}, message)
             
         #write bsp
         bsp_bytes = bsp.to_bytes()
@@ -1001,8 +1005,9 @@ class Store_Vertex_Colors(bpy.types.Operator):
         for obj in objs:
             mesh = obj.data
             #TODO: handle lightsyles
-            if not QuakeLight.bake_uv_to_vc(mesh, "LightmapUV", "Color"):
-                self.report({"ERROR"}, "Couldn't find lightmap or vertexmap")
+            success, message = QuakeLight.bake_uv_to_vc(mesh, "LightmapUV", "Color")
+            if not success:
+                self.report({"ERROR"}, message)
                 return {'CANCELLED'}
         
         return {'FINISHED'}
@@ -1014,7 +1019,7 @@ class Create_Lightgrid(bpy.types.Operator):
     
     def execute(self, context):
         if QuakeLight.create_lightgrid() == False:
-            self.report({"ERROR"}, "Couldn't create lightgrid")
+            self.report({"ERROR"}, "BspInfo Node Group not found")
             return {'CANCELLED'}
         
         return {'FINISHED'}
@@ -1064,11 +1069,39 @@ class Q3_PT_DataExportPanel(bpy.types.Panel):
     
     def draw(self, context):
         layout = self.layout
-        
+        layout.label(text = "1. Prepare your scene for baking")
+        layout.label(text = "Additionally, you need to unwrap all vertex lit")
+        layout.label(text = "surfaces else you can't bake vertex colors properly.")
+        layout.separator()
+        layout.label(text = '2. Press "Prepare Lightmap Baking"')
         op = layout.operator("q3.prepare_lm_baking", text="Prepare Lightmap Baking")
+        layout.separator()
+        layout.label(text = '3. Keep the selection of objects and bake light:')
+        layout.label(text = 'Bake Type: Diffuse only Direct and Indirect')
+        layout.label(text = 'Margin: 1 px')
+        layout.label(text = 'Make sure you save or pack these images afterwards')
+        layout.label(text = '$lightmap_bake and vertmap_bake')
+        layout.separator()
+        layout.label(text = '4. Denoise $lightmap_bake and $vertmap_bake (optional)')
+        layout.label(text = 'Make sure your Images you want to be baked are named')
+        layout.label(text = '$lightmap_bake and vertmap_bake')
+        layout.separator()
+        layout.label(text = "5. Copy colors from the images to the vertex colors")
+        op = layout.operator("q3.store_vertex_colors", text="Images to Vertex Colors")
+        layout.separator()
+        layout.label(text = "6. Create the LightGrid object with:")
         op = layout.operator("q3.create_lightgrid", text="Create Lightgrid")
+        layout.separator()
+        layout.label(text = "7. Select the LightGrid object and bake light:")
+        layout.label(text = 'Bake Type: Diffuse only Direct and Indirect')
+        layout.label(text = 'Margin: 0 px!')
+        layout.separator()
+        layout.label(text = "8. Create the lightgrid images that can be stored")
+        layout.label(text = "in the BSP file:")
         op = layout.operator("q3.convert_baked_lightgrid", text="Convert Baked Lightgrid")
-        op = layout.operator("q3.store_vertex_colors", text="Vertmap to Vertex Colors")
+        layout.label(text = 'Make sure you save or pack these images afterwards')
+        layout.label(text = '$Direct, $Vector, $Ambient')
+        layout.separator()
         op = layout.operator("q3.patch_bsp_data", text="Patch .bsp Data")
 
 class Reload_preview_shader(bpy.types.Operator):
