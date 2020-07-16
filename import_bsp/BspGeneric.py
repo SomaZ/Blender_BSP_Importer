@@ -724,7 +724,7 @@ class blender_model_data:
             
     def parse_brush(model, bsp, brush_id, import_settings):
         brush = bsp.lumps["brushes"].data[brush_id]
-        shader = bsp.lumps["shaders"].data[brush.texture].name + ".vertex"
+        shader = bsp.lumps["shaders"].data[brush.texture].name + ".brush"
         if not (shader in model.material_names):
             model.material_names.append(shader)
             
@@ -738,7 +738,7 @@ class blender_model_data:
             
             normal = mathutils.Vector(plane.normal)
             position = normal * plane.distance
-            shader = bsp.lumps["shaders"].data[brushside.texture].name + ".vertex"
+            shader = bsp.lumps["shaders"].data[brushside.texture].name + ".brush"
             
             if not (shader in model.material_names):
                 model.material_names.append(shader)
@@ -786,6 +786,11 @@ class blender_model_data:
                 bpy.context.scene.collection.children.link(collection)
             
             obj = bpy.data.objects.new("Brush " + str(brush_id).zfill(4), me)
+            obj.cycles_visibility.camera = False
+            obj.cycles_visibility.diffuse = False
+            obj.cycles_visibility.glossy = False
+            obj.cycles_visibility.transmission = False
+            obj.cycles_visibility.scatter = False
             bpy.data.collections["Brushes"].objects.link(obj)
             return
         

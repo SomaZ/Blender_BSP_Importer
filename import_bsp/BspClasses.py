@@ -681,6 +681,19 @@ def ImportBSP(import_settings):
     bsp = BSP(dataPath)
 
     if bsp.valid:
+        
+        if import_settings.preset == "BRUSHES":
+            for model_index in range(int(bsp.lumps["models"].count)):
+                model = BspGeneric.blender_model_data()
+                model.get_bsp_model(bsp, model_index, import_settings)
+                
+            ent_list = []
+            collection = bpy.data.collections.get("Brushes")
+            if collection != None:
+                QuakeShader.build_quake_shaders(import_settings, bpy.data.collections["Brushes"].objects)
+                
+            return
+        
         #import lightmaps before packing vertex data 
         #because of varying packed lightmap size
         import_settings.log.append("----pack_lightmaps----")
@@ -750,14 +763,6 @@ def ImportBSP(import_settings):
                 
             mesh.update()
             mesh.validate()
-            
-            #import brushes as shadow casters maybe?
-            #TODO: Refactor properly. Rethink the idea (good way to handle this?)
-            #if import_settings.preset == "RENDERING":
-            #    import_settings.preset = "BRUSHES"
-            #    model = BspGeneric.blender_model_data()
-            #    model.get_bsp_model(bsp, model_index, import_settings)
-            #    import_settings.preset = "RENDERING"
                 
         #for vertex_group in model.vertex_groups:
         #    bsp_obj.vertex_groups.new(name = vertex_group)

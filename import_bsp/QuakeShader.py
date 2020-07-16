@@ -252,6 +252,7 @@ class quake_shader:
     def __init__(shader, name, material):
         shader.is_vertex_lit = False
         shader.is_grid_lit = False
+        shader.is_brush = False
         shader.name = name
         shader.texture = name
         shader.mat = material
@@ -297,6 +298,9 @@ class quake_shader:
                 split_name[1] = split_name[1].replace("grid","")
                 if (len(split_name) > 1) and not (split_name[1] == ""):
                     shader.zoffset = split_name[1]
+            
+            if split_name[1].endswith("brush"):
+                shader.is_brush = True
         
         node_output = shader.nodes.new(type='ShaderNodeOutputMaterial')
         node_output.name = "Output"
@@ -712,6 +716,10 @@ class quake_shader:
                 node_BSDF.inputs["Roughness"].default_value = 0.9999
                 shader.links.new(node_texture.outputs["Color"], node_BSDF.inputs["Base Color"])
                 shader.links.new(node_BSDF.outputs["BSDF"], shader.nodes["Output"].inputs[0])
+            else:
+                node_BSDF = shader.nodes.new(type="ShaderNodeBsdfPrincipled")
+                node_BSDF.location = (3000,0)
+                node_BSDF.inputs["Roughness"].default_value = 0.9999
                 
         if "portal" in shader.attributes:
             node_gloss = shader.nodes.new(type="ShaderNodeBsdfPrincipled")
@@ -1044,9 +1052,60 @@ class quake_shader:
             shader_out = node_BSDF.outputs["BSDF"]
         
         shader.links.new(shader_out, shader.nodes["Output"].inputs[0])
+        
+    def finish_brush_shader(shader, base_path, import_settings):
+        node_BSDF = shader.nodes.new(type="ShaderNodeBsdfPrincipled")
+        node_BSDF.location = (3000,0)
+        node_BSDF.inputs["Roughness"].default_value = 0.9999
+        node_BSDF.inputs["Alpha"].default_value = 0.5
+        
+        if "qer_editorimage" in shader.attributes:
+            image = Image.load_file(base_path, shader.attributes["qer_editorimage"][0])
+        else:
+            image = Image.load_file(base_path, shader.texture)
+            
+        if image != None:
+            node_img = shader.nodes.new(type='ShaderNodeTexImage')
+            node_img.image = image
+            node_img.location = 1200,-800
+            shader.links.new(node_img.outputs["Color"], node_BSDF.inputs["Base Color"])
+            
+        if "qer_trans" in shader.attributes:
+            node_BSDF.inputs["Alpha"].default_value = float(shader.attributes["qer_trans"][0])
+            
+        if import_settings.preset == 'RENDERING' or import_settings.preset == "BRUSHES":
+            transparent = False
+            
+            if "skyparms" in shader.attributes:
+                transparent = True
+            if "surfaceparm" in shader.attributes:
+                if "trans" in shader.attributes["surfaceparm"]:
+                    transparent = True
+                if "nonopaque" in shader.attributes["surfaceparm"]:
+                    transparent = True
+                    
+            if transparent:
+                node_BSDF.inputs["Alpha"].default_value = 0.0
+                shader.links.new(node_BSDF.outputs[0], shader.nodes["Output"].inputs[0])
+                shader.mat.shadow_method = 'NONE'
+            else:
+                solid_BSDF = shader.nodes.new(type="ShaderNodeBsdfDiffuse")
+                solid_BSDF.location = 4200, 0
+                shader.links.new(solid_BSDF.outputs[0], shader.nodes["Output"].inputs[0])
+                shader.nodes["Output"].target = "CYCLES"
+                
+                eevee_out = shader.nodes.new(type = "ShaderNodeOutputMaterial")
+                eevee_out.location = 4200, -300
+                eevee_out.name = "EeveeOut"
+                eevee_out.target = "EEVEE"
+                shader.links.new(node_BSDF.outputs[0], eevee_out.inputs[0])
+                
+            shader.mat.blend_method = "BLEND"
     
     def finish_shader(shader, base_path, import_settings):
-        if import_settings.preset != 'RENDERING':
+        if shader.is_brush:
+            shader.finish_brush_shader(base_path, import_settings)
+        elif import_settings.preset != 'RENDERING':
             shader.finish_preview_shader(base_path, import_settings)
         else:
             shader.finish_rendering_shader(base_path, import_settings)

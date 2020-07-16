@@ -88,6 +88,7 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
             ('PREVIEW', "Preview", "Trys to build eevee shaders, imports all misc_model_statics when available", 0),
             ('EDITING', "Editing", "Trys to build eevee shaders, imports all entitys", 1),
             ('RENDERING', "Rendering", "Trys to build fitting cycles shaders, only imports visable enities", 2),
+            ('BRUSHES', "Shadow Brushes", "Imports Brushes as shadow casters", 3),
         ])
     subdivisions : IntProperty(name="Patch subdivisions", description="How often a patch is subdivided at import", default=2)
 
@@ -123,6 +124,11 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
         else:
             import_settings.log.append("WARNING: Could not set world color to black.")
         
+        if self.properties.preset == "BRUSHES":
+            context.scene.cycles.transparent_max_bounces = 32
+        if self.properties.preset == "RENDERING":
+            context.scene.render.engine = "CYCLES"
+            
         #for line in import_settings.log:
         #    print(line)
             
