@@ -351,9 +351,12 @@ def lerpVertices(vertex1, vertex2, vertex_class, lightmaps):
         vertexArray.append((vertex1.lm4coord[0] + vertex2.lm4coord[0])/2.0)
         vertexArray.append((vertex1.lm4coord[1] + vertex2.lm4coord[1])/2.0)
     
-    vertexArray.append((vertex1.normal[0] + vertex2.normal[0])/2.0)
-    vertexArray.append((vertex1.normal[1] + vertex2.normal[1])/2.0)
-    vertexArray.append((vertex1.normal[2] + vertex2.normal[2])/2.0)
+    vec = mathutils.Vector(vertex1.normal) + mathutils.Vector(vertex2.normal)
+    vec.normalize()
+    
+    vertexArray.append(vec[0])
+    vertexArray.append(vec[1])
+    vertexArray.append(vec[2])
     
     vertexArray.append(((vertex1.color1[0] + vertex2.color1[0])/2.0)*255.0)
     vertexArray.append(((vertex1.color1[1] + vertex2.color1[1])/2.0)*255.0)
@@ -412,8 +415,8 @@ class blender_model_data:
         for i in range(int(face.n_indexes / 3)):
             
             index_0 = face.vertex + bsp.lumps["drawindexes"].data[index + 0].offset
-            index_1 = face.vertex + bsp.lumps["drawindexes"].data[index + 1].offset
-            index_2 = face.vertex + bsp.lumps["drawindexes"].data[index + 2].offset
+            index_1 = face.vertex + bsp.lumps["drawindexes"].data[index + 2].offset
+            index_2 = face.vertex + bsp.lumps["drawindexes"].data[index + 1].offset
             
             if model.index_mapping[index_0] < 0:
                 model.index_mapping[index_0] = model.current_index
@@ -627,9 +630,9 @@ class blender_model_data:
             if ((patch_face_index+1)%(width+1) == 0):
                 continue
             i1 = patch_face_index + 1
-            i2 = patch_face_index
+            i2 = patch_face_index + width + 2
             i3 = patch_face_index + width + 1
-            i4 = patch_face_index + width + 2
+            i4 = patch_face_index
             
             v1 = indicesPoints2[i1]
             v2 = indicesPoints2[i2]
@@ -813,8 +816,7 @@ class blender_model_data:
                 tcs.append(loop[uv_layer].uv.copy())
                 lmtcs.append([0.0, 0.0])
                 colors.append([0.4, 0.4, 0.4, 1.0])
-            
-            face.normal_flip()
+                
             material_index = brush_shader_id
                 
             model.face_materials.append(material_index)

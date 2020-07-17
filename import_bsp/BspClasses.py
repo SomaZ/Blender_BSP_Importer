@@ -722,6 +722,7 @@ def ImportBSP(import_settings):
                 poly.use_smooth = True
                 
             mesh.vertices.foreach_set("normal", unpack_list(model.normals))
+            mesh.normals_split_custom_set_from_vertices(model.normals)
 
             mesh.vertex_layers_int.new(name="BSP_VERT_INDEX")
             mesh.vertex_layers_int["BSP_VERT_INDEX"].data.foreach_set("value", model.vertex_bsp_indices)
@@ -757,10 +758,8 @@ def ImportBSP(import_settings):
             #ugly hack to get the vertex alpha.....
             mesh.vertex_colors.new(name = "Alpha")
             mesh.vertex_colors["Alpha"].data.foreach_set("color", unpack_list(unpack_list(model.face_vert_alpha)))    
-                
-            #q3 renders with front culling as default
-            mesh.flip_normals()
-                
+            
+            mesh.use_auto_smooth = True
             mesh.update()
             mesh.validate()
                 
