@@ -7,6 +7,11 @@ if "Image" in locals():
     imp.reload( Image )
 else:
     from . import Image
+    
+if "QuakeLight" in locals():
+    imp.reload( QuakeLight )
+else:
+    from . import QuakeLight
 
 import math
 import bgl
@@ -236,46 +241,31 @@ def add_sun(shader, function, sun_parms, i):
     name = shader + "_" + function + "." + str(i)
      
     if function == "sun":
-        if len(parms) != 6:
+        if len(parms) < 6:
             print("not enogh sun parameters")
-            return False
     elif function == "q3map_sun":
-        if len(parms) != 6:
+        if len(parms) < 6:
             print("not enogh q3map_sun parameters")
-            return False
     elif function == "q3map_sunext":
-        if len(parms) != 8:
+        if len(parms) < 8:
             print("not enogh q3map_sunext parameters")
-            return False
     elif function == "q3gl2_sun":
-        if len(parms) != 9:
+        if len(parms) < 9:
             print("not enogh q3gl2_sun parameters")
-            return False
         
     color = Vector((float(parms[0]), float(parms[1]), float(parms[2])))
     color.normalize()
     intensity = float(parms[3]) / 255.0
     rotation = [float(parms[4]), float(parms[5])]
     
-    obj_vec = Vector((0.0, 0.0, -1.0))
-    light_vec = Vector((0.0, 0.0, 0.0))
+    light_vec = [0.0, 0.0, 0.0]
     rotation[0] = rotation[0] / 180.0 * math.pi
     rotation[1] = rotation[1] / 180.0 * math.pi
     light_vec[0] = -math.cos(rotation[0]) * math.cos(rotation[1])
     light_vec[1] = -math.sin(rotation[0]) * math.cos(rotation[1])
     light_vec[2] = -math.sin(rotation[1])
+    angle = math.radians(1.5)
     
-    sun = bpy.data.lights.get(name)
-    if sun == None:
-        sun = bpy.data.lights.new(name=name, type='SUN')
-        sun.energy = intensity 
-        sun.shadow_cascade_max_distance = 12000
-        sun.color = color
-        
-    obj = bpy.data.objects.get(name)
-    if obj == None:
-        obj = bpy.data.objects.new(name=name, object_data=sun)
-        bpy.context.collection.objects.link(obj)
-        obj.rotation_euler = obj_vec.rotation_difference( light_vec ).to_euler()
+    QuakeLight.add_light(name, "SUN", intensity, color, light_vec, angle)
     
     return True

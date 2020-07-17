@@ -94,6 +94,44 @@ def bake_uv_to_vc(mesh, uv_layer, vertex_layer):
             #mesh.vertex_colors[vertex_layer].data[loop_idx].color[3] = 1.0
     return True, "Vertex colors succesfully added to mesh"
 
+def add_light(name, type, intensity, color, vector, angle):
+    out_color = colorNormalize(color, 1.0)
+    
+    if type == "SUN":
+        light = bpy.data.lights.get(name)
+        if light == None:
+            light = bpy.data.lights.new(name=name, type='SUN')
+            light.energy = intensity 
+            light.shadow_cascade_max_distance = 12000
+            light.color = out_color
+            light.angle = angle
+    elif type == "SPOT":
+        light = bpy.data.lights.get(name)
+        if light == None:
+            light = bpy.data.lights.new(name=name, type='SPOT')
+            light.energy = intensity * 750.0
+            light.shadow_buffer_clip_start = 4
+            light.color = out_color
+            light.spot_size = angle
+    else:
+        light = bpy.data.lights.get(name)
+        if light == None:
+            light = bpy.data.lights.new(name=name, type='POINT')
+            light.energy = intensity * 750.0
+            light.shadow_buffer_clip_start = 4
+            light.color = out_color
+            light.shadow_soft_size = angle
+    
+    obj_vec = Vector((0.0, 0.0, -1.0))
+    rotation_vec = Vector((vector[0], vector[1], vector[2]))
+    obj = bpy.data.objects.get(name)
+    if obj == None:
+        obj = bpy.data.objects.new(name=name, object_data=light)
+        bpy.context.collection.objects.link(obj)
+        obj.rotation_euler = obj_vec.rotation_difference( rotation_vec ).to_euler()
+        
+    return obj
+
 def storeLighmaps(bsp, n_lightmaps):
     lm_size = bsp.lightmap_size[0]
     color_components = 3

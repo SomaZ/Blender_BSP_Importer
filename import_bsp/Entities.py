@@ -13,6 +13,11 @@ if "Parsing" in locals():
     imp.reload( Parsing )
 else:
     from .Parsing import *
+    
+if "QuakeLight" in locals():
+    imp.reload( QuakeLight )
+else:
+    from . import QuakeLight
 
 def get_gamepack(name):
     file_path = bpy.utils.script_paths("addons/import_bsp/gamepacks/")[0]
@@ -72,16 +77,14 @@ def ImportEntities(bsp, import_settings):
             if ent["classname"].lower() in Dict:
                 if "Model" in Dict[ent["classname"].lower()]:
                     if Dict[ent["classname"].lower()]["Model"].lower() != "box":
-                        print("Force model")
                         ent["model"] = Dict[ent["classname"].lower()]["Model"].lower()
-                        print(ent["model"])
             
             if n_ent == 0:
                 me = bpy.data.meshes["*0"]
                 ob = bpy.data.objects.new("Entity " + (str(n_ent).zfill(4)), me)
                 obj_list.append(ob)
-                
-            elif "model" in ent:
+            
+            elif "model" in ent and ent["classname"].lower() != "misc_model":
                 #TODO properly handle this. Might have to merge both models
                 if "model2" in ent:
                     model_name = ent["model2"]
@@ -127,6 +130,26 @@ def ImportEntities(bsp, import_settings):
                     
                 obj_list.append(ob)
                 
+            elif import_settings.preset == "RENDERING":
+                if "classname" in ent:
+                    #import lights
+                    if ent["classname"].lower() == "light":
+                        name = "Entity " + (str(n_ent).zfill(4))
+                        intensity = 300
+                        color = [1.0, 1.0, 1.0]
+                        vector = [0.0, 0.0, -1.0]
+                        angle = 4.0
+                        if "light" in ent:
+                            intensity = float(ent["light"])
+                        if "_color" in ent:
+                            color_str = ent["_color"].split()
+                            color = [float(color_str[0]), float(color_str[1]), float(color_str[2])]
+                        print("Light found")
+                        light = QuakeLight.add_light(name, "POINT", intensity, color, vector, angle)
+                        
+                        if "origin" in ent:
+                            light.location = ent["origin"]
+                
             elif import_settings.preset == "EDITING":
                 if (mesh == None):
                     ent_object = bpy.ops.mesh.primitive_cube_add(size = 32.0, location=([0,0,0]))
@@ -154,8 +177,6 @@ def ImportEntities(bsp, import_settings):
                             
                     else:            
                         obj_list.append(ob)
-            
-            
             
             if ob != None:
                 ob.name = "Entity " + (str(n_ent).zfill(4))
