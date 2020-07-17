@@ -95,7 +95,7 @@ def bake_uv_to_vc(mesh, uv_layer, vertex_layer):
     return True, "Vertex colors succesfully added to mesh"
 
 def add_light(name, type, intensity, color, vector, angle):
-    out_color = colorNormalize(color, 1.0)
+    out_color = SRGBToLinear(color)
     
     if type == "SUN":
         light = bpy.data.lights.get(name)
