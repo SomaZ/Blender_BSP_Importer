@@ -892,8 +892,8 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                 bsp_vert.lm1coord = mesh.uv_layers["LightmapUV"].data[loop].uv
                             if self.patch_normals:
                                 bsp_vert.normal = mesh.vertices[vertex].normal.copy()
+                                if mesh.has_custom_normals:
                                     bsp_vert.normal = mesh.loops[loop].normal.copy()
-                                if mesh.has_custom_normals:  
                             if self.patch_colors:
                                 bsp_vert.color1 = mesh.vertex_colors["Color"].data[loop].color
                                 bsp_vert.color1[3] = mesh.vertex_colors["Alpha"].data[loop].color[0]
