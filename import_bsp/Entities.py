@@ -103,6 +103,8 @@ def ImportEntities(bsp, import_settings):
                     mesh_name = model_name
                     
                 if mesh_name in map_objects:
+                    if mesh_name not in bpy.data.meshes:
+                        continue
                     me = bpy.data.meshes[mesh_name]
                     ob = bpy.data.objects.new(mesh_name, me)
                 else:

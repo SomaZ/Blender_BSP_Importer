@@ -692,6 +692,28 @@ def ImportBSP(import_settings):
             if collection != None:
                 QuakeShader.build_quake_shaders(import_settings, bpy.data.collections["Brushes"].objects)
                 
+                objs = bpy.data.objects
+                delete_objects = []
+                for obj in bpy.data.collections["Brushes"].objects:
+                    delete_obj = True
+                    for m in obj.material_slots:
+                        if m.material.name.startswith("noshader"):
+                            continue
+                        #clip brushes for models
+                        if m.material.name.startswith("models/"):
+                            delete_obj = True
+                            break
+                        if "Sky" in m.material.node_tree.nodes:
+                            delete_obj = True
+                            break
+                        if not "Transparent" in m.material.node_tree.nodes:
+                            delete_obj = False
+                    if delete_obj:
+                        delete_objects.append(obj)
+
+                for obj in delete_objects:             
+                    objs.remove(obj, do_unlink=True)
+                    
             return
         
         #import lightmaps before packing vertex data 
@@ -701,15 +723,21 @@ def ImportBSP(import_settings):
         BspGeneric.pack_lightmaps(bsp, import_settings)
         import_settings.log.append("took:" + str(perf_counter() - time_start) + " seconds")
         
+        vertex_groups = {}
+        
         for model_index in range(int(bsp.lumps["models"].count)):
             model = BspGeneric.blender_model_data()
             model.get_bsp_model(bsp, model_index, import_settings)
+            
+            if len(model.vertices) <= 0:
+                continue
             
             name = "*"+str(model_index)
             
             mesh = bpy.data.meshes.new( name )
             mesh.from_pydata(model.vertices, [], model.face_vertices)
-
+            vertex_groups[name] = model.vertex_groups
+            
             for texture_instance in model.material_names:
                 mat = bpy.data.materials.get(texture_instance)
                 if (mat == None):
@@ -762,10 +790,6 @@ def ImportBSP(import_settings):
             mesh.use_auto_smooth = True
             mesh.update()
             mesh.validate()
-                
-        #for vertex_group in model.vertex_groups:
-        #    bsp_obj.vertex_groups.new(name = vertex_group)
-        #    bsp_obj.vertex_groups[vertex_group].add(list(model.vertex_groups[vertex_group]), 1.0, "ADD")
             
         #import entities and get object list
         import_settings.log.append("----ImportEntities----")
@@ -797,6 +821,12 @@ def ImportBSP(import_settings):
         time_start = perf_counter()
         QuakeShader.build_quake_shaders(import_settings, ent_list)
         import_settings.log.append("took:" + str(perf_counter() - time_start) + " seconds")
+        
+        for ent in ent_list:
+            if ent.data.name in vertex_groups:
+                for vertex_group in vertex_groups[ent.data.name]:
+                    ent.vertex_groups.new(name = vertex_group)
+                    ent.vertex_groups[vertex_group].add(list(vertex_groups[ent.data.name][vertex_group]), 1.0, "ADD")
             
         vg = ent_list[0].vertex_groups.get("Decals")
         if vg is not None:

@@ -112,6 +112,8 @@ def pack_lightmaps(bsp, import_settings):
             import_settings.log.append("found best packed lightmap size: " + str(import_settings.packed_lightmap_size))
             break
         
+    bpy.context.scene.id_tech_3_lightmaps_per_row = num_rows_colums
+        
     if force_vertex_lighting == True:
         return
         
@@ -399,7 +401,8 @@ class blender_model_data:
         model.face_vert_color3 = []
         model.face_vert_color4 = []
         model.face_vert_alpha = []
-        model.vertex_groups = {}#{"Patches" : set(),}
+        model.vertex_groups = { #"Patches" : set(),
+                                "Lightmapped": set()}
         model.material_names = []
         model.vertex_class = BSP.vertex_rbsp
         model.lightmaps = 4
@@ -486,6 +489,10 @@ class blender_model_data:
             material_suffix = ""
             if face.lm_indexes[0] < 0:
                 material_suffix = ".vertex"
+            else:
+                model.vertex_groups["Lightmapped"].add(indices[0])
+                model.vertex_groups["Lightmapped"].add(indices[1])
+                model.vertex_groups["Lightmapped"].add(indices[2])
             material_name = shaders_lump[face.texture].name + material_suffix
             
             if not (material_name in model.material_names):
@@ -670,6 +677,11 @@ class blender_model_data:
             material_suffix = ""
             if face.lm_indexes[0] < 0:
                 material_suffix = ".vertex"
+            else:
+                model.vertex_groups["Lightmapped"].add(indicesPoints2[i1])
+                model.vertex_groups["Lightmapped"].add(indicesPoints2[i2])
+                model.vertex_groups["Lightmapped"].add(indicesPoints2[i3])
+                model.vertex_groups["Lightmapped"].add(indicesPoints2[i4])
             material_name = shaders_lump[face.texture].name + material_suffix
             
             if not (material_name in model.material_names):

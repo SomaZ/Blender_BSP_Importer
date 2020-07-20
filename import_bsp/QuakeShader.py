@@ -276,7 +276,7 @@ class quake_shader:
         shader.last_blend = None
         
         shader.is_explicit = False
-        shader.is_system_shader = False
+        shader.is_system_shader = True if name.startswith("noshader") else False
         
         shader.stages = []
         shader.attributes = {}
@@ -1056,9 +1056,10 @@ class quake_shader:
     def finish_brush_shader(shader, base_path, import_settings):
         node_BSDF = shader.nodes.new(type="ShaderNodeBsdfPrincipled")
         node_BSDF.location = (3000,0)
+        node_BSDF.name = "Out_BSDF"
         node_BSDF.inputs["Roughness"].default_value = 0.9999
         node_BSDF.inputs["Alpha"].default_value = 0.5
-        
+        is_sky = False
         if "qer_editorimage" in shader.attributes:
             image = Image.load_file(base_path, shader.attributes["qer_editorimage"][0])
         else:
@@ -1078,6 +1079,7 @@ class quake_shader:
             
             if "skyparms" in shader.attributes:
                 transparent = True
+                is_sky = True
             if "surfaceparm" in shader.attributes:
                 if "trans" in shader.attributes["surfaceparm"]:
                     transparent = True
@@ -1086,6 +1088,7 @@ class quake_shader:
                     
             if transparent:
                 node_BSDF.inputs["Alpha"].default_value = 0.0
+                node_BSDF.name = "Sky" if is_sky else "Transparent"
                 shader.links.new(node_BSDF.outputs[0], shader.nodes["Output"].inputs[0])
                 shader.mat.shadow_method = 'NONE'
             else:

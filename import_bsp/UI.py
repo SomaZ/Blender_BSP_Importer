@@ -91,6 +91,13 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
             ('BRUSHES', "Shadow Brushes", "Imports Brushes as shadow casters", 3),
         ])
     subdivisions : IntProperty(name="Patch subdivisions", description="How often a patch is subdivided at import", default=2)
+    min_atlas_size : EnumProperty(name="Minimum Lightmap atlas size", description="Sets the minimum lightmap atlas size", default='128', items=[
+            ('128', "128", "128x128", 0),
+            ('256', "256", "256x256", 1),
+            ('512', "512", "512x512", 2),
+            ('1024', "1024", "1024x1024", 3),
+            ('2048', "2048", "2048x2048", 4),
+        ])
 
     def execute(self, context):
         addon_name = __name__.split('.')[0]
@@ -107,13 +114,15 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
         import_settings.bsp_name = ""
         import_settings.preset = self.properties.preset
         import_settings.subdivisions = self.properties.subdivisions
-        import_settings.packed_lightmap_size = 128
+        import_settings.packed_lightmap_size = int(self.min_atlas_size)
         import_settings.log = []
         import_settings.log.append("----import_scene.ja_bsp----")
         import_settings.filepath = self.filepath
         
         #scene information
         context.scene.id_tech_3_importer_preset = self.preset
+        if self.preset != "BRUSHES":
+            context.scene.id_tech_3_bsp_path = self.filepath
         
         BspClasses.ImportBSP(import_settings)
         
@@ -834,9 +843,12 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
     patch_lm_tcs : BoolProperty(name="Lightmap texture coordinates", default = True)
     patch_tcs : BoolProperty(name="Texture coordinates", default = False)
     patch_normals : BoolProperty(name="Normals", default = False)
-    patch_lightmaps : BoolProperty(name="Lightmaps", default = True)
+    
     patch_colors : BoolProperty(name="Vertex Colors", default = False)
     patch_lightgrid : BoolProperty(name = "Light Grid", default = False)
+    patch_lightmaps : BoolProperty(name="Lightmaps", default = True)
+    patch_external : BoolProperty(name="External Lightmaps", default = False)
+    patch_hdr_lm : BoolProperty(name="HDR Lightmaps", default = False)
     #TODO Shader lump + shader assignments
     def execute(self, context):
         
@@ -844,18 +856,35 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
         
         if self.patch_colors or self.patch_normals or self.patch_lm_tcs or self.patch_tcs:
             objs = [obj for obj in context.selected_objects if obj.type=="MESH"]
+            #stores bsp vertex indices
+            patched_vertices = {id: False for id in range(int(bsp.lumps["drawverts"].count))}
+            lightmapped_vertices = {id: False for id in range(int(bsp.lumps["drawverts"].count))}
             for obj in objs:
                 mesh = obj.to_mesh()
+                mesh.calc_normals_split()
                 mesh.calc_loop_triangles()
+                
+                group_map = {group.name: group.index for group in obj.vertex_groups}
                 #check if its an imported bsp data set
                 if mesh.vertex_layers_int.get("BSP_VERT_INDEX") is not None:
+                    bsp_indices = mesh.vertex_layers_int["BSP_VERT_INDEX"]
+                    
+                    #store all vertices that are lightmapped
+                    for index in [ bsp_indices.data[vertex.index].value 
+                                                    for vertex in mesh.vertices 
+                                                        if group_map["Lightmapped"] in 
+                                                            [ vg.group for vg in vertex.groups ] ]:
+                        if index >= 0:
+                            lightmapped_vertices[index] = True
+                    
                     #patch all vertices of this mesh
                     for triangle in mesh.loop_triangles:
                         for vertex, loop in zip(triangle.vertices, triangle.loops):
                             #get the vertex position in the bsp file
-                            bsp_vert_index = mesh.vertex_layers_int["BSP_VERT_INDEX"].data[vertex].value
+                            bsp_vert_index = bsp_indices.data[vertex].value
                             if bsp_vert_index < 0:
                                 continue
+                            patched_vertices[bsp_vert_index] = True
                             bsp_vert = bsp.lumps["drawverts"].data[bsp_vert_index]
                             if self.patch_tcs:
                                 bsp_vert.texcoord = mesh.uv_layers["UVMap"].data[loop].uv
@@ -863,8 +892,8 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                 bsp_vert.lm1coord = mesh.uv_layers["LightmapUV"].data[loop].uv
                             if self.patch_normals:
                                 bsp_vert.normal = mesh.vertices[vertex].normal.copy()
-                                if in_mesh.has_custom_normals:
                                     bsp_vert.normal = mesh.loops[loop].normal.copy()
+                                if mesh.has_custom_normals:  
                             if self.patch_colors:
                                 bsp_vert.color1 = mesh.vertex_colors["Color"].data[loop].color
                                 bsp_vert.color1[3] = mesh.vertex_colors["Alpha"].data[loop].color[0]
@@ -873,14 +902,15 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                     return {'CANCELLED'}
         
         if self.patch_lm_tcs or self.patch_tcs:
-            lightmap_size = bsp.lightmap_size[0]
             lightmap_image = bpy.data.images.get("$lightmap")
             packed_width, packed_height = lightmap_image.size
             packed_lightmap_size = packed_width
+            lightmap_size = packed_width / bpy.context.scene.id_tech_3_lightmaps_per_row
             fixed_vertices = []
             #fix lightmap tcs and tcs, set lightmap ids
             for bsp_surf in bsp.lumps["surfaces"].data:
                 #fix lightmap tcs and tcs for patches
+                #unsmoothes tcs, so the game creates the same tcs we see here in blender
                 if bsp_surf.type == 2:
                     width = int(bsp_surf.patch_width-1)
                     height = int(bsp_surf.patch_height-1)
@@ -908,30 +938,33 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                 
                 if self.patch_lm_tcs:               
                     #set new lightmap ids
-                    #TODO: need to find another way when we want to convert vertex lit surfaces to lightmapped ones
                     vertices = set()
-                    if bsp_surf.lm_indexes[0] >= 0:
-                        lightmap_id = -3
-                        if bsp_surf.type != 2:
-                            for i in range(int(bsp_surf.n_indexes)):
-                                bsp_vert_index = bsp_surf.vertex + bsp.lumps["drawindexes"].data[bsp_surf.index + i].offset
+                    lightmap_id = -3
+                    if bsp_surf.type != 2:
+                        for i in range(int(bsp_surf.n_indexes)):
+                            bsp_vert_index = bsp_surf.vertex + bsp.lumps["drawindexes"].data[bsp_surf.index + i].offset
+                            #only alter selected vertices
+                            if patched_vertices[bsp_vert_index]:
                                 vertices.add(bsp_vert_index)
                                 bsp_vert = bsp.lumps["drawverts"].data[bsp_vert_index]
-                                lightmap_id = BspGeneric.get_lm_id(bsp_vert.lm1coord, lightmap_size, packed_lightmap_size)
-                        else:
-                            for i in range(bsp_surf.patch_width):
-                                for j in range(bsp_surf.patch_height):
-                                    bsp_vert_index = bsp_surf.vertex + j*bsp_surf.patch_width + i
+                                if lightmapped_vertices[bsp_vert_index]:
+                                    lightmap_id = BspGeneric.get_lm_id(bsp_vert.lm1coord, lightmap_size, packed_lightmap_size)
+                    else:
+                        for i in range(bsp_surf.patch_width):
+                            for j in range(bsp_surf.patch_height):
+                                bsp_vert_index = bsp_surf.vertex + j*bsp_surf.patch_width + i
+                                if patched_vertices[bsp_vert_index]:
                                     vertices.add(bsp_vert_index)
                                     bsp_vert = bsp.lumps["drawverts"].data[bsp_vert_index]
-                                    lightmap_id = BspGeneric.get_lm_id(bsp_vert.lm1coord, lightmap_size, packed_lightmap_size)
-                        if lightmap_id >= 0:
-                            bsp_surf.lm_indexes[0] = lightmap_id
-                
-                    #unpack lightmap tcs
-                    for i in vertices:
-                        bsp_vert = bsp.lumps["drawverts"].data[i]
-                        BspGeneric.unpack_lm_tc(bsp_vert.lm1coord, lightmap_size, packed_lightmap_size)
+                                    if lightmapped_vertices[bsp_vert_index]:
+                                        lightmap_id = BspGeneric.get_lm_id(bsp_vert.lm1coord, lightmap_size, packed_lightmap_size)
+                    
+                    if len(vertices) > 0:
+                        bsp_surf.lm_indexes[0] = lightmap_id
+                        #unpack lightmap tcs
+                        for i in vertices:
+                            bsp_vert = bsp.lumps["drawverts"].data[i]
+                            BspGeneric.unpack_lm_tc(bsp_vert.lm1coord, lightmap_size, packed_lightmap_size)
         
         #get number of lightmaps
         n_lightmaps = 0
@@ -943,7 +976,7 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
             
         #store lightmap
         if self.patch_lightmaps:
-            success, message = QuakeLight.storeLighmaps(bsp, n_lightmaps + 1)
+            success, message = QuakeLight.storeLighmaps(bsp, n_lightmaps + 1, not self.patch_external, self.patch_hdr_lm )
             if not success:
                 self.report({"ERROR"}, message)
         
@@ -1135,6 +1168,9 @@ class Reload_preview_shader(bpy.types.Operator):
             vg = obj.vertex_groups.get("Decals")
             if vg is not None:
                 obj.vertex_groups.remove(vg)
+            mod = obj.modifiers.get("polygonOffset")
+            if mod is not None:
+                obj.modifiers.remove(mod)
         
         QuakeShader.build_quake_shaders(import_settings, objs)
         
@@ -1173,6 +1209,9 @@ class Reload_render_shader(bpy.types.Operator):
             vg = obj.vertex_groups.get("Decals")
             if vg is not None:
                 obj.vertex_groups.remove(vg)
+            mod = obj.modifiers.get("polygonOffset")
+            if mod is not None:
+                obj.modifiers.remove(mod)
         
         QuakeShader.build_quake_shaders(import_settings, objs)
         

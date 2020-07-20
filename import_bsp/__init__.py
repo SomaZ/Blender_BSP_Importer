@@ -101,6 +101,10 @@ def register():
     bpy.types.Scene.id_tech_3_settings = bpy.props.PointerProperty(type=UI.SceneProperties)
     bpy.types.Scene.id_tech_3_importer_preset = bpy.props.StringProperty(   name="id3 importer preset",
                                                                             description="Last used importer preset" )
+    bpy.types.Scene.id_tech_3_bsp_path = bpy.props.StringProperty(  name="BSP path",
+                                                                    description="Full path to the last imported BSP File" )
+    bpy.types.Scene.id_tech_3_lightmaps_per_row = bpy.props.IntProperty( name="Lightmaps per row",
+                                                                         description="How many lightmaps are packed in one row of the lightmap atlas" )
 
 def unregister():
     
