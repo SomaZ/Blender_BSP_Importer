@@ -190,7 +190,7 @@ class Export_ID3_MD3(bpy.types.Operator, ExportHelper):
         if self.only_selected:
             objects = context.selected_objects
             
-        frame_list = range(self.start_frame, max(self.end_frame, self.start_frame+1))
+        frame_list = range(self.start_frame, max(self.end_frame, self.start_frame) + 1)
         status = MD3.ExportMD3(self.filepath, objects, frame_list, self.individual)
         if status[0]:
             return {'FINISHED'}
