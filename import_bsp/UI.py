@@ -847,8 +847,11 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
     patch_colors : BoolProperty(name="Vertex Colors", default = False)
     patch_lightgrid : BoolProperty(name = "Light Grid", default = False)
     patch_lightmaps : BoolProperty(name="Lightmaps", default = True)
-    patch_external : BoolProperty(name="External Lightmaps", default = False)
-    patch_hdr_lm : BoolProperty(name="HDR Lightmaps", default = False)
+    patch_external : BoolProperty(name="Save External Lightmaps", default = False)
+    patch_external_flip : BoolProperty(name="Flip External Lightmaps", default = False)
+    patch_hdr_lm : BoolProperty(name="HDR External Lightmaps", default = False)
+    patch_empty_lm_lump : BoolProperty(name="Remove Lightmaps in BSP", default = False)
+    
     #TODO Shader lump + shader assignments
     def execute(self, context):
         
@@ -865,6 +868,10 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                 mesh.calc_loop_triangles()
                 
                 group_map = {group.name: group.index for group in obj.vertex_groups}
+                if not "Lightmapped" in group_map:
+                    self.report({"ERROR"}, '"Lightmapped" Vertex Group not found')
+                    return {'CANCELLED'}
+                
                 #check if its an imported bsp data set
                 if mesh.vertex_layers_int.get("BSP_VERT_INDEX") is not None:
                     bsp_indices = mesh.vertex_layers_int["BSP_VERT_INDEX"]
@@ -902,7 +909,10 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                     return {'CANCELLED'}
         
         if self.patch_lm_tcs or self.patch_tcs:
-            lightmap_image = bpy.data.images.get("$lightmap")
+            lightmap_image = bpy.data.images.get("$lightmap_bake")
+            if lightmap_image == None:
+                self.report({"ERROR"}, "Could not find $lightmap_bake texture")
+                return {'CANCELLED'}
             packed_width, packed_height = lightmap_image.size
             packed_lightmap_size = packed_width
             lightmap_size = packed_width / bpy.context.scene.id_tech_3_lightmaps_per_row
@@ -976,9 +986,13 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
             
         #store lightmap
         if self.patch_lightmaps:
-            success, message = QuakeLight.storeLighmaps(bsp, n_lightmaps + 1, not self.patch_external, self.patch_hdr_lm )
+            success, message = QuakeLight.storeLighmaps(bsp, n_lightmaps + 1, not self.patch_external, self.patch_hdr_lm, self.patch_external_flip )
             if not success:
                 self.report({"ERROR"}, message)
+        
+        #clear lightmap lump        
+        if self.patch_empty_lm_lump:
+            bsp.lumps["lightmaps"].clear()
         
         #store lightgrid
         if self.patch_lightgrid:
@@ -1119,11 +1133,11 @@ class Q3_PT_DataExportPanel(bpy.types.Panel):
         layout.label(text = 'Bake Type: Diffuse only Direct and Indirect')
         layout.label(text = 'Margin: 1 px')
         layout.label(text = 'Make sure you save or pack these images afterwards')
-        layout.label(text = '$lightmap_bake and vertmap_bake')
+        layout.label(text = '$lightmap_bake and $vertmap_bake')
         layout.separator()
         layout.label(text = '4. Denoise $lightmap_bake and $vertmap_bake (optional)')
         layout.label(text = 'Make sure your Images you want to be baked are named')
-        layout.label(text = '$lightmap_bake and vertmap_bake')
+        layout.label(text = '$lightmap_bake and $vertmap_bake')
         layout.separator()
         layout.label(text = "5. Copy colors from the images to the vertex colors")
         op = layout.operator("q3.store_vertex_colors", text="Images to Vertex Colors")

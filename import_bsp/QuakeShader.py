@@ -272,6 +272,7 @@ class quake_shader:
                                     "BaseReflectionVector" : [-400.0, 600.0],
                                     "EmissionScaleNode" : [-400.0, -600.0],
                                 }
+        
         shader.zoffset = 0
         shader.last_blend = None
         
@@ -594,9 +595,9 @@ class quake_shader:
             node_lm = shader.nodes.new(type='ShaderNodeTexImage')
             node_lm.location = 700,0
             
-            vertmap = bpy.data.images.get("$vertmap")
+            vertmap = bpy.data.images.get("$vertmap_bake")
             if vertmap == None:
-                vertmap = bpy.data.images.new("$vertmap", width=2048, height=2048)
+                vertmap = bpy.data.images.new("$vertmap_bake", width=2048, height=2048)
             node_lm.image = vertmap
                 
             tc_gen = shader.get_tcGen_node(TCGEN_LM)

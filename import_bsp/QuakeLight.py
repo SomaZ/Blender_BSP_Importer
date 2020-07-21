@@ -133,7 +133,7 @@ def add_light(name, type, intensity, color, vector, angle):
         
     return obj
 
-def storeLighmaps(bsp, n_lightmaps, internal=True, hdr=False):
+def storeLighmaps(bsp, n_lightmaps, internal=True, hdr=False, flip=False):
     lm_size = bsp.lightmap_size[0]
     color_components = 3 if internal else 4
     color_scale = 1.0
@@ -174,6 +174,11 @@ def storeLighmaps(bsp, n_lightmaps, internal=True, hdr=False):
             #pixel id in lightmap
             lm_x = row%lm_size
             lm_y = colum%lm_size
+            
+            if not internal and flip:
+                #lm_x = lm_size - lm_x - 1
+                lm_y = lm_size - lm_y - 1
+            
             pixel_id = floor(lm_x + (lm_y * lm_size))
             
             if hdr and not internal:
@@ -198,13 +203,12 @@ def storeLighmaps(bsp, n_lightmaps, internal=True, hdr=False):
     if internal:
         #clear lightmap lump
         bsp.lumps["lightmaps"].clear()
-        clean_lms = [0.0 for i in range(128*128*3)]
+        
         #fill lightmap lump
         for i in range(n_lightmaps):
             bsp.lumps["lightmaps"].add(lightmaps[i])
         return True, "Lightmaps succesfully added to BSP"
     else:
-        
         bsp_path = bpy.context.scene.id_tech_3_bsp_path.replace("\\","/").split(".")[0] + "/"
         if not os.path.exists(bsp_path):
             os.makedirs(bsp_path)
