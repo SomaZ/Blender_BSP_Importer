@@ -66,7 +66,7 @@ def pack_lightmaps(bsp, import_settings):
             pixels = []
             for y in range(image.size[1]):
                 for x in range(image.size[0]):
-                    id = floor(x + image.size[1] - (y * image.size[1]))
+                    id = floor(x + (image.size[1] * (image.size[1]-1))- (y * (image.size[1])))
                     pixels.append(working_pixels[id * 4 + 0])
                     pixels.append(working_pixels[id * 4 + 1])
                     pixels.append(working_pixels[id * 4 + 2])
@@ -85,9 +85,10 @@ def pack_lightmaps(bsp, import_settings):
         use_internal_lightmaps = True      
     
     if use_internal_lightmaps:
+        print("Using internal lightmaps")
         lightmaps = []
         #assume square lightmaps
-        lightmap_size = bsp.lightmap_size[0]
+        lightmap_size = bsp.internal_lightmap_size[0]
         for lm in bsp.lumps["lightmaps"].data:
             lightmaps.append(lm.map)
         n_lightmaps = bsp.lumps["lightmaps"].count
@@ -96,6 +97,7 @@ def pack_lightmaps(bsp, import_settings):
     
     force_vertex_lighting = False
     if n_lightmaps == 0:
+        print("Using vertex light only")
         force_vertex_lighting = True
         lightmap_size = 128
     
@@ -850,9 +852,9 @@ class blender_model_data:
         #meh.... ugly fuck
         if bsp.lightmaps != model.lightmaps:
             model.lightmaps = bsp.lightmaps
-            model.lightmap_size = bsp.lightmap_size[0]
             model.vertex_class = BSP.vertex_ibsp
-            
+        
+        model.lightmap_size = bsp.lightmap_size[0]
         model.index_mapping = [-2 for i in range(int(bsp.lumps["drawverts"].count))]
             
         current_model = bsp.lumps["models"].data[id]
@@ -884,8 +886,9 @@ class blender_model_data:
         #meh.... ugly fuck
         if bsp.lightmaps != model.lightmaps:
             model.lightmaps = bsp.lightmaps
-            model.lightmap_size = bsp.lightmap_size[0]
             model.vertex_class = BSP.vertex_ibsp
+            
+        model.lightmap_size = bsp.lightmap_size[0]
         
         for vertex_instance in bsp.lumps["drawverts"].data:
             model.vertices.append(vertex_instance.position)

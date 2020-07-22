@@ -135,7 +135,7 @@ class Bsp_Node(Generic_Node_Group):
 class Emission_Node(Generic_Node_Group):
     name = 'EmissionScaleNode'
     @classmethod
-    def create_node_tree(self, bsp):
+    def create_node_tree(self, empty):
         emission_group = bpy.data.node_groups.new(self.name, 'ShaderNodeTree')
         
         group_inputs = emission_group.nodes.new('NodeGroupInput')
@@ -164,6 +164,53 @@ class Emission_Node(Generic_Node_Group):
         
         emission_group.links.new(out_emission.outputs["Vector"], group_outputs.inputs['OutColor'])
         return emission_group
+    
+class Color_Normalize_Node(Generic_Node_Group):
+    name = 'ColorNormalize'
+    @classmethod
+    def create_node_tree(self, empty):
+        light_group = bpy.data.node_groups.new(self.name, 'ShaderNodeTree')
+        
+        group_inputs = light_group.nodes.new('NodeGroupInput')
+        group_inputs.location = (-1600,0)
+        light_group.inputs.new('NodeSocketColor','Color')
+        light_group.inputs.new('NodeSocketFloat','HDR')
+        light_group.inputs['HDR'].default_value = 0.0
+        
+        group_outputs = light_group.nodes.new('NodeGroupOutput')
+        group_outputs.location = (1300,0)
+        light_group.outputs.new('NodeSocketColor','OutColor')
+        
+        rgb_node = light_group.nodes.new(type="ShaderNodeSeparateRGB")
+        light_group.links.new(group_inputs.outputs["Color"], rgb_node.inputs["Image"])
+        
+        max1 = light_group.nodes.new(type="ShaderNodeMath")
+        max1.operation = "MAXIMUM"
+        max2 = light_group.nodes.new(type="ShaderNodeMath")
+        max2.operation = "MAXIMUM"
+        
+        light_group.links.new(rgb_node.outputs[0], max1.inputs[0])
+        light_group.links.new(rgb_node.outputs[1], max1.inputs[1])
+        light_group.links.new(max1.outputs[0], max2.inputs[0])
+        light_group.links.new(rgb_node.outputs[2], max2.inputs[1])
+        
+        bigger = light_group.nodes.new(type="ShaderNodeMath")
+        bigger.operation = "GREATER_THAN"
+        bigger.inputs[1].default_value = 1
+        light_group.links.new(max2.outputs[0], bigger.inputs[0])
+        
+        color_normalized = light_group.nodes.new(type="ShaderNodeVectorMath")
+        color_normalized.operation = 'DIVIDE'
+        light_group.links.new(group_inputs.outputs["Color"], color_normalized.inputs[0])
+        light_group.links.new(max2.outputs[0], color_normalized.inputs[1])
+        
+        mix = light_group.nodes.new(type="ShaderNodeMixRGB")
+        light_group.links.new(bigger.outputs[0], mix.inputs[0])
+        light_group.links.new(group_inputs.outputs["Color"], mix.inputs[1])
+        light_group.links.new(color_normalized.outputs[0], mix.inputs[2])
+        
+        light_group.links.new(mix.outputs[0], group_outputs.inputs['OutColor'])
+        return light_group
     
 class Base_Light_Vector_Node(Generic_Node_Group):
     name = "BaseReflectionVector"

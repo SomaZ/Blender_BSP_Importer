@@ -404,6 +404,8 @@ def update_model(self, context):
     elif "model" in obj:
         obj["model"] = obj.q3_dynamic_props.model.split(".")[0] + ".md3"
         model_name = obj["model"]
+    else:
+        return
         
     if obj.data.name == obj.q3_dynamic_props.model.split(".")[0]:
         return
@@ -847,6 +849,9 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
     patch_colors : BoolProperty(name="Vertex Colors", default = False)
     patch_lightgrid : BoolProperty(name = "Light Grid", default = False)
     patch_lightmaps : BoolProperty(name="Lightmaps", default = True)
+    lightmap_to_use : EnumProperty(name="Lightmap Atlas", description="Lightmap Atlas that will be used for patching", default='$lightmap_bake', items=[
+            ('$lightmap_bake', "$lightmap_bake", "$lightmap_bake", 0),
+            ('$lightmap', "$lightmap", "$lightmap", 1)])
     patch_external : BoolProperty(name="Save External Lightmaps", default = False)
     patch_external_flip : BoolProperty(name="Flip External Lightmaps", default = False)
     patch_hdr_lm : BoolProperty(name="HDR External Lightmaps", default = False)
@@ -862,27 +867,29 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
             #stores bsp vertex indices
             patched_vertices = {id: False for id in range(int(bsp.lumps["drawverts"].count))}
             lightmapped_vertices = {id: False for id in range(int(bsp.lumps["drawverts"].count))}
+            patch_lighting_type = True
             for obj in objs:
                 mesh = obj.to_mesh()
                 mesh.calc_normals_split()
                 mesh.calc_loop_triangles()
                 
-                group_map = {group.name: group.index for group in obj.vertex_groups}
-                if not "Lightmapped" in group_map:
-                    self.report({"ERROR"}, '"Lightmapped" Vertex Group not found')
-                    return {'CANCELLED'}
+                if self.patch_lm_tcs:
+                    group_map = {group.name: group.index for group in obj.vertex_groups}
+                    if not "Lightmapped" in group_map:
+                        patch_lighting_type = False
                 
                 #check if its an imported bsp data set
                 if mesh.vertex_layers_int.get("BSP_VERT_INDEX") is not None:
                     bsp_indices = mesh.vertex_layers_int["BSP_VERT_INDEX"]
                     
-                    #store all vertices that are lightmapped
-                    for index in [ bsp_indices.data[vertex.index].value 
-                                                    for vertex in mesh.vertices 
-                                                        if group_map["Lightmapped"] in 
-                                                            [ vg.group for vg in vertex.groups ] ]:
-                        if index >= 0:
-                            lightmapped_vertices[index] = True
+                    if self.patch_lm_tcs:
+                        #store all vertices that are lightmapped
+                        for index in [ bsp_indices.data[vertex.index].value 
+                                                        for vertex in mesh.vertices 
+                                                            if group_map["Lightmapped"] in 
+                                                                [ vg.group for vg in vertex.groups ] ]:
+                            if index >= 0:
+                                lightmapped_vertices[index] = True
                     
                     #patch all vertices of this mesh
                     for triangle in mesh.loop_triangles:
@@ -909,13 +916,9 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                     return {'CANCELLED'}
         
         if self.patch_lm_tcs or self.patch_tcs:
-            lightmap_image = bpy.data.images.get("$lightmap_bake")
-            if lightmap_image == None:
-                self.report({"ERROR"}, "Could not find $lightmap_bake texture")
-                return {'CANCELLED'}
-            packed_width, packed_height = lightmap_image.size
-            packed_lightmap_size = packed_width
-            lightmap_size = packed_width / bpy.context.scene.id_tech_3_lightmaps_per_row
+            lightmap_size = bsp.lightmap_size
+            packed_lightmap_size = lightmap_size * bpy.context.scene.id_tech_3_lightmaps_per_row
+                
             fixed_vertices = []
             #fix lightmap tcs and tcs, set lightmap ids
             for bsp_surf in bsp.lumps["surfaces"].data:
@@ -957,7 +960,7 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                             if patched_vertices[bsp_vert_index]:
                                 vertices.add(bsp_vert_index)
                                 bsp_vert = bsp.lumps["drawverts"].data[bsp_vert_index]
-                                if lightmapped_vertices[bsp_vert_index]:
+                                if lightmapped_vertices[bsp_vert_index] or not patch_lighting_type:
                                     lightmap_id = BspGeneric.get_lm_id(bsp_vert.lm1coord, lightmap_size, packed_lightmap_size)
                     else:
                         for i in range(bsp_surf.patch_width):
@@ -966,11 +969,15 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                 if patched_vertices[bsp_vert_index]:
                                     vertices.add(bsp_vert_index)
                                     bsp_vert = bsp.lumps["drawverts"].data[bsp_vert_index]
-                                    if lightmapped_vertices[bsp_vert_index]:
+                                    if lightmapped_vertices[bsp_vert_index] or not patch_lighting_type:
                                         lightmap_id = BspGeneric.get_lm_id(bsp_vert.lm1coord, lightmap_size, packed_lightmap_size)
                     
                     if len(vertices) > 0:
-                        bsp_surf.lm_indexes[0] = lightmap_id
+                        if patch_lighting_type:
+                            bsp_surf.lm_indexes[0] = lightmap_id
+                        elif bsp_surf.lm_indexes[0] >= 0:
+                            bsp_surf.lm_indexes[0] = lightmap_id
+                            
                         #unpack lightmap tcs
                         for i in vertices:
                             bsp_vert = bsp.lumps["drawverts"].data[i]
@@ -986,7 +993,11 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
             
         #store lightmap
         if self.patch_lightmaps:
-            success, message = QuakeLight.storeLighmaps(bsp, n_lightmaps + 1, not self.patch_external, self.patch_hdr_lm, self.patch_external_flip )
+            lightmap_image = bpy.data.images.get(self.lightmap_to_use)
+            if lightmap_image == None:
+                self.report({"ERROR"}, "Could not find selected lightmap atlas")
+                return {'CANCELLED'}
+            success, message = QuakeLight.storeLighmaps(bsp, lightmap_image, n_lightmaps + 1, not self.patch_external, self.patch_hdr_lm, self.patch_external_flip )
             if not success:
                 self.report({"ERROR"}, message)
         

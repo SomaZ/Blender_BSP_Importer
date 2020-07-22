@@ -176,9 +176,9 @@ def make_equirectangular_from_sky(base_path, sky_name):
                 biggest_h = image.size[1]
             if biggest_w < image.size[0]:
                 biggest_w = image.size[0]
-    
-    equi_w = biggest_w*4
-    equi_h = biggest_h*2
+
+    equi_w = min(8192, biggest_w*4)
+    equi_h = min(4096, biggest_h*2)
     
     offscreen = gpu.types.GPUOffScreen(equi_w, equi_h)
     with offscreen.bind():

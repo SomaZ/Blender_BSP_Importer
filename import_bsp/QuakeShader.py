@@ -641,6 +641,10 @@ class quake_shader:
                     if stage.blend.startswith("gl_dst_color") and shader_type == "ADD" and not stage.lightmap:
                         shader_type = "MULTIPLY"
                         shader.mat.blend_method = "BLEND"
+                        
+                if stage.blend.endswith("gl_zero"):
+                    shader_type = "OPAQUE"
+                    shader.mat.blend_method = "OPAQUE" if shader.mat.blend_method != "CLIP" else "CLIP"
                 
                 stage_index += 1
                 
@@ -868,6 +872,10 @@ class quake_shader:
                         stage.lighting = LIGHTING_VERTEX
                     if shader.is_grid_lit and stage.lighting is LIGHTING_IDENTITY:
                         stage.lighting = LIGHTING_LIGHTGRID
+                        
+                if stage.blend.endswith("gl_zero"):
+                    shader_type = "OPAQUE"
+                    shader.mat.blend_method = "OPAQUE" if shader.mat.blend_method != "CLIP" else "CLIP"
                         
                 if not shader.is_grid_lit and stage.lighting is LIGHTING_LIGHTGRID:
                     stage.lighting = LIGHTING_VERTEX
@@ -1118,6 +1126,8 @@ class quake_shader:
 def init_shader_system(bsp):
     bsp_node = ShaderNodes.Bsp_Node.create_node_tree(bsp)
     bsp_node.use_fake_user = True
+    color_normalize_node = ShaderNodes.Color_Normalize_Node.create_node_tree(None)
+    color_normalize_node.use_fake_user = True
 
 def build_quake_shaders(import_settings, object_list):
     base_path = import_settings.base_path

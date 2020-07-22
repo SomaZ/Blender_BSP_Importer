@@ -634,6 +634,7 @@ class BSP:
                 self.lightgrid_inverse_dim = format.lightgrid_inverse_dim
                 self.lightgrid_dim =format.lightgrid_dim
                 self.lightmap_size = format.lightmap_size
+                self.internal_lightmap_size = format.lightmap_size
                 self.lightmaps = format.lightmaps
                 self.lightstyles = format.lightstyles
                 self.use_lightgridarray = format.use_lightgridarray

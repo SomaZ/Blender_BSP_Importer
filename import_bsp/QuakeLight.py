@@ -133,15 +133,13 @@ def add_light(name, type, intensity, color, vector, angle):
         
     return obj
 
-def storeLighmaps(bsp, n_lightmaps, internal=True, hdr=False, flip=False):
+def storeLighmaps(bsp, image, n_lightmaps, internal=True, hdr=False, flip=False):
     lm_size = bsp.lightmap_size[0]
     color_components = 3 if internal else 4
     color_scale = 1.0
-    
-    #get lightmap image
-    image = bpy.data.images.get("$lightmap_bake")
+
     if image == None:
-        return False, "Could not find $lightmap_bake"
+        return False, "No image found for patching"
     
     local_pixels = list(image.pixels[:])
     
@@ -176,10 +174,9 @@ def storeLighmaps(bsp, n_lightmaps, internal=True, hdr=False, flip=False):
             lm_y = colum%lm_size
             
             if not internal and flip:
-                #lm_x = lm_size - lm_x - 1
-                lm_y = lm_size - lm_y - 1
-            
-            pixel_id = floor(lm_x + (lm_y * lm_size))
+                lm_y = lm_size-1 - lm_y
+                
+            pixel_id = int(lm_x + (lm_y * lm_size))
             
             if hdr and not internal:
                 outColor = [local_pixels[4 * pixel + 0], local_pixels[4 * pixel + 1], local_pixels[4 * pixel + 2]]
@@ -498,18 +495,12 @@ def storeLightgrid(bsp):
     dir_image = bpy.data.images.get("$Direct")
     amb_image = bpy.data.images.get("$Ambient")
     
+    if vec_image == None or dir_image == None or amb_image == None:
+        return False, "Images not properly baked for patching the bsp"
+    
     vec_pixels = vec_image.pixels[:]
     dir_pixels = dir_image.pixels[:]
     amb_pixels = amb_image.pixels[:]
-    
-    if vec_image == None or dir_image == None or amb_image == None:
-        print("Images not properly baked for storing in the bsp")
-        return False, "Images not properly baked for storing in the bsp"
-    
-    bsp_group = bpy.data.node_groups.get("BspInfo")
-    if bsp_group == None:
-        print("BspInfo Node not Found")
-        return False, "BspInfo Node not Found"
     
     world_mins = bsp.lumps["models"].data[0].mins
     world_maxs = bsp.lumps["models"].data[0].maxs
@@ -537,13 +528,13 @@ def storeLightgrid(bsp):
         start[0] += leaf.mins[0]
         start[1] += leaf.mins[1]
         start[2] += leaf.mins[2]
-        start[0] = round(start[0] / lightgrid_size[0])
-        start[1] = round(start[1] / lightgrid_size[1])
-        start[2] = round(start[2] / lightgrid_size[2])
+        start[0] = floor(start[0] / lightgrid_size[0])
+        start[1] = floor(start[1] / lightgrid_size[1])
+        start[2] = floor(start[2] / lightgrid_size[2])
         steps = [leaf.maxs[0]-leaf.mins[0], leaf.maxs[1]-leaf.mins[1], leaf.maxs[2]-leaf.mins[2]]
-        steps[0] = int(ceil(steps[0] / lightgrid_size[0]))
-        steps[1] = int(ceil(steps[1] / lightgrid_size[1]))
-        steps[2] = int(ceil(steps[2] / lightgrid_size[2]))
+        steps[0] = int(ceil(steps[0] / lightgrid_size[0]))+1
+        steps[1] = int(ceil(steps[1] / lightgrid_size[1]))+1
+        steps[2] = int(ceil(steps[2] / lightgrid_size[2]))+1
         
         for z in range(steps[2]):
             for y in range(steps[1]):
