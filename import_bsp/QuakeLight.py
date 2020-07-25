@@ -516,6 +516,7 @@ def storeLightgrid(bsp):
     lightgrid_dimensions = [ (maxs[0] - lightgrid_origin[0]) / bsp.lightgrid_size[0] + 1,
                              (maxs[1] - lightgrid_origin[1]) / bsp.lightgrid_size[1] + 1,
                              (maxs[2] - lightgrid_origin[2]) / bsp.lightgrid_size[2] + 1 ]
+    num_elements_lightgrid = lightgrid_dimensions[0] + lightgrid_dimensions[1] + lightgrid_dimensions[2]
     lightgrid_size = bsp.lightgrid_size
     
     #get all lightgrid points that are in the void
@@ -546,7 +547,11 @@ def storeLightgrid(bsp):
                         id = (min_z)*lightgrid_dimensions[0]*lightgrid_dimensions[1]
                         id += (min_y)*lightgrid_dimensions[0]
                         id += (min_x)
-                        void_pixels[int(id)] = False
+                        id = int(id)
+                        if id < 0 or id > num_elements_lightgrid:
+                            continue
+                        
+                        void_pixels[id] = False
                         
     if bsp.use_lightgridarray:
         num_elements = 65535
