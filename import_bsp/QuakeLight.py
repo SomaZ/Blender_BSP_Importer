@@ -311,15 +311,15 @@ def encode_normal(normal):
     x, y, z = normal
     l = sqrt( ( x * x ) + ( y * y ) + ( z * z ) )
     if l == 0:
-        return bytes((0, 0))
+        return (0, 0)
     x = x/l
     y = y/l
     z = z/l
     if x == 0 and y == 0:
-        return 0, 0 if z > 0 else 128, 0
+        return (0, 0) if z > 0 else (128, 0)
     long = int(round(atan2(y, x) * 255 / (2.0 * pi))) & 0xff
     lat  = int(round(acos(z) * 255 / (2.0 * pi))) & 0xff
-    return lat, long
+    return (lat, long)
 
 def packLightgridData(  bsp, 
                         void_pixels, 
@@ -377,11 +377,11 @@ def packLightgridData(  bsp,
                                     1.0)
             
             if dir_pixels2 != None and amb_pixels2 != None:
-                amb2 = colorNormalize([  amb_pixels2[4 * pixel + 0],
+                amb2 = colorNormalize([ amb_pixels2[4 * pixel + 0],
                                         amb_pixels2[4 * pixel + 1],
                                         amb_pixels2[4 * pixel + 2]],
                                         1.0)
-                dir2 = colorNormalize([  dir_pixels2[4 * pixel + 0],
+                dir2 = colorNormalize([ dir_pixels2[4 * pixel + 0],
                                         dir_pixels2[4 * pixel + 1],
                                         dir_pixels2[4 * pixel + 2]],
                                         1.0)
@@ -390,11 +390,11 @@ def packLightgridData(  bsp,
                 dir2 = dir
                 
             if dir_pixels3 != None and amb_pixels3 != None:
-                amb3 = colorNormalize([  amb_pixels3[4 * pixel + 0],
+                amb3 = colorNormalize([ amb_pixels3[4 * pixel + 0],
                                         amb_pixels3[4 * pixel + 1],
                                         amb_pixels3[4 * pixel + 2]],
                                         1.0)
-                dir3 = colorNormalize([  dir_pixels3[4 * pixel + 0],
+                dir3 = colorNormalize([ dir_pixels3[4 * pixel + 0],
                                         dir_pixels3[4 * pixel + 1],
                                         dir_pixels3[4 * pixel + 2]],
                                         1.0)
@@ -403,17 +403,18 @@ def packLightgridData(  bsp,
                 dir3 = dir
                 
             if dir_pixels4 != None and amb_pixels4 != None:
-                amb4 = colorNormalize([  amb_pixels4[4 * pixel + 0],
+                amb4 = colorNormalize([ amb_pixels4[4 * pixel + 0],
                                         amb_pixels4[4 * pixel + 1],
                                         amb_pixels4[4 * pixel + 2]],
                                         1.0)
-                dir4 = colorNormalize([  dir_pixels4[4 * pixel + 0],
+                dir4 = colorNormalize([ dir_pixels4[4 * pixel + 0],
                                         dir_pixels4[4 * pixel + 1],
                                         dir_pixels4[4 * pixel + 2]],
                                         1.0)
             else:
                 amb4 = amb
                 dir4 = dir
+                
         array = []
         if bsp.lightmaps == 4:
             array.append(int(amb[0] * 255))
@@ -467,7 +468,6 @@ def packLightgridData(  bsp,
             found_twin = -1
             if current_hash in hash_table:
                 found_twin = hash_table[current_hash]
-                
             if found_twin == -1:
                 bsp.lumps["lightgrid"].add(hashing_array)
                 bsp.lumps["lightgridarray"].add([current_pixel_mapping])
@@ -564,43 +564,45 @@ def storeLightgrid(bsp):
     if dir_image2 != None and amb_image2 != None:
         dir_pixels2 = dir_image2.pixels[:]
         amb_pixels2 = amb_image2.pixels[:]
-        print("Grid2")
     else:
-        dir_pixels2 = dir_image.pixels[:]
-        amb_pixels2 = amb_image.pixels[:]
+        dir_pixels2 = dir_pixels
+        amb_pixels2 = amb_pixels
     
     if dir_image3 != None and amb_image3 != None:
         dir_pixels3 = dir_image3.pixels[:]
         amb_pixels3 = amb_image3.pixels[:]
-        print("Grid3")
     else:
-        dir_pixels3 = dir_image.pixels[:]
-        amb_pixels3 = amb_image.pixels[:]
+        dir_pixels3 = dir_pixels
+        amb_pixels3 = amb_pixels
     
     if dir_image4 != None and amb_image4 != None:
         dir_pixels4 = dir_image4.pixels[:]
         amb_pixels4 = amb_image4.pixels[:]
-        print("Grid4")
     else:
-        dir_pixels4 = dir_image.pixels[:]
-        amb_pixels4 = amb_image.pixels[:]
+        dir_pixels4 = dir_pixels
+        amb_pixels4 = amb_pixels
     
-    world_mins = bsp.lumps["models"].data[0].mins
-    world_maxs = bsp.lumps["models"].data[0].maxs
+    bsp_group = bpy.data.node_groups.get("BspInfo")
+    if bsp_group == None:
+        return False, "Could not find BspInfo NodeGroup"
     
-    lightgrid_origin = [    bsp.lightgrid_size[0] * ceil( world_mins[0] / bsp.lightgrid_size[0]),
-                            bsp.lightgrid_size[1] * ceil( world_mins[1] / bsp.lightgrid_size[1]),
-                            bsp.lightgrid_size[2] * ceil( world_mins[2] / bsp.lightgrid_size[2]) ]
-                            
-    maxs = [    bsp.lightgrid_size[0] * floor( world_maxs[0] / bsp.lightgrid_size[0]),
-                bsp.lightgrid_size[1] * floor( world_maxs[1] / bsp.lightgrid_size[1]),
-                bsp.lightgrid_size[2] * floor( world_maxs[2] / bsp.lightgrid_size[2]) ]
-                
-    lightgrid_dimensions = [ (maxs[0] - lightgrid_origin[0]) / bsp.lightgrid_size[0] + 1,
-                             (maxs[1] - lightgrid_origin[1]) / bsp.lightgrid_size[1] + 1,
-                             (maxs[2] - lightgrid_origin[2]) / bsp.lightgrid_size[2] + 1 ]
+    lightgrid_origin = []
+    lightgrid_origin.append(bsp_group.nodes["GridOrigin"].inputs[0].default_value)
+    lightgrid_origin.append(bsp_group.nodes["GridOrigin"].inputs[1].default_value)
+    lightgrid_origin.append(bsp_group.nodes["GridOrigin"].inputs[2].default_value)
+    
+    lightgrid_size = []
+    lightgrid_size.append(bsp_group.nodes["GridSize"].inputs[0].default_value)
+    lightgrid_size.append(bsp_group.nodes["GridSize"].inputs[1].default_value)
+    lightgrid_size.append(bsp_group.nodes["GridSize"].inputs[2].default_value)
+    
+    lightgrid_dimensions = []
+    lightgrid_dimensions.append(bsp_group.nodes["GridDimensions"].inputs[0].default_value)
+    lightgrid_dimensions.append(bsp_group.nodes["GridDimensions"].inputs[1].default_value)
+    lightgrid_dimensions.append(bsp_group.nodes["GridDimensions"].inputs[2].default_value)
+    lightgrid_dimensions[1] /= lightgrid_dimensions[2]
+                             
     num_elements_lightgrid = lightgrid_dimensions[0] * lightgrid_dimensions[1] * lightgrid_dimensions[2]
-    lightgrid_size = bsp.lightgrid_size
     
     #get all lightgrid points that are in the void
     void_pixels = [True for i in range(vec_image.size[0] * vec_image.size[1])]
