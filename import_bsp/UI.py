@@ -882,7 +882,7 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                 if mesh.vertex_layers_int.get("BSP_VERT_INDEX") is not None:
                     bsp_indices = mesh.vertex_layers_int["BSP_VERT_INDEX"]
                     
-                    if self.patch_lm_tcs:
+                    if self.patch_lm_tcs and patch_lighting_type:
                         #store all vertices that are lightmapped
                         for index in [ bsp_indices.data[vertex.index].value 
                                                         for vertex in mesh.vertices 
@@ -904,6 +904,9 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                 bsp_vert.texcoord = mesh.uv_layers["UVMap"].data[loop].uv
                             if self.patch_lm_tcs:
                                 bsp_vert.lm1coord = mesh.uv_layers["LightmapUV"].data[loop].uv
+                                bsp_vert.lm2coord = mesh.uv_layers["LightmapUV2"].data[loop].uv
+                                bsp_vert.lm3coord = mesh.uv_layers["LightmapUV3"].data[loop].uv
+                                bsp_vert.lm4coord = mesh.uv_layers["LightmapUV4"].data[loop].uv
                             if self.patch_normals:
                                 bsp_vert.normal = mesh.vertices[vertex].normal.copy()
                                 if mesh.has_custom_normals:
@@ -911,12 +914,15 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                             if self.patch_colors:
                                 bsp_vert.color1 = mesh.vertex_colors["Color"].data[loop].color
                                 bsp_vert.color1[3] = mesh.vertex_colors["Alpha"].data[loop].color[0]
+                                bsp_vert.color2 = mesh.vertex_colors["Color2"].data[loop].color
+                                bsp_vert.color3 = mesh.vertex_colors["Color3"].data[loop].color
+                                bsp_vert.color4 = mesh.vertex_colors["Color4"].data[loop].color
                 else:
                     self.report({"ERROR"}, "Not a valid mesh for patching")
                     return {'CANCELLED'}
         
         if self.patch_lm_tcs or self.patch_tcs:
-            lightmap_size = bsp.lightmap_size
+            lightmap_size = bsp.lightmap_size[0]
             packed_lightmap_size = lightmap_size * bpy.context.scene.id_tech_3_lightmaps_per_row
                 
             fixed_vertices = []
@@ -937,6 +943,12 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                             if self.patch_lm_tcs:
                                 ctrlPoints[j][i].lm1coord[0] = (4.0 * ctrlPoints[j][i].lm1coord[0] - ctrlPoints[j+1][i].lm1coord[0] - ctrlPoints[j-1][i].lm1coord[0]) * 0.5
                                 ctrlPoints[j][i].lm1coord[1] = (4.0 * ctrlPoints[j][i].lm1coord[1] - ctrlPoints[j+1][i].lm1coord[1] - ctrlPoints[j-1][i].lm1coord[1]) * 0.5
+                                ctrlPoints[j][i].lm2coord[0] = (4.0 * ctrlPoints[j][i].lm2coord[0] - ctrlPoints[j+1][i].lm2coord[0] - ctrlPoints[j-1][i].lm2coord[0]) * 0.5
+                                ctrlPoints[j][i].lm2coord[1] = (4.0 * ctrlPoints[j][i].lm2coord[1] - ctrlPoints[j+1][i].lm2coord[1] - ctrlPoints[j-1][i].lm2coord[1]) * 0.5
+                                ctrlPoints[j][i].lm3coord[0] = (4.0 * ctrlPoints[j][i].lm3coord[0] - ctrlPoints[j+1][i].lm3coord[0] - ctrlPoints[j-1][i].lm3coord[0]) * 0.5
+                                ctrlPoints[j][i].lm3coord[1] = (4.0 * ctrlPoints[j][i].lm3coord[1] - ctrlPoints[j+1][i].lm3coord[1] - ctrlPoints[j-1][i].lm3coord[1]) * 0.5
+                                ctrlPoints[j][i].lm4coord[0] = (4.0 * ctrlPoints[j][i].lm4coord[0] - ctrlPoints[j+1][i].lm4coord[0] - ctrlPoints[j-1][i].lm4coord[0]) * 0.5
+                                ctrlPoints[j][i].lm4coord[1] = (4.0 * ctrlPoints[j][i].lm4coord[1] - ctrlPoints[j+1][i].lm4coord[1] - ctrlPoints[j-1][i].lm4coord[1]) * 0.5
                             if self.patch_tcs:
                                 ctrlPoints[j][i].texcoord[0] = (4.0 * ctrlPoints[j][i].texcoord[0] - ctrlPoints[j+1][i].texcoord[0] - ctrlPoints[j-1][i].texcoord[0]) * 0.5
                                 ctrlPoints[j][i].texcoord[1] = (4.0 * ctrlPoints[j][i].texcoord[1] - ctrlPoints[j+1][i].texcoord[1] - ctrlPoints[j-1][i].texcoord[1]) * 0.5
@@ -945,6 +957,12 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                             if self.patch_lm_tcs:
                                 ctrlPoints[j][i].lm1coord[0] = (4.0 * ctrlPoints[j][i].lm1coord[0] - ctrlPoints[j][i+1].lm1coord[0] - ctrlPoints[j][i-1].lm1coord[0]) * 0.5
                                 ctrlPoints[j][i].lm1coord[1] = (4.0 * ctrlPoints[j][i].lm1coord[1] - ctrlPoints[j][i+1].lm1coord[1] - ctrlPoints[j][i-1].lm1coord[1]) * 0.5
+                                ctrlPoints[j][i].lm2coord[0] = (4.0 * ctrlPoints[j][i].lm2coord[0] - ctrlPoints[j][i+1].lm2coord[0] - ctrlPoints[j][i-1].lm2coord[0]) * 0.5
+                                ctrlPoints[j][i].lm2coord[1] = (4.0 * ctrlPoints[j][i].lm2coord[1] - ctrlPoints[j][i+1].lm2coord[1] - ctrlPoints[j][i-1].lm2coord[1]) * 0.5
+                                ctrlPoints[j][i].lm3coord[0] = (4.0 * ctrlPoints[j][i].lm3coord[0] - ctrlPoints[j][i+1].lm3coord[0] - ctrlPoints[j][i-1].lm3coord[0]) * 0.5
+                                ctrlPoints[j][i].lm3coord[1] = (4.0 * ctrlPoints[j][i].lm3coord[1] - ctrlPoints[j][i+1].lm3coord[1] - ctrlPoints[j][i-1].lm3coord[1]) * 0.5
+                                ctrlPoints[j][i].lm4coord[0] = (4.0 * ctrlPoints[j][i].lm4coord[0] - ctrlPoints[j][i+1].lm4coord[0] - ctrlPoints[j][i-1].lm4coord[0]) * 0.5
+                                ctrlPoints[j][i].lm4coord[1] = (4.0 * ctrlPoints[j][i].lm4coord[1] - ctrlPoints[j][i+1].lm4coord[1] - ctrlPoints[j][i-1].lm4coord[1]) * 0.5
                             if self.patch_tcs:
                                 ctrlPoints[j][i].texcoord[0] = (4.0 * ctrlPoints[j][i].texcoord[0] - ctrlPoints[j][i+1].texcoord[0] - ctrlPoints[j][i-1].texcoord[0]) * 0.5
                                 ctrlPoints[j][i].texcoord[1] = (4.0 * ctrlPoints[j][i].texcoord[1] - ctrlPoints[j][i+1].texcoord[1] - ctrlPoints[j][i-1].texcoord[1]) * 0.5
@@ -953,6 +971,9 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                     #set new lightmap ids
                     vertices = set()
                     lightmap_id = -3
+                    lightmap_id2 = -3
+                    lightmap_id3 = -3
+                    lightmap_id4 = -3
                     if bsp_surf.type != 2:
                         for i in range(int(bsp_surf.n_indexes)):
                             bsp_vert_index = bsp_surf.vertex + bsp.lumps["drawindexes"].data[bsp_surf.index + i].offset
@@ -962,6 +983,9 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                 bsp_vert = bsp.lumps["drawverts"].data[bsp_vert_index]
                                 if lightmapped_vertices[bsp_vert_index] or not patch_lighting_type:
                                     lightmap_id = BspGeneric.get_lm_id(bsp_vert.lm1coord, lightmap_size, packed_lightmap_size)
+                                    lightmap_id2 = BspGeneric.get_lm_id(bsp_vert.lm2coord, lightmap_size, packed_lightmap_size)
+                                    lightmap_id3 = BspGeneric.get_lm_id(bsp_vert.lm3coord, lightmap_size, packed_lightmap_size)
+                                    lightmap_id4 = BspGeneric.get_lm_id(bsp_vert.lm4coord, lightmap_size, packed_lightmap_size)
                     else:
                         for i in range(bsp_surf.patch_width):
                             for j in range(bsp_surf.patch_height):
@@ -971,17 +995,29 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                     bsp_vert = bsp.lumps["drawverts"].data[bsp_vert_index]
                                     if lightmapped_vertices[bsp_vert_index] or not patch_lighting_type:
                                         lightmap_id = BspGeneric.get_lm_id(bsp_vert.lm1coord, lightmap_size, packed_lightmap_size)
+                                        lightmap_id2 = BspGeneric.get_lm_id(bsp_vert.lm2coord, lightmap_size, packed_lightmap_size)
+                                        lightmap_id3 = BspGeneric.get_lm_id(bsp_vert.lm3coord, lightmap_size, packed_lightmap_size)
+                                        lightmap_id4 = BspGeneric.get_lm_id(bsp_vert.lm4coord, lightmap_size, packed_lightmap_size)
                     
                     if len(vertices) > 0:
                         if patch_lighting_type:
                             bsp_surf.lm_indexes[0] = lightmap_id
+                            bsp_surf.lm_indexes[1] = lightmap_id2
+                            bsp_surf.lm_indexes[2] = lightmap_id3
+                            bsp_surf.lm_indexes[3] = lightmap_id4
                         elif bsp_surf.lm_indexes[0] >= 0:
                             bsp_surf.lm_indexes[0] = lightmap_id
+                            bsp_surf.lm_indexes[1] = lightmap_id2
+                            bsp_surf.lm_indexes[2] = lightmap_id3
+                            bsp_surf.lm_indexes[3] = lightmap_id4
                             
                         #unpack lightmap tcs
                         for i in vertices:
                             bsp_vert = bsp.lumps["drawverts"].data[i]
                             BspGeneric.unpack_lm_tc(bsp_vert.lm1coord, lightmap_size, packed_lightmap_size)
+                            BspGeneric.unpack_lm_tc(bsp_vert.lm2coord, lightmap_size, packed_lightmap_size)
+                            BspGeneric.unpack_lm_tc(bsp_vert.lm3coord, lightmap_size, packed_lightmap_size)
+                            BspGeneric.unpack_lm_tc(bsp_vert.lm4coord, lightmap_size, packed_lightmap_size)
         
         #get number of lightmaps
         n_lightmaps = 0

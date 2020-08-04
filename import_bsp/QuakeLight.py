@@ -324,7 +324,13 @@ def encode_normal(normal):
 def packLightgridData(  bsp, 
                         void_pixels, 
                         amb_pixels, 
+                        amb_pixels2, 
+                        amb_pixels3, 
+                        amb_pixels4, 
                         dir_pixels, 
+                        dir_pixels2, 
+                        dir_pixels3, 
+                        dir_pixels4, 
                         vec_pixels, 
                         lightgrid_origin, 
                         lightgrid_dimensions, 
@@ -347,6 +353,12 @@ def packLightgridData(  bsp,
             lat, lon = encode_normal([0,0,0])
             amb = [0.0, 0.0, 0.0]
             dir = [0.0, 0.0, 0.0]
+            amb2 = [0.0, 0.0, 0.0]
+            dir2 = [0.0, 0.0, 0.0]
+            amb3 = [0.0, 0.0, 0.0]
+            dir3 = [0.0, 0.0, 0.0]
+            amb4 = [0.0, 0.0, 0.0]
+            dir4 = [0.0, 0.0, 0.0]
         else:   
             x = vec_pixels[pixel * 4 + 0]
             y = vec_pixels[pixel * 4 + 1]
@@ -363,33 +375,71 @@ def packLightgridData(  bsp,
                                     dir_pixels[4 * pixel + 1],
                                     dir_pixels[4 * pixel + 2]],
                                     1.0)
-        
+            
+            if dir_pixels2 != None and amb_pixels2 != None:
+                amb2 = colorNormalize([  amb_pixels2[4 * pixel + 0],
+                                        amb_pixels2[4 * pixel + 1],
+                                        amb_pixels2[4 * pixel + 2]],
+                                        1.0)
+                dir2 = colorNormalize([  dir_pixels2[4 * pixel + 0],
+                                        dir_pixels2[4 * pixel + 1],
+                                        dir_pixels2[4 * pixel + 2]],
+                                        1.0)
+            else:
+                amb2 = amb
+                dir2 = dir
+                
+            if dir_pixels3 != None and amb_pixels3 != None:
+                amb3 = colorNormalize([  amb_pixels3[4 * pixel + 0],
+                                        amb_pixels3[4 * pixel + 1],
+                                        amb_pixels3[4 * pixel + 2]],
+                                        1.0)
+                dir3 = colorNormalize([  dir_pixels3[4 * pixel + 0],
+                                        dir_pixels3[4 * pixel + 1],
+                                        dir_pixels3[4 * pixel + 2]],
+                                        1.0)
+            else:
+                amb3 = amb
+                dir3 = dir
+                
+            if dir_pixels4 != None and amb_pixels4 != None:
+                amb4 = colorNormalize([  amb_pixels4[4 * pixel + 0],
+                                        amb_pixels4[4 * pixel + 1],
+                                        amb_pixels4[4 * pixel + 2]],
+                                        1.0)
+                dir4 = colorNormalize([  dir_pixels4[4 * pixel + 0],
+                                        dir_pixels4[4 * pixel + 1],
+                                        dir_pixels4[4 * pixel + 2]],
+                                        1.0)
+            else:
+                amb4 = amb
+                dir4 = dir
         array = []
         if bsp.lightmaps == 4:
             array.append(int(amb[0] * 255))
             array.append(int(amb[1] * 255))
             array.append(int(amb[2] * 255))
-            array.append(int(amb[0] * 255))
-            array.append(int(amb[1] * 255))
-            array.append(int(amb[2] * 255))
-            array.append(int(amb[0] * 255))
-            array.append(int(amb[1] * 255))
-            array.append(int(amb[2] * 255))
-            array.append(int(amb[0] * 255))
-            array.append(int(amb[1] * 255))
-            array.append(int(amb[2] * 255))
+            array.append(int(amb2[0] * 255))
+            array.append(int(amb2[1] * 255))
+            array.append(int(amb2[2] * 255))
+            array.append(int(amb3[0] * 255))
+            array.append(int(amb3[1] * 255))
+            array.append(int(amb3[2] * 255))
+            array.append(int(amb4[0] * 255))
+            array.append(int(amb4[1] * 255))
+            array.append(int(amb4[2] * 255))
             array.append(int(dir[0] * 255))
             array.append(int(dir[1] * 255))
             array.append(int(dir[2] * 255))
-            array.append(int(dir[0] * 255))
-            array.append(int(dir[1] * 255))
-            array.append(int(dir[2] * 255))
-            array.append(int(dir[0] * 255))
-            array.append(int(dir[1] * 255))
-            array.append(int(dir[2] * 255))
-            array.append(int(dir[0] * 255))
-            array.append(int(dir[1] * 255))
-            array.append(int(dir[2] * 255))
+            array.append(int(dir2[0] * 255))
+            array.append(int(dir2[1] * 255))
+            array.append(int(dir2[2] * 255))
+            array.append(int(dir3[0] * 255))
+            array.append(int(dir3[1] * 255))
+            array.append(int(dir3[2] * 255))
+            array.append(int(dir4[0] * 255))
+            array.append(int(dir4[1] * 255))
+            array.append(int(dir4[2] * 255))
             array.append(0)
             array.append(0)
             array.append(0)
@@ -495,12 +545,45 @@ def storeLightgrid(bsp):
     dir_image = bpy.data.images.get("$Direct")
     amb_image = bpy.data.images.get("$Ambient")
     
+    dir_image2 = bpy.data.images.get("$Direct2")
+    amb_image2 = bpy.data.images.get("$Ambient2")
+    
+    dir_image3 = bpy.data.images.get("$Direct3")
+    amb_image3 = bpy.data.images.get("$Ambient3")
+    
+    dir_image4 = bpy.data.images.get("$Direct4")
+    amb_image4 = bpy.data.images.get("$Ambient4")
+    
     if vec_image == None or dir_image == None or amb_image == None:
         return False, "Images not properly baked for patching the bsp"
     
     vec_pixels = vec_image.pixels[:]
     dir_pixels = dir_image.pixels[:]
     amb_pixels = amb_image.pixels[:]
+    
+    if dir_image2 != None and amb_image2 != None:
+        dir_pixels2 = dir_image2.pixels[:]
+        amb_pixels2 = amb_image2.pixels[:]
+        print("Grid2")
+    else:
+        dir_pixels2 = dir_image.pixels[:]
+        amb_pixels2 = amb_image.pixels[:]
+    
+    if dir_image3 != None and amb_image3 != None:
+        dir_pixels3 = dir_image3.pixels[:]
+        amb_pixels3 = amb_image3.pixels[:]
+        print("Grid3")
+    else:
+        dir_pixels3 = dir_image.pixels[:]
+        amb_pixels3 = amb_image.pixels[:]
+    
+    if dir_image4 != None and amb_image4 != None:
+        dir_pixels4 = dir_image4.pixels[:]
+        amb_pixels4 = amb_image4.pixels[:]
+        print("Grid4")
+    else:
+        dir_pixels4 = dir_image.pixels[:]
+        amb_pixels4 = amb_image.pixels[:]
     
     world_mins = bsp.lumps["models"].data[0].mins
     world_maxs = bsp.lumps["models"].data[0].maxs
@@ -516,7 +599,7 @@ def storeLightgrid(bsp):
     lightgrid_dimensions = [ (maxs[0] - lightgrid_origin[0]) / bsp.lightgrid_size[0] + 1,
                              (maxs[1] - lightgrid_origin[1]) / bsp.lightgrid_size[1] + 1,
                              (maxs[2] - lightgrid_origin[2]) / bsp.lightgrid_size[2] + 1 ]
-    num_elements_lightgrid = lightgrid_dimensions[0] + lightgrid_dimensions[1] + lightgrid_dimensions[2]
+    num_elements_lightgrid = lightgrid_dimensions[0] * lightgrid_dimensions[1] * lightgrid_dimensions[2]
     lightgrid_size = bsp.lightgrid_size
     
     #get all lightgrid points that are in the void
@@ -561,7 +644,13 @@ def storeLightgrid(bsp):
             num_elements = packLightgridData(  bsp, 
                                 void_pixels, 
                                 amb_pixels, 
+                                amb_pixels2, 
+                                amb_pixels3, 
+                                amb_pixels4, 
                                 dir_pixels, 
+                                dir_pixels2, 
+                                dir_pixels3, 
+                                dir_pixels4, 
                                 vec_pixels, 
                                 lightgrid_origin, 
                                 lightgrid_dimensions, 
@@ -575,7 +664,13 @@ def storeLightgrid(bsp):
         packLightgridData(  bsp, 
                             void_pixels, 
                             amb_pixels, 
+                            amb_pixels2, 
+                            amb_pixels3, 
+                            amb_pixels4, 
                             dir_pixels, 
+                            dir_pixels2, 
+                            dir_pixels3, 
+                            dir_pixels4, 
                             vec_pixels, 
                             lightgrid_origin, 
                             lightgrid_dimensions, 
