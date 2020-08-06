@@ -904,9 +904,18 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                 bsp_vert.texcoord = mesh.uv_layers["UVMap"].data[loop].uv
                             if self.patch_lm_tcs:
                                 bsp_vert.lm1coord = mesh.uv_layers["LightmapUV"].data[loop].uv
-                                bsp_vert.lm2coord = mesh.uv_layers["LightmapUV2"].data[loop].uv
-                                bsp_vert.lm3coord = mesh.uv_layers["LightmapUV3"].data[loop].uv
-                                bsp_vert.lm4coord = mesh.uv_layers["LightmapUV4"].data[loop].uv
+                                bsp_vert.lm1coord[0] = min(1.0, max(0.0, bsp_vert.lm1coord[0]))
+                                bsp_vert.lm1coord[1] = min(1.0, max(0.0, bsp_vert.lm1coord[1]))
+                                if bsp.lightmaps == 4:
+                                    bsp_vert.lm2coord = mesh.uv_layers["LightmapUV2"].data[loop].uv
+                                    bsp_vert.lm2coord[0] = min(1.0, max(0.0, bsp_vert.lm2coord[0]))
+                                    bsp_vert.lm2coord[1] = min(1.0, max(0.0, bsp_vert.lm2coord[1]))
+                                    bsp_vert.lm3coord = mesh.uv_layers["LightmapUV3"].data[loop].uv
+                                    bsp_vert.lm3coord[0] = min(1.0, max(0.0, bsp_vert.lm3coord[0]))
+                                    bsp_vert.lm3coord[1] = min(1.0, max(0.0, bsp_vert.lm3coord[1]))
+                                    bsp_vert.lm4coord = mesh.uv_layers["LightmapUV4"].data[loop].uv
+                                    bsp_vert.lm4coord[0] = min(1.0, max(0.0, bsp_vert.lm4coord[0]))
+                                    bsp_vert.lm4coord[1] = min(1.0, max(0.0, bsp_vert.lm4coord[1]))
                             if self.patch_normals:
                                 bsp_vert.normal = mesh.vertices[vertex].normal.copy()
                                 if mesh.has_custom_normals:
@@ -914,12 +923,13 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                             if self.patch_colors:
                                 bsp_vert.color1 = mesh.vertex_colors["Color"].data[loop].color
                                 bsp_vert.color1[3] = mesh.vertex_colors["Alpha"].data[loop].color[0]
-                                bsp_vert.color2 = mesh.vertex_colors["Color2"].data[loop].color
-                                bsp_vert.color2[3] = mesh.vertex_colors["Alpha"].data[loop].color[1]
-                                bsp_vert.color3 = mesh.vertex_colors["Color3"].data[loop].color
-                                bsp_vert.color3[3] = mesh.vertex_colors["Alpha"].data[loop].color[2]
-                                bsp_vert.color4 = mesh.vertex_colors["Color4"].data[loop].color
-                                bsp_vert.color4[3] = mesh.vertex_colors["Alpha"].data[loop].color[3]
+                                if bsp.lightmaps == 4:
+                                    bsp_vert.color2 = mesh.vertex_colors["Color2"].data[loop].color
+                                    bsp_vert.color2[3] = mesh.vertex_colors["Alpha"].data[loop].color[1]
+                                    bsp_vert.color3 = mesh.vertex_colors["Color3"].data[loop].color
+                                    bsp_vert.color3[3] = mesh.vertex_colors["Alpha"].data[loop].color[2]
+                                    bsp_vert.color4 = mesh.vertex_colors["Color4"].data[loop].color
+                                    bsp_vert.color4[3] = mesh.vertex_colors["Alpha"].data[loop].color[3]
                 else:
                     self.report({"ERROR"}, "Not a valid mesh for patching")
                     return {'CANCELLED'}
