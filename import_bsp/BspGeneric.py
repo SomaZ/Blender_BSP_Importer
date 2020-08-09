@@ -707,24 +707,24 @@ class blender_model_data:
             
             if model.lightmaps > 1:
                 model.face_lm2_tcs.append([
-                pack_lm_tc(patch[i1].lm2coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size),
-                pack_lm_tc(patch[i2].lm2coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size),
-                pack_lm_tc(patch[i3].lm2coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size),
-                pack_lm_tc(patch[i4].lm2coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size)
+                pack_lm_tc(patch[i1].lm2coord, face.lm_indexes[1], model.lightmap_size, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i2].lm2coord, face.lm_indexes[1], model.lightmap_size, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i3].lm2coord, face.lm_indexes[1], model.lightmap_size, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i4].lm2coord, face.lm_indexes[1], model.lightmap_size, import_settings.packed_lightmap_size)
                 ])
                 
                 model.face_lm3_tcs.append([
-                pack_lm_tc(patch[i1].lm3coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size),
-                pack_lm_tc(patch[i2].lm3coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size),
-                pack_lm_tc(patch[i3].lm3coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size),
-                pack_lm_tc(patch[i4].lm3coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size)
+                pack_lm_tc(patch[i1].lm3coord, face.lm_indexes[2], model.lightmap_size, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i2].lm3coord, face.lm_indexes[2], model.lightmap_size, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i3].lm3coord, face.lm_indexes[2], model.lightmap_size, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i4].lm3coord, face.lm_indexes[2], model.lightmap_size, import_settings.packed_lightmap_size)
                 ])
                         
                 model.face_lm4_tcs.append([
-                pack_lm_tc(patch[i1].lm4coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size),
-                pack_lm_tc(patch[i2].lm4coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size),
-                pack_lm_tc(patch[i3].lm4coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size),
-                pack_lm_tc(patch[i4].lm4coord, face.lm_indexes[0], model.lightmap_size, import_settings.packed_lightmap_size)
+                pack_lm_tc(patch[i1].lm4coord, face.lm_indexes[3], model.lightmap_size, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i2].lm4coord, face.lm_indexes[3], model.lightmap_size, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i3].lm4coord, face.lm_indexes[3], model.lightmap_size, import_settings.packed_lightmap_size),
+                pack_lm_tc(patch[i4].lm4coord, face.lm_indexes[3], model.lightmap_size, import_settings.packed_lightmap_size)
                 ])
                     
                 model.face_vert_color2.append([patch[i1].color2, patch[i2].color2, patch[i3].color2, patch[i4].color2])
