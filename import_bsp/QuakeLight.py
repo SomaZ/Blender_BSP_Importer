@@ -6,6 +6,9 @@ if "GridIcoSphere" in locals():
     imp.reload( GridIcoSphere )
 else:
     from . import GridIcoSphere
+    
+if "struct" not in locals():
+    import struct
 
 import bgl
 import gpu
@@ -47,53 +50,16 @@ def colorNormalize(color, scale, srgb = True):
     
     return linearToSRGB(outColor) if srgb else outColor
 
-def bake_uv_to_vc(mesh, uv_layer, vertex_layer):
+def color_to_bytes(color):
+    out_color = [0 for i in range(len(color))]
+    for i in range(len(color)):
+        out_color[i] = int(color[i] * 255) & 0xff
+    return out_color
 
-    lightmap = bpy.data.images.get("$lightmap_bake")
-    vertexmap = bpy.data.images.get("$vertmap_bake")
-    
-    if lightmap == None or vertexmap == None:
-        return False, "Could not find $lightmap_bake or $vertmap_bake"
-    
-    lm_width = lightmap.size[0]
-    lm_height = lightmap.size[1]
-    
-    vt_width = vertexmap.size[0]
-    vt_height = vertexmap.size[1]
-
-    def _clamp_uv(val):
-        return max(0, min(val, 1))
-
-    lm_local_pixels = list(lightmap.pixels[:])
-    vt_local_pixels = list(vertexmap.pixels[:])
-
-    for face in mesh.polygons:
-        mat_name = mesh.materials[face.material_index].name
-        
-        if mat_name.endswith(".vertex"):
-            local_pixels = vt_local_pixels
-            width = vt_width
-            height = vt_height
-        else:
-            local_pixels = lm_local_pixels
-            width = lm_width
-            height = lm_height
-        
-        for vert_idx, loop_idx in zip(face.vertices, face.loop_indices):
-            uv_coords = mesh.uv_layers[uv_layer].data[loop_idx].uv
-            # Just sample the closest pixel to the UV coordinate
-            # An improved approach might be to implement
-            # bilinear sampling here instead
-            target = [round(_clamp_uv(uv_coords.x) * (width - 1)), round(_clamp_uv(uv_coords.y) * (height - 1))]
-            index = ( target[1] * width + target[0] ) * 4
-            
-            color = colorNormalize([local_pixels[index], local_pixels[index + 1], local_pixels[index + 2]], 1.0)
-
-            mesh.vertex_colors[vertex_layer].data[loop_idx].color[0] = color[0]
-            mesh.vertex_colors[vertex_layer].data[loop_idx].color[1] = color[1]
-            mesh.vertex_colors[vertex_layer].data[loop_idx].color[2] = color[2]
-            #mesh.vertex_colors[vertex_layer].data[loop_idx].color[3] = 1.0
-    return True, "Vertex colors succesfully added to mesh"
+def append_color_as_bytes(array, color):
+    byte_color = color_to_bytes(color)
+    for i in range(len(color)):
+        array.append(byte_color[i])
 
 def add_light(name, type, intensity, color, vector, angle):
     out_color = SRGBToLinear(color)
@@ -135,7 +101,7 @@ def add_light(name, type, intensity, color, vector, angle):
 
 def storeLighmaps(bsp, image, n_lightmaps, internal=True, hdr=False, flip=False):
     lm_size = bsp.lightmap_size[0]
-    color_components = 3 if internal else 4
+    color_components = 4
     color_scale = 1.0
 
     if image == None:
@@ -178,24 +144,10 @@ def storeLighmaps(bsp, image, n_lightmaps, internal=True, hdr=False, flip=False)
                 
             pixel_id = int(lm_x + (lm_y * lm_size))
             
-            if hdr and not internal:
-                outColor = [local_pixels[4 * pixel + 0], local_pixels[4 * pixel + 1], local_pixels[4 * pixel + 2]]
-            else:
-                outColor = colorNormalize([ local_pixels[4 * pixel + 0],
-                                            local_pixels[4 * pixel + 1],
-                                            local_pixels[4 * pixel + 2]],
-                                            color_scale,
-                                            internal)
-            
-            if internal:
-                lightmaps[lightmap_id][pixel_id*color_components + 0] = int(outColor[0] * 255)
-                lightmaps[lightmap_id][pixel_id*color_components + 1] = int(outColor[1] * 255)
-                lightmaps[lightmap_id][pixel_id*color_components + 2] = int(outColor[2] * 255)
-            else:
-                lightmaps[lightmap_id][pixel_id*color_components + 0] = outColor[0]
-                lightmaps[lightmap_id][pixel_id*color_components + 1] = outColor[1]
-                lightmaps[lightmap_id][pixel_id*color_components + 2] = outColor[2]
-                lightmaps[lightmap_id][pixel_id*color_components + 3] = 1.0
+            lightmaps[lightmap_id][pixel_id*color_components    ] = local_pixels[4 * pixel + 0]
+            lightmaps[lightmap_id][pixel_id*color_components + 1] = local_pixels[4 * pixel + 1]
+            lightmaps[lightmap_id][pixel_id*color_components + 2] = local_pixels[4 * pixel + 2]
+            lightmaps[lightmap_id][pixel_id*color_components + 3] = 1.0
             
     if internal:
         #clear lightmap lump
@@ -203,10 +155,21 @@ def storeLighmaps(bsp, image, n_lightmaps, internal=True, hdr=False, flip=False)
         
         #fill lightmap lump
         for i in range(n_lightmaps):
-            bsp.lumps["lightmaps"].add(lightmaps[i])
-        return True, "Lightmaps succesfully added to BSP"
-    else:
-        bsp_path = bpy.context.scene.id_tech_3_bsp_path.replace("\\","/").split(".")[0] + "/"
+            internal_lightmap = [[0] * (lm_size * lm_size * 3)]
+            for pixel in range(lm_size * lm_size):
+                outColor = color_to_bytes(colorNormalize([  lightmaps[i][pixel * color_components    ],
+                                                            lightmaps[i][pixel * color_components + 1],
+                                                            lightmaps[i][pixel * color_components + 2]],
+                                                            color_scale,
+                                                            True))
+                                            
+                internal_lightmap[pixel * 3    ] = outColor[0]
+                internal_lightmap[pixel * 3 + 1] = outColor[1]
+                internal_lightmap[pixel * 3 + 2] = outColor[2]
+            bsp.lumps["lightmaps"].add(internal_lightmap)
+        
+    if not internal or hdr:
+        bsp_path = bsp.bsp_path.replace("\\","/").split(".")[0] + "/"
         if not os.path.exists(bsp_path):
             os.makedirs(bsp_path)
         file_type = "HDR" if hdr else "TARGA_RAW"
@@ -229,6 +192,10 @@ def storeLighmaps(bsp, image, n_lightmaps, internal=True, hdr=False, flip=False)
                 
             image.pixels = lightmaps[lightmap]
             image.save_render(image.filepath_raw, scene=bpy.context.scene)
+    
+    if internal:
+        return True, "Lightmaps succesfully added to BSP"
+    else:
         return True, "Lightmap images succesfully created"
         
 def create_lightgrid():
@@ -417,45 +384,25 @@ def packLightgridData(  bsp,
                 
         array = []
         if bsp.lightmaps == 4:
-            array.append(int(amb[0] * 255))
-            array.append(int(amb[1] * 255))
-            array.append(int(amb[2] * 255))
-            array.append(int(amb2[0] * 255))
-            array.append(int(amb2[1] * 255))
-            array.append(int(amb2[2] * 255))
-            array.append(int(amb3[0] * 255))
-            array.append(int(amb3[1] * 255))
-            array.append(int(amb3[2] * 255))
-            array.append(int(amb4[0] * 255))
-            array.append(int(amb4[1] * 255))
-            array.append(int(amb4[2] * 255))
-            array.append(int(dir[0] * 255))
-            array.append(int(dir[1] * 255))
-            array.append(int(dir[2] * 255))
-            array.append(int(dir2[0] * 255))
-            array.append(int(dir2[1] * 255))
-            array.append(int(dir2[2] * 255))
-            array.append(int(dir3[0] * 255))
-            array.append(int(dir3[1] * 255))
-            array.append(int(dir3[2] * 255))
-            array.append(int(dir4[0] * 255))
-            array.append(int(dir4[1] * 255))
-            array.append(int(dir4[2] * 255))
+            append_color_as_bytes(array, amb)
+            append_color_as_bytes(array, amb2)
+            append_color_as_bytes(array, amb3)
+            append_color_as_bytes(array, amb4)
+            append_color_as_bytes(array, dir)
+            append_color_as_bytes(array, dir2)
+            append_color_as_bytes(array, dir3)
+            append_color_as_bytes(array, dir4)
             array.append(0)
             array.append(0)
             array.append(0)
             array.append(0)
-            array.append(int(lat))
-            array.append(int(lon))
+            array.append(lat)
+            array.append(lon)
         else:
-            array.append(int(amb[0] * 255))
-            array.append(int(amb[1] * 255))
-            array.append(int(amb[2] * 255))
-            array.append(int(dir[0] * 255))
-            array.append(int(dir[1] * 255))
-            array.append(int(dir[2] * 255))
-            array.append(int(lat))
-            array.append(int(lon))
+            append_color_as_bytes(array, amb)
+            append_color_as_bytes(array, dir)
+            array.append(lat)
+            array.append(lon)
         
         hashing_array = []
         hashing_diff = []
@@ -540,7 +487,7 @@ def packLightgridData(  bsp,
             
     return current_pixel_mapping
     
-def storeLightgrid(bsp):
+def storeLightgrid(bsp, hdr_export):
     vec_image = bpy.data.images.get("$Vector")
     dir_image = bpy.data.images.get("$Direct")
     amb_image = bpy.data.images.get("$Ambient")
@@ -602,10 +549,10 @@ def storeLightgrid(bsp):
     lightgrid_dimensions.append(bsp_group.nodes["GridDimensions"].inputs[2].default_value)
     lightgrid_dimensions[1] /= lightgrid_dimensions[2]
                              
-    num_elements_lightgrid = lightgrid_dimensions[0] * lightgrid_dimensions[1] * lightgrid_dimensions[2]
+    num_elements_lightgrid = int(lightgrid_dimensions[0] * lightgrid_dimensions[1] * lightgrid_dimensions[2])
     
     #get all lightgrid points that are in the void
-    void_pixels = [True for i in range(vec_image.size[0] * vec_image.size[1])]
+    void_pixels = [True for i in range(num_elements_lightgrid)]
     for index, leaf in enumerate(bsp.lumps["leafs"].data):
         if leaf.area == -1:
             continue
@@ -661,7 +608,7 @@ def storeLightgrid(bsp):
                                 )
             print("Current lightgrid compression level: " + str(compression_pow))
             compression_pow += 1
-        return True, "Lightgrid compression level: " + str(compression_pow)
+        
     else:
         packLightgridData(  bsp, 
                             void_pixels, 
@@ -679,6 +626,34 @@ def storeLightgrid(bsp):
                             lightgrid_size, 
                             1
                             )
+    
+    if hdr_export:
+        hdr_bytes = bytearray()
+        for pixel in range(num_elements_lightgrid):
+            if void_pixels[pixel]:
+                for i in range(6):
+                    hdr_bytes += struct.pack("<f", 0.0)
+            else:
+                hdr_bytes += struct.pack("<f", amb_pixels[4 * pixel + 0])
+                hdr_bytes += struct.pack("<f", amb_pixels[4 * pixel + 1])
+                hdr_bytes += struct.pack("<f", amb_pixels[4 * pixel + 2])
+                hdr_bytes += struct.pack("<f", dir_pixels[4 * pixel + 0])
+                hdr_bytes += struct.pack("<f", dir_pixels[4 * pixel + 1])
+                hdr_bytes += struct.pack("<f", dir_pixels[4 * pixel + 2])
+        
+        bsp_path = bsp.bsp_path.replace("\\","/").split(".")[0] + "/"
+        if not os.path.exists(bsp_path):
+            os.makedirs(bsp_path)
+        
+        f = open(bsp_path+"lightgrid.raw", "wb")
+        try:
+            f.write(hdr_bytes)
+        except:
+            print("Failed writing: " + name)
+        f.close()
+    
+    if bsp.use_lightgridarray:
+        return True, "Lightgrid compression level: " + str(compression_pow-1)
     return True, "Did not compress the lightgrid"
 
 def luma (color):
@@ -823,4 +798,118 @@ def createLightGridTextures():
     buffers[0].pixels = vector_pixels
     buffers[1].pixels = direct_pixels
     buffers[2].pixels = ambient_pixels
+
+def clamp_uv(val):
+    return max(0, min(val, 1))
+        
+def bake_uv_to_vc(mesh, uv_layer, vertex_layer):
+
+    lightmap = bpy.data.images.get("$lightmap_bake")
+    vertexmap = bpy.data.images.get("$vertmap_bake")
     
+    if lightmap == None or vertexmap == None:
+        return False, "Could not find $lightmap_bake or $vertmap_bake"
+    
+    lm_width = lightmap.size[0]
+    lm_height = lightmap.size[1]
+    
+    vt_width = vertexmap.size[0]
+    vt_height = vertexmap.size[1]
+
+    lm_local_pixels = list(lightmap.pixels[:])
+    vt_local_pixels = list(vertexmap.pixels[:])
+
+    for face in mesh.polygons:
+        mat_name = mesh.materials[face.material_index].name
+        
+        if mat_name.endswith(".vertex"):
+            local_pixels = vt_local_pixels
+            width = vt_width
+            height = vt_height
+        else:
+            local_pixels = lm_local_pixels
+            width = lm_width
+            height = lm_height
+        
+        for vert_idx, loop_idx in zip(face.vertices, face.loop_indices):
+            uv_coords = mesh.uv_layers[uv_layer].data[loop_idx].uv
+            # Just sample the closest pixel to the UV coordinate
+            # An improved approach might be to implement
+            # bilinear sampling here instead
+            target = [round(clamp_uv(uv_coords.x) * (width - 1)), round(clamp_uv(uv_coords.y) * (height - 1))]
+            index = ( target[1] * width + target[0] ) * 4
+            
+            color = colorNormalize([local_pixels[index], local_pixels[index + 1], local_pixels[index + 2]], 1.0)
+
+            mesh.vertex_colors[vertex_layer].data[loop_idx].color[0] = color[0]
+            mesh.vertex_colors[vertex_layer].data[loop_idx].color[1] = color[1]
+            mesh.vertex_colors[vertex_layer].data[loop_idx].color[2] = color[2]
+            #mesh.vertex_colors[vertex_layer].data[loop_idx].color[3] = 1.0
+    return True, "Vertex colors succesfully added to mesh"
+
+def storeHDRVertexColors(bsp, meshes):
+    
+    lightmap = bpy.data.images.get("$lightmap_bake")
+    vertexmap = bpy.data.images.get("$vertmap_bake")
+    
+    if lightmap == None or vertexmap == None:
+        return False, "Could not find $lightmap_bake or $vertmap_bake"
+    
+    lm_width = lightmap.size[0]
+    lm_height = lightmap.size[1]
+    vt_width = vertexmap.size[0]
+    vt_height = vertexmap.size[1]
+
+    lm_local_pixels = list(lightmap.pixels[:])
+    vt_local_pixels = list(vertexmap.pixels[:])
+    
+    hdr_vertex_colors = [0.0 for i in range(int(bsp.lumps["drawverts"].count*3))]
+    for mesh in meshes:
+        #check if its an imported bsp data set
+        if mesh.vertex_layers_int.get("BSP_VERT_INDEX") is not None:
+            bsp_indices = mesh.vertex_layers_int["BSP_VERT_INDEX"]
+            for poly in mesh.polygons:
+                mat_name = mesh.materials[poly.material_index].name
+                
+                if mat_name.endswith(".vertex"):
+                    local_pixels = vt_local_pixels
+                    width = vt_width
+                    height = vt_height
+                else:
+                    local_pixels = lm_local_pixels
+                    width = lm_width
+                    height = lm_height
+                
+                for vertex, loop in zip(poly.vertices, poly.loop_indices):
+                    #get the vertex position in the bsp file
+                    bsp_vert_index = bsp_indices.data[vertex].value
+                    if bsp_vert_index < 0:
+                        continue
+                    uv_coords = mesh.uv_layers["LightmapUV"].data[loop].uv
+                    target = [round(clamp_uv(uv_coords.x) * (width - 1)), round(clamp_uv(uv_coords.y) * (height - 1))]
+                    index = ( target[1] * width + target[0] ) * 4
+
+                    hdr_vertex_colors[bsp_vert_index * 3    ] = local_pixels[index]
+                    hdr_vertex_colors[bsp_vert_index * 3 + 1] = local_pixels[index + 1]
+                    hdr_vertex_colors[bsp_vert_index * 3 + 2] = local_pixels[index + 2]
+    
+    hdr_bytes = bytearray()
+    for vert in range(bsp.lumps["drawverts"].count):
+        hdr_bytes += struct.pack("<f", hdr_vertex_colors[vert * 3    ])
+        hdr_bytes += struct.pack("<f", hdr_vertex_colors[vert * 3 + 1])
+        hdr_bytes += struct.pack("<f", hdr_vertex_colors[vert * 3 + 2])
+        
+    bsp_path = bsp.bsp_path.replace("\\","/").split(".")[0] + "/"
+    if not os.path.exists(bsp_path):
+        os.makedirs(bsp_path)
+        
+    file_path = bsp_path+"vertlight.raw"
+        
+    f = open(file_path, "wb")
+    try:
+        f.write(hdr_bytes)
+    except:
+        print("Failed writing: " + file_path)
+    f.close()
+    
+    return True, "HDR Vertex colors succesfully saved"

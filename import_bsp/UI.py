@@ -86,7 +86,7 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
     filepath : StringProperty(name="File Path", description="File path used for importing the BSP file", maxlen= 1024, default="")
     preset : EnumProperty(name="Import preset", description="You can select wether you want to import a bsp for editing, rendering, or previewing.", default='PREVIEW', items=[
             ('PREVIEW', "Preview", "Trys to build eevee shaders, imports all misc_model_statics when available", 0),
-            ('EDITING', "Editing", "Trys to build eevee shaders, imports all entitys", 1),
+            ('EDITING', "Entity Editing", "Trys to build eevee shaders, imports all entitys", 1),
             ('RENDERING', "Rendering", "Trys to build fitting cycles shaders, only imports visable enities", 2),
             ('BRUSHES', "Shadow Brushes", "Imports Brushes as shadow casters", 3),
         ])
@@ -841,6 +841,7 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
     filename_ext = ".bsp"
     filter_glob : StringProperty(default="*.bsp", options={'HIDDEN'})
     filepath : StringProperty(name="File", description="Which .bsp file to patch", maxlen= 1024, default="")
+    only_selected : BoolProperty(name="Only selected objects", default = False)
     create_backup : BoolProperty(name="Append a suffix to the output file (don't overwrite original file)", default = True)
     patch_lm_tcs : BoolProperty(name="Lightmap texture coordinates", default = True)
     patch_tcs : BoolProperty(name="Texture coordinates", default = False)
@@ -854,25 +855,30 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
             ('$lightmap', "$lightmap", "$lightmap", 1)])
     patch_external : BoolProperty(name="Save External Lightmaps", default = False)
     patch_external_flip : BoolProperty(name="Flip External Lightmaps", default = False)
-    patch_hdr_lm : BoolProperty(name="HDR External Lightmaps", default = False)
     patch_empty_lm_lump : BoolProperty(name="Remove Lightmaps in BSP", default = False)
+    patch_hdr : BoolProperty(name="HDR Lighting Export", default = False)
     
     #TODO Shader lump + shader assignments
     def execute(self, context):
-        
         bsp = BspClasses.BSP(self.filepath)
         
-        if self.patch_colors or self.patch_normals or self.patch_lm_tcs or self.patch_tcs:
+        if self.only_selected:
             objs = [obj for obj in context.selected_objects if obj.type=="MESH"]
+        else:
+            objs = [obj for obj in context.scene.objects if obj.type=="MESH" and obj.data.vertex_layers_int.get("BSP_VERT_INDEX") is not None]
+        
+        meshes = [obj.to_mesh() for obj in objs]
+        for mesh in meshes:
+            mesh.calc_normals_split()
+            mesh.calc_loop_triangles()
+        
+        if self.patch_colors or self.patch_normals or self.patch_lm_tcs or self.patch_tcs:
+            self.report({"INFO"}, "Storing Vertex Data...")
             #stores bsp vertex indices
             patched_vertices = {id: False for id in range(int(bsp.lumps["drawverts"].count))}
             lightmapped_vertices = {id: False for id in range(int(bsp.lumps["drawverts"].count))}
             patch_lighting_type = True
-            for obj in objs:
-                mesh = obj.to_mesh()
-                mesh.calc_normals_split()
-                mesh.calc_loop_triangles()
-                
+            for obj,mesh in zip(objs,meshes):
                 if self.patch_lm_tcs:
                     group_map = {group.name: group.index for group in obj.vertex_groups}
                     if not "Lightmapped" in group_map:
@@ -933,8 +939,11 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                 else:
                     self.report({"ERROR"}, "Not a valid mesh for patching")
                     return {'CANCELLED'}
+                
+            self.report({"INFO"}, "Successful")
         
         if self.patch_lm_tcs or self.patch_tcs:
+            self.report({"INFO"}, "Storing Texture Coordinates...")
             lightmap_size = bsp.lightmap_size[0]
             packed_lightmap_size = lightmap_size * bpy.context.scene.id_tech_3_lightmaps_per_row
                 
@@ -985,10 +994,10 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                 if self.patch_lm_tcs:               
                     #set new lightmap ids
                     vertices = set()
-                    lightmap_id = -3
-                    lightmap_id2 = -3
-                    lightmap_id3 = -3
-                    lightmap_id4 = -3
+                    lightmap_id = []
+                    lightmap_id2 = []
+                    lightmap_id3 = []
+                    lightmap_id4 = []
                     if bsp_surf.type != 2:
                         for i in range(int(bsp_surf.n_indexes)):
                             bsp_vert_index = bsp_surf.vertex + bsp.lumps["drawindexes"].data[bsp_surf.index + i].offset
@@ -997,11 +1006,12 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                 vertices.add(bsp_vert_index)
                                 bsp_vert = bsp.lumps["drawverts"].data[bsp_vert_index]
                                 if lightmapped_vertices[bsp_vert_index] or not patch_lighting_type:
-                                    lightmap_id = BspGeneric.get_lm_id(bsp_vert.lm1coord, lightmap_size, packed_lightmap_size)
+                                    
+                                    lightmap_id.append(BspGeneric.get_lm_id(bsp_vert.lm1coord, lightmap_size, packed_lightmap_size))
                                     if bsp.lightmaps == 4:
-                                        lightmap_id2 = BspGeneric.get_lm_id(bsp_vert.lm2coord, lightmap_size, packed_lightmap_size)
-                                        lightmap_id3 = BspGeneric.get_lm_id(bsp_vert.lm3coord, lightmap_size, packed_lightmap_size)
-                                        lightmap_id4 = BspGeneric.get_lm_id(bsp_vert.lm4coord, lightmap_size, packed_lightmap_size)
+                                        lightmap_id2.append(BspGeneric.get_lm_id(bsp_vert.lm2coord, lightmap_size, packed_lightmap_size))
+                                        lightmap_id3.append(BspGeneric.get_lm_id(bsp_vert.lm3coord, lightmap_size, packed_lightmap_size))
+                                        lightmap_id4.append(BspGeneric.get_lm_id(bsp_vert.lm4coord, lightmap_size, packed_lightmap_size))
                     else:
                         for i in range(bsp_surf.patch_width):
                             for j in range(bsp_surf.patch_height):
@@ -1010,25 +1020,41 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                     vertices.add(bsp_vert_index)
                                     bsp_vert = bsp.lumps["drawverts"].data[bsp_vert_index]
                                     if lightmapped_vertices[bsp_vert_index] or not patch_lighting_type:
-                                        lightmap_id = BspGeneric.get_lm_id(bsp_vert.lm1coord, lightmap_size, packed_lightmap_size)
+                                        lightmap_id.append(BspGeneric.get_lm_id(bsp_vert.lm1coord, lightmap_size, packed_lightmap_size))
                                         if bsp.lightmaps == 4:
-                                            lightmap_id2 = BspGeneric.get_lm_id(bsp_vert.lm2coord, lightmap_size, packed_lightmap_size)
-                                            lightmap_id3 = BspGeneric.get_lm_id(bsp_vert.lm3coord, lightmap_size, packed_lightmap_size)
-                                            lightmap_id4 = BspGeneric.get_lm_id(bsp_vert.lm4coord, lightmap_size, packed_lightmap_size)
+                                            lightmap_id2.append(BspGeneric.get_lm_id(bsp_vert.lm2coord, lightmap_size, packed_lightmap_size))
+                                            lightmap_id3.append(BspGeneric.get_lm_id(bsp_vert.lm3coord, lightmap_size, packed_lightmap_size))
+                                            lightmap_id4.append(BspGeneric.get_lm_id(bsp_vert.lm4coord, lightmap_size, packed_lightmap_size))
                     
                     if len(vertices) > 0:
-                        if patch_lighting_type:
-                            bsp_surf.lm_indexes[0] = lightmap_id
+                        current_lm_id = lightmap_id[0]
+                        for i in lightmap_id:
+                            if i != current_lm_id:
+                                lightmap_id[0] = -3
+                                break
+                        if bsp.lightmaps == 4:
+                            current_lm_id = lightmap_id2[0]
+                            for i in lightmap_id2:
+                                if i != current_lm_id:
+                                    lightmap_id2[0] = -3
+                                    break
+                            current_lm_id = lightmap_id3[0]
+                            for i in lightmap_id3:
+                                if i != current_lm_id:
+                                    lightmap_id3[0] = -3
+                                    break
+                            current_lm_id = lightmap_id4[0]
+                            for i in lightmap_id4:
+                                if i != current_lm_id:
+                                    lightmap_id4[0] = -3
+                                    break
+                            
+                        if patch_lighting_type or bsp_surf.lm_indexes[0] >= 0:
+                            bsp_surf.lm_indexes[0] = lightmap_id[0]
                             if bsp.lightmaps == 4:
-                                bsp_surf.lm_indexes[1] = lightmap_id2
-                                bsp_surf.lm_indexes[2] = lightmap_id3
-                                bsp_surf.lm_indexes[3] = lightmap_id4
-                        elif bsp_surf.lm_indexes[0] >= 0:
-                            bsp_surf.lm_indexes[0] = lightmap_id
-                            if bsp.lightmaps == 4:
-                                bsp_surf.lm_indexes[1] = lightmap_id2
-                                bsp_surf.lm_indexes[2] = lightmap_id3
-                                bsp_surf.lm_indexes[3] = lightmap_id4
+                                bsp_surf.lm_indexes[1] = lightmap_id2[0]
+                                bsp_surf.lm_indexes[2] = lightmap_id3[0]
+                                bsp_surf.lm_indexes[3] = lightmap_id4[0]
                             
                         #unpack lightmap tcs
                         for i in vertices:
@@ -1038,7 +1064,7 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                 BspGeneric.unpack_lm_tc(bsp_vert.lm2coord, lightmap_size, packed_lightmap_size)
                                 BspGeneric.unpack_lm_tc(bsp_vert.lm3coord, lightmap_size, packed_lightmap_size)
                                 BspGeneric.unpack_lm_tc(bsp_vert.lm4coord, lightmap_size, packed_lightmap_size)
-        
+            self.report({"INFO"}, "Successful")
         #get number of lightmaps
         n_lightmaps = 0
         for bsp_surf in bsp.lumps["surfaces"].data:
@@ -1053,9 +1079,9 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
             if lightmap_image == None:
                 self.report({"ERROR"}, "Could not find selected lightmap atlas")
                 return {'CANCELLED'}
-            success, message = QuakeLight.storeLighmaps(bsp, lightmap_image, n_lightmaps + 1, not self.patch_external, self.patch_hdr_lm, self.patch_external_flip )
-            if not success:
-                self.report({"ERROR"}, message)
+            self.report({"INFO"}, "Storing Lightmaps...")
+            success, message = QuakeLight.storeLighmaps(bsp, lightmap_image, n_lightmaps + 1, not self.patch_external, self.patch_hdr, self.patch_external_flip )
+            self.report({"INFO"} if success else {"ERROR"}, message)
         
         #clear lightmap lump        
         if self.patch_empty_lm_lump:
@@ -1063,10 +1089,16 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
         
         #store lightgrid
         if self.patch_lightgrid:
-            success, message = QuakeLight.storeLightgrid(bsp)
-            if not success:
-                self.report({"ERROR"}, message)
-            
+            self.report({"INFO"}, "Storing Lightgrid...")
+            success, message = QuakeLight.storeLightgrid(bsp, self.patch_hdr)
+            self.report({"INFO"} if success else {"ERROR"}, message)
+
+        #save hdr vertex colors    
+        if self.patch_hdr:
+            self.report({"INFO"}, "Storing HDR Vertex Colors...")
+            success, message = QuakeLight.storeHDRVertexColors(bsp, meshes)
+            self.report({"INFO"} if success else {"ERROR"}, message)
+        
         #write bsp
         bsp_bytes = bsp.to_bytes()
         
@@ -1078,9 +1110,10 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
         try:
             f.write(bsp_bytes)
         except:
-            print("Failed writing: " + name)
-            
+            self.report({"ERROR"}, "Failed writing: " + name)
+            return {'CANCELLED'}
         f.close()
+        
         return {'FINISHED'}
     
 class Prepare_Lightmap_Baking(bpy.types.Operator):

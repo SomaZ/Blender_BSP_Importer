@@ -45,15 +45,15 @@ class lump:
         
     def set_offset_count(self, offset_count):
         self.offset = offset_count[0]
-        self.count = offset_count[1]
+        self.count = int(offset_count[1])
         
     def readFrom(self, file):
         
         if self.count == 0:
-            self.count = self.size / self.data_class.size
+            self.count = int(self.size / self.data_class.size)
             
         file.seek(self.offset)
-        for i in range(int(self.count)):
+        for i in range(self.count):
             self.data.append(self.data_class(struct.unpack(self.data_class.encoding, file.read(self.data_class.size))))
     
     def clear(self):
@@ -659,7 +659,7 @@ class BSP:
         #this automatically updates the size of every lump
         lumps = {}
         for lump in self.lumps:
-            print("convert " + lump + " to bytes")
+            print("Converting " + lump + " to bytes")
             lumps[lump] = self.lumps[lump].to_bytes()
             
         #finish the header
@@ -667,7 +667,6 @@ class BSP:
         for lump in self.lumps:
             bytes+=struct.pack("<ii", offset, self.lumps[lump].size)
             offset += self.lumps[lump].size
-        print(bytes)
         for lump in self.lumps:
             bytes+=lumps[lump]
 
