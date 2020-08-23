@@ -49,7 +49,10 @@ class surface_descriptor:
         
     #always make sure that you pack the same material in one surface descriptor!
     def add_triangle(self, in_obj_id, in_mesh, in_triangle):
-        if len(self.triangles) > 998:
+        #Quake 3 limit from sourcecode
+        SHADER_MAX_VERTEXES = 1000
+        
+        if len(self.triangles) * 3 >= 6 * SHADER_MAX_VERTEXES:
             return False
         
         new_triangle = [None, None, None]
@@ -78,7 +81,7 @@ class surface_descriptor:
                         reused_vertices += 1
                         break
         
-        if 3-reused_vertices + len(self.vertex_mapping) > 999:
+        if 3-reused_vertices + len(self.vertex_mapping) >= SHADER_MAX_VERTEXES:
             return False
         
         #add new vertices

@@ -804,7 +804,7 @@ class blender_model_data:
             
             obj = bpy.data.objects.new("Brush " + str(brush_id).zfill(4), me)
             obj.cycles_visibility.camera = False
-            obj.cycles_visibility.diffuse = False
+            #obj.cycles_visibility.diffuse = False
             obj.cycles_visibility.glossy = False
             obj.cycles_visibility.transmission = False
             obj.cycles_visibility.scatter = False

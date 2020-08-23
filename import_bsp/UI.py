@@ -870,7 +870,6 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
         meshes = [obj.to_mesh() for obj in objs]
         for mesh in meshes:
             mesh.calc_normals_split()
-            mesh.calc_loop_triangles()
         
         if self.patch_colors or self.patch_normals or self.patch_lm_tcs or self.patch_tcs:
             self.report({"INFO"}, "Storing Vertex Data...")
@@ -898,8 +897,8 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                 lightmapped_vertices[index] = True
                     
                     #patch all vertices of this mesh
-                    for triangle in mesh.loop_triangles:
-                        for vertex, loop in zip(triangle.vertices, triangle.loops):
+                    for poly in mesh.polygons:
+                        for vertex, loop in zip(poly.vertices, poly.loop_indices):
                             #get the vertex position in the bsp file
                             bsp_vert_index = bsp_indices.data[vertex].value
                             if bsp_vert_index < 0:
@@ -1027,34 +1026,35 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                             lightmap_id4.append(BspGeneric.get_lm_id(bsp_vert.lm4coord, lightmap_size, packed_lightmap_size))
                     
                     if len(vertices) > 0:
-                        current_lm_id = lightmap_id[0]
-                        for i in lightmap_id:
-                            if i != current_lm_id:
-                                lightmap_id[0] = -3
-                                break
-                        if bsp.lightmaps == 4:
-                            current_lm_id = lightmap_id2[0]
-                            for i in lightmap_id2:
+                        if len(lightmap_id) > 0:
+                            current_lm_id = lightmap_id[0]
+                            for i in lightmap_id:
                                 if i != current_lm_id:
-                                    lightmap_id2[0] = -3
+                                    lightmap_id[0] = -3
                                     break
-                            current_lm_id = lightmap_id3[0]
-                            for i in lightmap_id3:
-                                if i != current_lm_id:
-                                    lightmap_id3[0] = -3
-                                    break
-                            current_lm_id = lightmap_id4[0]
-                            for i in lightmap_id4:
-                                if i != current_lm_id:
-                                    lightmap_id4[0] = -3
-                                    break
-                            
-                        if patch_lighting_type or bsp_surf.lm_indexes[0] >= 0:
-                            bsp_surf.lm_indexes[0] = lightmap_id[0]
                             if bsp.lightmaps == 4:
-                                bsp_surf.lm_indexes[1] = lightmap_id2[0]
-                                bsp_surf.lm_indexes[2] = lightmap_id3[0]
-                                bsp_surf.lm_indexes[3] = lightmap_id4[0]
+                                current_lm_id = lightmap_id2[0]
+                                for i in lightmap_id2:
+                                    if i != current_lm_id:
+                                        lightmap_id2[0] = -3
+                                        break
+                                current_lm_id = lightmap_id3[0]
+                                for i in lightmap_id3:
+                                    if i != current_lm_id:
+                                        lightmap_id3[0] = -3
+                                        break
+                                current_lm_id = lightmap_id4[0]
+                                for i in lightmap_id4:
+                                    if i != current_lm_id:
+                                        lightmap_id4[0] = -3
+                                        break
+                                
+                            if patch_lighting_type or bsp_surf.lm_indexes[0] >= 0:
+                                bsp_surf.lm_indexes[0] = lightmap_id[0]
+                                if bsp.lightmaps == 4:
+                                    bsp_surf.lm_indexes[1] = lightmap_id2[0]
+                                    bsp_surf.lm_indexes[2] = lightmap_id3[0]
+                                    bsp_surf.lm_indexes[3] = lightmap_id4[0]
                             
                         #unpack lightmap tcs
                         for i in vertices:
