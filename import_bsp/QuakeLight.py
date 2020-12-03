@@ -89,7 +89,7 @@ def add_light(name, type, intensity, color, vector, angle):
             light.color = out_color
             light.shadow_soft_size = angle
     
-    obj_vec = Vector((0.0, 0.0, -1.0))
+    obj_vec = Vector((0.0, 0.0, 1.0))
     rotation_vec = Vector((vector[0], vector[1], vector[2]))
     obj = bpy.data.objects.get(name)
     if obj == None:
@@ -100,7 +100,7 @@ def add_light(name, type, intensity, color, vector, angle):
     return obj
 
 def storeLighmaps(bsp, image, n_lightmaps, internal=True, hdr=False, flip=False):
-    lm_size = bsp.lightmap_size[0]
+    lm_size = bsp.lightmap_size
     color_components = 4
     color_scale = 1.0
 
@@ -110,39 +110,40 @@ def storeLighmaps(bsp, image, n_lightmaps, internal=True, hdr=False, flip=False)
     local_pixels = list(image.pixels[:])
     
     packed_width, packed_height = image.size
-    blender_lm_size = packed_width / bpy.context.scene.id_tech_3_lightmaps_per_row
+    blender_lm_size = packed_width / bpy.context.scene.id_tech_3_lightmaps_per_column, packed_height / bpy.context.scene.id_tech_3_lightmaps_per_row
     
     if internal:
-        if blender_lm_size != lm_size:
+        if blender_lm_size[0] != lm_size[0] or blender_lm_size[1] != lm_size[1]:
             return False, "Rescale the lightmap texture atlas to the right resolution"
     else:
-        lm_size = int(blender_lm_size)
+        lm_size = int(blender_lm_size[0]), int(blender_lm_size[1])
         
-    num_rows_colums = packed_width / lm_size
-    numPixels = lm_size * lm_size * color_components
+    num_rows = bpy.context.scene.id_tech_3_lightmaps_per_row
+    num_columns = bpy.context.scene.id_tech_3_lightmaps_per_column
+    numPixels = lm_size[0] * lm_size[1] * color_components
     lightmaps = [[0] * numPixels for i in range(n_lightmaps)]
     
     for pixel in range(packed_width*packed_height):
         #pixel position in packed texture
         row = pixel%packed_width
-        colum = floor(pixel/packed_width)
+        colum = floor(pixel/packed_height)
         
         #lightmap quadrant
-        quadrant_x = floor(row/lm_size)
-        quadrant_y = floor(colum/lm_size)
-        lightmap_id = floor(quadrant_x + (num_rows_colums * quadrant_y))
+        quadrant_x = floor(row/lm_size[0])
+        quadrant_y = floor(colum/lm_size[1])
+        lightmap_id = floor(quadrant_x + (num_columns * quadrant_y))
         
         if (lightmap_id > n_lightmaps-1) or (lightmap_id<0):
             continue
         else:
             #pixel id in lightmap
-            lm_x = row%lm_size
-            lm_y = colum%lm_size
+            lm_x = row%lm_size[0]
+            lm_y = colum%lm_size[1]
             
             if not internal and flip:
-                lm_y = lm_size-1 - lm_y
+                lm_y = lm_size[1]-1 - lm_y
                 
-            pixel_id = int(lm_x + (lm_y * lm_size))
+            pixel_id = int(lm_x + (lm_y * lm_size[0]))
             
             lightmaps[lightmap_id][pixel_id*color_components    ] = local_pixels[4 * pixel + 0]
             lightmaps[lightmap_id][pixel_id*color_components + 1] = local_pixels[4 * pixel + 1]
@@ -155,8 +156,8 @@ def storeLighmaps(bsp, image, n_lightmaps, internal=True, hdr=False, flip=False)
         
         #fill lightmap lump
         for i in range(n_lightmaps):
-            internal_lightmap = [[0] * (lm_size * lm_size * 3)]
-            for pixel in range(lm_size * lm_size):
+            internal_lightmap = [0] * (lm_size[0] * lm_size[1] * 3)
+            for pixel in range(lm_size[0] * lm_size[1]):
                 outColor = color_to_bytes(colorNormalize([  lightmaps[i][pixel * color_components    ],
                                                             lightmaps[i][pixel * color_components + 1],
                                                             lightmaps[i][pixel * color_components + 2]],
@@ -185,7 +186,7 @@ def storeLighmaps(bsp, image, n_lightmaps, internal=True, hdr=False, flip=False)
             img_name = "lm_"+str(lightmap).zfill(4)
             image = bpy.data.images.get(img_name)
             if image == None:
-                image = bpy.data.images.new("lm_"+str(lightmap).zfill(4), width = lm_size, height = lm_size, float_buffer=True)
+                image = bpy.data.images.new("lm_"+str(lightmap).zfill(4), width = lm_size[0], height = lm_size[1], float_buffer=True)
                 image.filepath_raw = bsp_path + img_name + file_ext.lower()
                 image.colorspace_settings.name = color_space
                 image.file_format = file_type
@@ -847,7 +848,7 @@ def bake_uv_to_vc(mesh, uv_layer, vertex_layer):
             #mesh.vertex_colors[vertex_layer].data[loop_idx].color[3] = 1.0
     return True, "Vertex colors succesfully added to mesh"
 
-def storeHDRVertexColors(bsp, meshes):
+def storeHDRVertexColors(bsp, objs):
     
     lightmap = bpy.data.images.get("$lightmap_bake")
     vertexmap = bpy.data.images.get("$vertmap_bake")
@@ -864,7 +865,8 @@ def storeHDRVertexColors(bsp, meshes):
     vt_local_pixels = list(vertexmap.pixels[:])
     
     hdr_vertex_colors = [0.0 for i in range(int(bsp.lumps["drawverts"].count*3))]
-    for mesh in meshes:
+    for obj in objs:
+        mesh = obj.data
         #check if its an imported bsp data set
         if mesh.vertex_layers_int.get("BSP_VERT_INDEX") is not None:
             bsp_indices = mesh.vertex_layers_int["BSP_VERT_INDEX"]

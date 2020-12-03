@@ -261,9 +261,9 @@ def add_sun(shader, function, sun_parms, i):
     light_vec = [0.0, 0.0, 0.0]
     rotation[0] = rotation[0] / 180.0 * math.pi
     rotation[1] = rotation[1] / 180.0 * math.pi
-    light_vec[0] = -math.cos(rotation[0]) * math.cos(rotation[1])
-    light_vec[1] = -math.sin(rotation[0]) * math.cos(rotation[1])
-    light_vec[2] = -math.sin(rotation[1])
+    light_vec[0] = math.cos(rotation[0]) * math.cos(rotation[1])
+    light_vec[1] = math.sin(rotation[0]) * math.cos(rotation[1])
+    light_vec[2] = math.sin(rotation[1])
     angle = math.radians(1.5)
     
     QuakeLight.add_light(name, "SUN", intensity, color, light_vec, angle)

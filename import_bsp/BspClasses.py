@@ -100,7 +100,7 @@ class texture:
     def to_array(self):
         #TODO: Check encoding?
         array = [None for i in range(3)]
-        array[0] = bytes(fillName(self.name, 64),"ascii")
+        array[0] = bytes(fillName(self.name, 64),"latin-1")
         array[1] = self.flags
         array[2] = self.contents
         return array
@@ -338,7 +338,7 @@ class effect:
         self.visibleSide = array[2]
     def to_array(self):
         array = [None for i in range(3)]
-        array[0] = bytes(fillName(self.name, 64),"ascii")
+        array[0] = bytes(fillName(self.name, 64),"utf-8")
         array[1] = self.brush
         array[2] = self.visibleSide
         return array

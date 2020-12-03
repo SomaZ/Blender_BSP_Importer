@@ -59,14 +59,14 @@ def pack_lightmaps(bsp, import_settings):
         lm_list = [path + file_name
                     for file_name in lm_files
                     if file_name.lower().startswith('lm_') and (file_name.lower().endswith('.tga') or file_name.lower().endswith('.jpg'))]
-        lightmap_size = 0
+        lightmap_size = [0, 0]
         for lm in lm_list:
             image = bpy.data.images.load(lm, check_existing=True)
             working_pixels = list(image.pixels[:])
             pixels = []
             for y in range(image.size[1]):
                 for x in range(image.size[0]):
-                    id = floor(x + (image.size[1] * (image.size[1]-1))- (y * (image.size[1])))
+                    id = floor(x + (image.size[0] * (image.size[1]-1)) - (image.size[0] * y))
                     pixels.append(working_pixels[id * 4 + 0])
                     pixels.append(working_pixels[id * 4 + 1])
                     pixels.append(working_pixels[id * 4 + 2])
@@ -74,10 +74,10 @@ def pack_lightmaps(bsp, import_settings):
                     
             lightmaps.append(pixels)
             #assume square lightmaps
-            if lightmap_size != 0 and lightmap_size != image.size[0]:
+            if lightmap_size[0] != 0 and (lightmap_size[0] != image.size[0] or lightmap_size[1] != image.size[1]):
                 use_internal_lightmaps = True
                 break
-            lightmap_size = image.size[0]
+            lightmap_size = image.size
             bsp.lightmap_size = image.size
             n_lightmaps += 1
             use_internal_lightmaps = False
@@ -88,7 +88,7 @@ def pack_lightmaps(bsp, import_settings):
         print("Using internal lightmaps")
         lightmaps = []
         #assume square lightmaps
-        lightmap_size = bsp.internal_lightmap_size[0]
+        lightmap_size = bsp.internal_lightmap_size
         for lm in bsp.lumps["lightmaps"].data:
             lightmaps.append(lm.map)
         n_lightmaps = bsp.lumps["lightmaps"].count
@@ -99,98 +99,97 @@ def pack_lightmaps(bsp, import_settings):
     if n_lightmaps == 0:
         print("Using vertex light only")
         force_vertex_lighting = True
-        lightmap_size = 128
+        lightmap_size = [128, 128]
     
-    num_rows_colums = import_settings.packed_lightmap_size / lightmap_size
-    max_lightmaps = num_rows_colums * num_rows_colums
+    num_columns = import_settings.packed_lightmap_size[0] / lightmap_size[0]
+    num_rows = import_settings.packed_lightmap_size[1] / lightmap_size[1]
+    max_lightmaps = num_columns * num_rows
     
     #grow lightmap atlas if needed
     for i in range(6):
-        if (float(n_lightmaps) > max_lightmaps):
-            import_settings.packed_lightmap_size *= 2
-            num_rows_colums = import_settings.packed_lightmap_size / lightmap_size
-            max_lightmaps = num_rows_colums * num_rows_colums
+        if (n_lightmaps > int(max_lightmaps)):
+            import_settings.packed_lightmap_size[0] *= 2
+            import_settings.packed_lightmap_size[1] *= 2
+            num_columns = import_settings.packed_lightmap_size[0] / lightmap_size[0]
+            num_rows = import_settings.packed_lightmap_size[1] / lightmap_size[1]
+            max_lightmaps = num_columns * num_rows
         else:
             import_settings.log.append("found best packed lightmap size: " + str(import_settings.packed_lightmap_size))
             break
         
-    bpy.context.scene.id_tech_3_lightmaps_per_row = num_rows_colums
+    bpy.context.scene.id_tech_3_lightmaps_per_row = num_rows
+    bpy.context.scene.id_tech_3_lightmaps_per_column = num_columns
         
     if force_vertex_lighting == True:
         return
         
     packed_lm_size = import_settings.packed_lightmap_size
-    
-    numPixels = packed_lm_size*packed_lm_size*4
-    #max_colum = ceil((lightmaps_lump.count-1) / PACKED_LM_SIZE)
+    numPixels = packed_lm_size[0]*packed_lm_size[1]*4
     pixels = [0]*numPixels
     
-    for pixel in range(packed_lm_size*packed_lm_size):
+    for pixel in range(packed_lm_size[0]*packed_lm_size[1]):
         #pixel position in packed texture
-        row = pixel%packed_lm_size
-        colum = floor(pixel/packed_lm_size)
+        row = pixel%packed_lm_size[0]
+        colum = floor(pixel/packed_lm_size[1])
         
         #lightmap quadrant
-        quadrant_x = floor(row/lightmap_size)
-        quadrant_y = floor(colum/lightmap_size)
-        lightmap_id = floor(quadrant_x + (num_rows_colums * quadrant_y))
-        
-        #if quadrant_y > max_colum:
-            #break
+        quadrant_x = floor(row/lightmap_size[0])
+        quadrant_y = floor(colum/lightmap_size[1])
+        lightmap_id = floor(quadrant_x + (num_columns * quadrant_y))
         
         if (lightmap_id > n_lightmaps-1) or (lightmap_id<0):
             continue
         else:
             #pixel id in lightmap
-            lm_x = row%lightmap_size
-            lm_y = colum%lightmap_size
-            pixel_id = floor(lm_x + (lm_y * lightmap_size))
+            lm_x = row%lightmap_size[0]
+            lm_y = colum%lightmap_size[1]
+            pixel_id = floor(lm_x + (lm_y * lightmap_size[0]))
             pixels[4 * pixel + 0] = (float(lightmaps[lightmap_id][pixel_id*color_components + 0])/color_scale)
             pixels[4 * pixel + 1] = (float(lightmaps[lightmap_id][pixel_id*color_components + 1])/color_scale)
             pixels[4 * pixel + 2] = (float(lightmaps[lightmap_id][pixel_id*color_components + 2])/color_scale)
             pixels[4 * pixel + 3] = (float(1.0))
             
-    image = create_new_image("$lightmap", packed_lm_size, packed_lm_size)
+    image = create_new_image("$lightmap", packed_lm_size[0], packed_lm_size[1])
     image.pixels = pixels
     image.pack()
     
 def pack_lm_tc(tc, lightmap_id, lightmap_size, packed_lm_size):
-    
     #maybe handle lightmap_ids better?
     if (lightmap_id < 0):
         return [0.0, 0.0]
     
-    num_rows_colums = packed_lm_size / lightmap_size
-    scale_value = lightmap_size / packed_lm_size
+    num_columns = packed_lm_size[0] / lightmap_size[0]
+    num_rows = packed_lm_size[1] / lightmap_size[1]
+    scale_value = [lightmap_size[0] / packed_lm_size[0], lightmap_size[1] / packed_lm_size[1]]
     
-    x = (lightmap_id%num_rows_colums) * scale_value
-    y = floor(lightmap_id/num_rows_colums) * scale_value
+    x = (lightmap_id%num_columns) * scale_value[0]
+    y = floor(lightmap_id/num_columns) * scale_value[1]
     
-    packed_tc = [tc[0]*scale_value+x,tc[1]*scale_value+y]
+    packed_tc = [tc[0]*scale_value[0]+x,tc[1]*scale_value[1]+y]
     return packed_tc
 
 def get_lm_id(tc, lightmap_size, packed_lm_size):
-    row = tc[0]*packed_lm_size
-    colum = tc[1]*packed_lm_size
-    quadrant_x = floor(row/lightmap_size)
-    quadrant_y = floor(colum/lightmap_size)
+    row = tc[0]*packed_lm_size[0]
+    column = tc[1]*packed_lm_size[1]
+    quadrant_x = floor(row/lightmap_size[0])
+    quadrant_y = floor(column/lightmap_size[1])
     
-    scale = packed_lm_size / lightmap_size
+    scale = packed_lm_size[0] / lightmap_size[0]
     return floor(quadrant_x + (scale * quadrant_y))
 
 def unpack_lm_tc(tc, lightmap_size, packed_lm_size):
-    row = tc[0]*packed_lm_size
-    colum = tc[1]*packed_lm_size
-    quadrant_x = floor(row/lightmap_size)
-    quadrant_y = floor(colum/lightmap_size)
+    row = tc[0]*packed_lm_size[0]
+    column = tc[1]*packed_lm_size[1]
+    quadrant_x = floor(row/lightmap_size[0])
+    quadrant_y = floor(column/lightmap_size[1])
     
-    scale = packed_lm_size / lightmap_size
-    lightmap_id = floor(quadrant_x + (scale * quadrant_y))
+    scale = [packed_lm_size[0] / lightmap_size[0], packed_lm_size[1] / lightmap_size[1]]
+    lightmap_id = floor(quadrant_x + (scale[0] * quadrant_y))
     
-    quadrant_scale = lightmap_size / packed_lm_size
+    quadrant_scale = [lightmap_size[0] / packed_lm_size[0], lightmap_size[1] / packed_lm_size[1]]
     
-    tc[0] = (tc[0] - (quadrant_x * quadrant_scale)) * scale
-    tc[1] = (tc[1] - (quadrant_y * quadrant_scale)) * scale
+    tc[0] = (tc[0] - (quadrant_x * quadrant_scale[0])) * scale[0]
+    tc[1] = (tc[1] - (quadrant_y * quadrant_scale[1])) * scale[1]
     return lightmap_id
 
 #appends a 3 component byte color to a pixel list
@@ -408,7 +407,7 @@ class blender_model_data:
         model.material_names = []
         model.vertex_class = BSP.vertex_rbsp
         model.lightmaps = 4
-        model.lightmap_size = 128
+        model.lightmap_size = [128, 128]
         model.current_index = 0
         model.current_sub_model = 0
         model.index_mapping = []
@@ -854,7 +853,7 @@ class blender_model_data:
             model.lightmaps = bsp.lightmaps
             model.vertex_class = BSP.vertex_ibsp
         
-        model.lightmap_size = bsp.lightmap_size[0]
+        model.lightmap_size = bsp.lightmap_size
         model.index_mapping = [-2 for i in range(int(bsp.lumps["drawverts"].count))]
             
         current_model = bsp.lumps["models"].data[id]
@@ -888,7 +887,7 @@ class blender_model_data:
             model.lightmaps = bsp.lightmaps
             model.vertex_class = BSP.vertex_ibsp
             
-        model.lightmap_size = bsp.lightmap_size[0]
+        model.lightmap_size = bsp.lightmap_size
         
         for vertex_instance in bsp.lumps["drawverts"].data:
             model.vertices.append(vertex_instance.position)

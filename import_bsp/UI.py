@@ -114,7 +114,7 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
         import_settings.bsp_name = ""
         import_settings.preset = self.properties.preset
         import_settings.subdivisions = self.properties.subdivisions
-        import_settings.packed_lightmap_size = int(self.min_atlas_size)
+        import_settings.packed_lightmap_size = [int(self.min_atlas_size)]*2
         import_settings.log = []
         import_settings.log.append("----import_scene.ja_bsp----")
         import_settings.filepath = self.filepath
@@ -943,8 +943,8 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
         
         if self.patch_lm_tcs or self.patch_tcs:
             self.report({"INFO"}, "Storing Texture Coordinates...")
-            lightmap_size = bsp.lightmap_size[0]
-            packed_lightmap_size = lightmap_size * bpy.context.scene.id_tech_3_lightmaps_per_row
+            lightmap_size = bsp.lightmap_size
+            packed_lightmap_size = [lightmap_size[0] * bpy.context.scene.id_tech_3_lightmaps_per_column, lightmap_size[1] * bpy.context.scene.id_tech_3_lightmaps_per_row]
                 
             fixed_vertices = []
             #fix lightmap tcs and tcs, set lightmap ids
@@ -1096,7 +1096,7 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
         #save hdr vertex colors    
         if self.patch_hdr:
             self.report({"INFO"}, "Storing HDR Vertex Colors...")
-            success, message = QuakeLight.storeHDRVertexColors(bsp, meshes)
+            success, message = QuakeLight.storeHDRVertexColors(bsp, objs)
             self.report({"INFO"} if success else {"ERROR"}, message)
         
         #write bsp

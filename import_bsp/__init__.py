@@ -19,9 +19,9 @@
 bl_info = {
     "name": "Import id Tech 3 BSP",
     "author": "SomaZ",
-	"version": (0, 9, 4),
-    "description": "Importer for id Tech 3 BSP levels",
-    "blender": (2, 81, 16),
+	"version": (0, 9, 5),
+    "description": "Importer for id Tech 3 BSP maps",
+    "blender": (2, 83, 0),
     "location": "File > Import-Export",
 	"warning": "",
     "category": "Import-Export"
@@ -105,6 +105,8 @@ def register():
                                                                     description="Full path to the last imported BSP File" )
     bpy.types.Scene.id_tech_3_lightmaps_per_row = bpy.props.IntProperty( name="Lightmaps per row",
                                                                          description="How many lightmaps are packed in one row of the lightmap atlas" )
+    bpy.types.Scene.id_tech_3_lightmaps_per_column = bpy.props.IntProperty( name="Lightmaps per column",
+                                                                         description="How many lightmaps are packed in one column of the lightmap atlas" )
 
 def unregister():
     

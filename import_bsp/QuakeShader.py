@@ -103,14 +103,14 @@ class vanilla_shader_stage:
                                 }
                         
     def setDiffuse(stage, diffuse):
-        stage_diffuse = diffuse.split(" ", 1)[0] 
+        stage_diffuse = diffuse.split()[0] 
         if stage_diffuse == "$lightmap":
             stage.lightmap = True
             stage.tcGen = TCGEN_LM
         stage.diffuse = stage_diffuse
         
     def setClampDiffuse(stage, diffuse):
-        stage_diffuse = diffuse.split(" ", 1)[0] 
+        stage_diffuse = diffuse.split()[0] 
         if stage_diffuse == "$lightmap":
             stage.lightmap = True
             stage.tcGen = TCGEN_LM
@@ -118,7 +118,7 @@ class vanilla_shader_stage:
         stage.clamp = True
         
     def setAnimmap(stage, diffuse):
-        array = diffuse.split(" ")
+        array = diffuse.split()
         #try getting first image of the array
         try:
             stage_diffuse = array[1]
@@ -172,7 +172,7 @@ class vanilla_shader_stage:
             stage.lighting = LIGHTING_IDENTITY
         elif (lighting.startswith("const ")):
             stage.lighting = LIGHTING_CONST
-            color = filter(None, lighting.strip("\r\n\t").replace("(","").replace(")","").replace("const ","").split(" "))
+            color = filter(None, lighting.strip("\r\n\t").replace("(","").replace(")","").replace("const ","").split())
             stage.color = [float(component) for component in color]
         else:
             stage.lighting = LIGHTING_IDENTITY
@@ -213,7 +213,7 @@ class vanilla_shader_stage:
         if (alpha.startswith("const")):
             stage.alpha = ALPHA_CONST
             try:
-                stage.alpha_value = float(alpha.split(' ', 1)[1].strip("\r\n\t "))
+                stage.alpha_value = float(alpha.split()[1].strip("\r\n\t "))
             except:
                 print("alphaGen const with no value found")
                 stage.alpha_value = 0.5
@@ -381,7 +381,7 @@ class quake_shader:
                     shader.links.new(out_node.outputs["Vector"],new_out_node.inputs["Vector"])
                 out_node = new_out_node
 
-                values = arguments.split(" ")
+                values = arguments.split()
                 out_node.inputs["Scale"].default_value[0] = float(values[0])
                 out_node.inputs["Scale"].default_value[1] = float(values[1])
                 out_node.inputs["Location"].default_value[1] = -float(values[1])
@@ -391,7 +391,7 @@ class quake_shader:
                 new_out_node.name = "tcMod"
                 new_out_node.node_tree = ShaderNodes.Shader_Rotate_Node.get_node_tree(None)
                 new_out_node.location = (shader.current_x_location - 200, shader.current_y_location)
-                ags = arguments.split(" ",1)
+                ags = arguments.split()
                 new_out_node.inputs["Degrees"].default_value = float(ags[0])
                 shader.links.new(time_node.outputs["Time"],new_out_node.inputs["Time"])
                 if out_node != None:
@@ -404,7 +404,7 @@ class quake_shader:
                 new_out_node.name = "tcMod"
                 new_out_node.node_tree = ShaderNodes.Shader_Scroll_Node.get_node_tree(None)
                 new_out_node.location = (shader.current_x_location - 200, shader.current_y_location)
-                ags = arguments.split(" ",1)
+                ags = arguments.split()
                 new_out_node.inputs["Arguments"].default_value = [float(ags[0]),float(ags[1]),0.0]
                 shader.links.new(time_node.outputs["Time"],new_out_node.inputs["Time"])
                 if out_node != None:
@@ -540,7 +540,7 @@ class quake_shader:
             shader.links.new(node_BSDF.outputs["BSDF"], node_output.inputs[0])
             shader.mat.blend_method = "BLEND"
             if "skyparms" in shader.attributes:
-                skyname = shader.attributes["skyparms"][0].split(" ")[0]
+                skyname = shader.attributes["skyparms"][0].split()[0]
                 image = bpy.data.images.get(skyname)
                 if image == None:
                     image = QuakeSky.make_equirectangular_from_sky(base_path, skyname)
@@ -827,7 +827,7 @@ class quake_shader:
             
             node_image = shader.nodes.new(type="ShaderNodeTexEnvironment")
             node_image.location = (2800,0)
-            skyname = shader.attributes["skyparms"][0].split(" ")[0]
+            skyname = shader.attributes["skyparms"][0].split()[0]
             image = bpy.data.images.get(skyname)
             if image == None:
                 image = QuakeSky.make_equirectangular_from_sky(base_path, skyname)
