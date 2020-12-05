@@ -255,7 +255,7 @@ def add_sun(shader, function, sun_parms, i):
         
     color = Vector((float(parms[0]), float(parms[1]), float(parms[2])))
     color.normalize()
-    intensity = float(parms[3]) / 10.0
+    intensity = float(parms[3])
     rotation = [float(parms[4]), float(parms[5])]
     
     light_vec = [0.0, 0.0, 0.0]

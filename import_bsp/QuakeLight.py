@@ -68,7 +68,7 @@ def add_light(name, type, intensity, color, vector, angle):
         light = bpy.data.lights.get(name)
         if light == None:
             light = bpy.data.lights.new(name=name, type='SUN')
-            light.energy = intensity 
+            light.energy = intensity * 0.1
             light.shadow_cascade_max_distance = 12000
             light.color = out_color
             light.angle = angle
@@ -80,6 +80,7 @@ def add_light(name, type, intensity, color, vector, angle):
             light.shadow_buffer_clip_start = 4
             light.color = out_color
             light.spot_size = angle
+            light.spot_blend = 1.0
     else:
         light = bpy.data.lights.get(name)
         if light == None:
@@ -577,11 +578,11 @@ def storeLightgrid(bsp, hdr_export):
                     min_y = y+start[1]
                     min_z = z+start[2]
                     if min_x >= 0 and min_y >= 0 and min_z >= 0:
-                        id = (min_z)*lightgrid_dimensions[0]*lightgrid_dimensions[1]
-                        id += (min_y)*lightgrid_dimensions[0]
-                        id += (min_x)
+                        id = min_z*lightgrid_dimensions[0]*lightgrid_dimensions[1]
+                        id += min_y*lightgrid_dimensions[0]
+                        id += min_x
                         id = int(id)
-                        if id < 0 or id > num_elements_lightgrid:
+                        if id < 0 or id >= num_elements_lightgrid:
                             continue
                         
                         void_pixels[id] = False
