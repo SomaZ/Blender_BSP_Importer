@@ -392,29 +392,74 @@ def update_spawn_flag(self, context):
     obj["spawnflags"] = spawnflag
     if spawnflag == 0:
         del obj["spawnflags"]
+ 
+def get_empty_bsp_model_mesh():
+    mesh = bpy.data.meshes.get("Empty_BSP_Model")
+    if (mesh == None):
+        ent_object = bpy.ops.mesh.primitive_cube_add(size = 32.0, location=([0,0,0]))
+        ent_object = bpy.context.object
+        ent_object.name = "EntityBox"
+        mesh = ent_object.data
+        mesh.name = "Empty_BSP_Model"
+        bpy.data.objects.remove(ent_object, do_unlink=True)
+    return mesh
+
+def get_empty_bsp_model_mat():
+    mat = bpy.data.materials.get("Empty_BSP_Model")
+    if (mat == None):
+        mat = bpy.data.materials.new(name="Empty_BSP_Model")
+        mat.use_nodes = True
+        mat.blend_method = "CLIP"
+        mat.shadow_method = "NONE"
+        node = mat.node_tree.nodes["Principled BSDF"]
+        node.inputs["Alpha"].default_value = 0.0
+    return mat
+
+def make_empty_bsp_model(context):
+    mesh = get_empty_bsp_model_mesh()
+    mat = get_empty_bsp_model_mat()
+    ob = bpy.data.objects.new(name="Empty_BSP_Model", object_data=mesh.copy())
+    ob.data.materials.append(mat)
+    bpy.context.collection.objects.link(ob)
+    return ob
         
 def update_model(self, context):
     obj = bpy.context.active_object
     if obj is None:
         return
     
-    if "model2" in obj:
-        obj["model2"] = obj.q3_dynamic_props.model.split(".")[0] + ".md3"
-        model_name = obj["model2"]
-    elif "model" in obj:
-        obj["model"] = obj.q3_dynamic_props.model.split(".")[0] + ".md3"
+    dynamic_model = obj.q3_dynamic_props.model.split(".")[0]
+    if (dynamic_model.startswith("*") and not dynamic_model in bpy.data.meshes) or dynamic_model.strip(" \t\r\n") == "":
+        obj.data = get_empty_bsp_model_mesh()
+        mat = get_empty_bsp_model_mat()
+        obj["model"] = obj.q3_dynamic_props.model
+        if not mat.name in obj.data.materials:
+            obj.data.materials.append(mat)
+        return
+    
+    orig_model = None
+    if "model" in obj:
+        orig_model = obj["model"][:]
+        if not dynamic_model.startswith("*"):
+            obj["model"] = dynamic_model + ".md3"
+        else:
+            obj["model"] = dynamic_model
         model_name = obj["model"]
     else:
         return
-        
-    if obj.data.name == obj.q3_dynamic_props.model.split(".")[0]:
+    
+    if obj.data.name == dynamic_model:
         return
     
     model_name = model_name.replace("\\", "/").lower()
     if model_name.endswith(".md3"):
         model_name = model_name[:-len(".md3")]
     
-    mesh_name = guess_model_name(model_name)
+    if not model_name.startswith("*"):
+        mesh_name = guess_model_name(model_name)
+    else:
+        mesh_name = model_name
+        obj["model"] = model_name
     
     if mesh_name in bpy.data.meshes:
         obj.data = bpy.data.meshes[mesh_name]
@@ -437,11 +482,78 @@ def update_model(self, context):
         if model_name.startswith("models/"):
             model_name = import_settings.base_path + model_name
             
-        obj.data = MD3.ImportMD3(model_name + ".md3", zoffset, False)
-        if obj.data != None:
+        mesh = MD3.ImportMD3(model_name + ".md3", zoffset, False)
+        if mesh != None:
+            obj.data = mesh
             obj.q3_dynamic_props.model = obj.data.name
-            
             QuakeShader.build_quake_shaders(import_settings, [obj])
+        elif orig_model != None:
+            obj["model"] = orig_model
+
+def getChildren(obj): 
+    children = [] 
+    for ob in bpy.data.objects: 
+        if ob.parent == obj: 
+            children.append(ob) 
+    return children 
+
+def update_model2(self, context):
+    obj = bpy.context.active_object
+    if obj is None:
+        return
+    
+    if "model2" in obj:
+        obj["model2"] = obj.q3_dynamic_props.model2.split(".")[0] + ".md3"
+        model_name = obj["model2"]
+    else:
+        return
+    
+    model_name = model_name.replace("\\", "/").lower()
+    if model_name.endswith(".md3"):
+        model_name = model_name[:-len(".md3")]
+    
+    mesh_name = guess_model_name(model_name)
+    
+    children = getChildren(obj)
+    if mesh_name.strip(" \t\r\n") == "" and len(children) > 0:
+        for chil in children:
+            bpy.data.objects.remove(chil, do_unlink=True)
+        return
+    
+    if len(children) > 0:
+        if children[0].data.name == obj.q3_dynamic_props.model2.split(".")[0]:
+            return
+    else:
+        ob.parent = make_empty_bsp_model(context)
+        ob.hide_select = True
+        children = [ob]
+    
+    if mesh_name in bpy.data.meshes:
+        children[0].data = bpy.data.meshes[mesh_name]
+        obj.q3_dynamic_props.model2 = children[0].data.name
+    else:
+        zoffset = 0
+        if "zoffset" in obj:
+            zoffset = int(obj["zoffset"])
+        
+        addon_name = __name__.split('.')[0]
+        prefs = context.preferences.addons[addon_name].preferences
+        
+        import_settings = ImportSettings()
+        import_settings.base_path = prefs.base_path
+        if not import_settings.base_path.endswith('/'):
+            import_settings.base_path = import_settings.base_path + '/'
+        import_settings.shader_dirs = "shaders/", "scripts/"
+        import_settings.preset = 'PREVIEW'
+        
+        if model_name.startswith("models/"):
+            model_name = import_settings.base_path + model_name
+            
+        mesh = MD3.ImportMD3(model_name + ".md3", zoffset, False)
+        if mesh != None:
+            children[0].data = mesh
+            obj.q3_dynamic_props.model2 = children[0].data.name
+            QuakeShader.build_quake_shaders(import_settings, [children[0]])
         
         
 #Properties like spawnflags and model 
@@ -500,6 +612,12 @@ class DynamicProperties(PropertyGroup):
         name = "Model",
         default = "EntityBox",
         update=update_model,
+        subtype= "FILE_PATH"
+        )
+    model2:StringProperty(
+        name = "Model2",
+        default = "EntityBox",
+        update=update_model2,
         subtype= "FILE_PATH"
         )
         
@@ -632,7 +750,7 @@ class Q3_PT_PropertiesEntityPanel(bpy.types.Panel):
                 for prop in obj.keys():
                     # only show generic properties and filter 
                     if prop.lower() not in filtered_keys and not hasattr(obj[prop], "to_dict"):
-                        if prop.lower() == "model" and "model2" not in obj:
+                        if prop.lower() == "model":
                             if supported == None:
                                 supported = layout.box()
                             row = supported.row()
@@ -643,7 +761,7 @@ class Q3_PT_PropertiesEntityPanel(bpy.types.Panel):
                             if supported == None:
                                 supported = layout.box()
                             row = supported.row()
-                            row.prop(obj.q3_dynamic_props, "model", text="model2")
+                            row.prop(obj.q3_dynamic_props, "model2", text="model2")
                             row.operator("q3.del_property", text="", icon="X").name = prop
                             continue
                         

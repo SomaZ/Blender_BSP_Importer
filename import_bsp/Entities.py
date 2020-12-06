@@ -120,7 +120,6 @@ def ImportEntities(bsp, import_settings):
             obj_list.append(ob)
         
         elif "model" in ent and ent["classname"].lower() != "misc_model":
-            #TODO properly handle this. Might have to merge both models
             if "model2" in ent:
                 model_name = ent["model2"]
             else:
@@ -237,8 +236,42 @@ def ImportEntities(bsp, import_settings):
                     obj_list.append(ob)
         
         if ob != None:
-            ob.name = "Entity " + (str(n_ent).zfill(4))
-            bpy.context.collection.objects.link(ob)
+            model2_ob = None
+            if "model2" in ent:
+                ob.name = "Model2 " + (str(n_ent).zfill(4))
+                bpy.context.collection.objects.link(ob)
+                mesh_name = ent["model"]
+                if mesh_name in map_objects:
+                    model2_ob = ob
+                    if mesh_name in bpy.data.meshes:
+                        me = bpy.data.meshes[mesh_name]
+                        ob = bpy.data.objects.new(mesh_name, me)
+                        obj_list.append(ob)
+                    else:
+                        mesh = bpy.data.meshes.get("Empty_BSP_Model")
+                        if (mesh == None):
+                            ent_object = bpy.ops.mesh.primitive_cube_add(size = 32.0, location=([0,0,0]))
+                            ent_object = bpy.context.object
+                            ent_object.name = "EntityBox"
+                            mesh = ent_object.data
+                            mesh.name = "Empty_BSP_Model"
+                            bpy.data.objects.remove(ent_object, do_unlink=True)
+                        mat = bpy.data.materials.get("Empty_BSP_Model")
+                        if (mat == None):
+                            mat = bpy.data.materials.new(name="Empty_BSP_Model")
+                            mat.use_nodes = True
+                            mat.blend_method = "CLIP"
+                            mat.shadow_method = "NONE"
+                            node = mat.node_tree.nodes["Principled BSDF"]
+                            node.inputs["Alpha"].default_value = 0.0
+                        ob = bpy.data.objects.new(name="something", object_data=mesh.copy())
+                        ob.data.materials.append(mat)
+                    ob.name = "Entity " + (str(n_ent).zfill(4))
+                    bpy.context.collection.objects.link(ob)
+            else:
+                ob.name = "Entity " + (str(n_ent).zfill(4))
+                bpy.context.collection.objects.link(ob)
+            
             if "spawnflags" in ent:
                 spawnflag = int(ent["spawnflags"])
                 if spawnflag % 2 == 1:
@@ -264,7 +297,7 @@ def ImportEntities(bsp, import_settings):
             if "model" in ent:
                 ob.q3_dynamic_props.model = ent["model"]
             if "model2" in ent:
-                ob.q3_dynamic_props.model = ent["model2"]
+                ob.q3_dynamic_props.model2 = ent["model2"]
                     
             #needed for custom descriptions and data types
             rna_ui = ob.get('_RNA_UI')
@@ -296,6 +329,10 @@ def ImportEntities(bsp, import_settings):
                     ob.rotation_euler = (0.0,0.0,radians(float(ent["angle"])))
                 if "angles" in ent:
                     ob.rotation_euler = (radians(ent["angles"][2]),radians(ent["angles"][0]),radians(ent["angles"][1]))
+                    
+            if model2_ob != None:
+                model2_ob.parent = ob
+                model2_ob.hide_select = True
         ob = None
                 
     #set clip data
