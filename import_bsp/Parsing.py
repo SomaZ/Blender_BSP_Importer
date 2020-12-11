@@ -31,3 +31,9 @@ def guess_model_name(file_path):
         split_name = split_name[0].split("/")
         model_name = "models/" + split_name[len(split_name)-1]
     return model_name
+
+def fillName(string, length):
+    new_str = string[:length]
+    while len(new_str) < length:
+        new_str += "\0"
+    return new_str

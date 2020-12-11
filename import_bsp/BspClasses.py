@@ -24,6 +24,7 @@ else:
 import copy
 from time import perf_counter
 from bpy_extras.io_utils import unpack_list
+from .Parsing import fillName
 
 FLOAT = 4
 HALF = 2
@@ -73,12 +74,6 @@ class lump:
         for i in range(self.count):
             bytes+=(struct.pack(self.data_class.encoding, *self.data[i].to_array()))
         return bytes
-
-def fillName(string, length):
-    new_str = string
-    while len(new_str) < length:
-        new_str += "\0"
-    return new_str
 
 #rbsp and ibsp
 class entity:

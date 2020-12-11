@@ -14,7 +14,7 @@ if "Image" in locals():
 else:
     from . import Image
     
-from .Parsing import guess_model_name
+from .Parsing import guess_model_name, fillName
 
 from math import pi, sin, cos, atan2, acos, sqrt
 from mathutils import Matrix
@@ -204,12 +204,6 @@ class md3_array:
         for i in range(self.count):
             bytes+=(struct.pack(self.data_class.encoding, *self.data[i].to_array()))
         return bytes
-
-def fillName(string, length):
-    new_str = string[:length]
-    while len(new_str) < length:
-        new_str += "\0"
-    return new_str
            
 class MD3:
     MD3_MAGIC         = b'IDP3'
