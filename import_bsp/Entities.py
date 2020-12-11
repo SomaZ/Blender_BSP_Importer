@@ -192,7 +192,7 @@ def ImportEntities(bsp, import_settings):
                                     length = sqrt((vector[0]*vector[0])+(vector[1]*vector[1])+(vector[2]*vector[2]))
                                     radius = 64.0
                                     if "radius" in ent:
-                                        radius = ent["radius"]
+                                        radius = float(ent["radius"])
                                     angle = 2*(atan(radius/length))
                         if "_sun" in ent:
                             if ent["_sun"] == "1":
