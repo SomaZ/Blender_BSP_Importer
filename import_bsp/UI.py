@@ -115,6 +115,7 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
         import_settings.preset = self.properties.preset
         import_settings.subdivisions = self.properties.subdivisions
         import_settings.packed_lightmap_size = [int(self.min_atlas_size)]*2
+        import_settings.mixed_lightmaps = False
         import_settings.log = []
         import_settings.log.append("----import_scene.ja_bsp----")
         import_settings.filepath = self.filepath
@@ -1438,6 +1439,9 @@ class Reload_render_shader(bpy.types.Operator):
         objs = [obj for obj in context.selected_objects if obj.type=="MESH"]
         
         for obj in objs:
+            vg = obj.vertex_groups.get("ExternalLightmap")
+            if vg is not None:
+                obj.vertex_groups.remove(vg)
             vg = obj.vertex_groups.get("Decals")
             if vg is not None:
                 obj.vertex_groups.remove(vg)

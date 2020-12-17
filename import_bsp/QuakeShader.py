@@ -424,7 +424,7 @@ class quake_shader:
             if (stage.diffuse == "$whiteimage" or stage.diffuse == "$lightmap"):
                 img = bpy.data.images.get(stage.diffuse)
             else:
-                img = Image.load_file(base_path, stage.diffuse)
+                img = Image.load_file(base_path + "/" + stage.diffuse)
             
             if img is not None:        
                 node_color = shader.nodes.new(type='ShaderNodeTexImage')
@@ -650,6 +650,8 @@ class quake_shader:
                 
                 if stage.lightmap:
                     continue
+                if stage.tcGen == TCGEN_LM and stage.diffuse.startswith("maps/"):
+                    continue
                 if stage.tcGen == TCGEN_ENV:
                     continue
                 if stage.alpha == ALPHA_SPEC:
@@ -709,7 +711,7 @@ class quake_shader:
                 shader.links.new(node_BSDF.outputs[0], shader.nodes["Output"].inputs[0])
             
         else:
-            img = Image.load_file(base_path, shader.texture)
+            img = Image.load_file(base_path + "/" + shader.texture)
             if img is not None:
                 img.alpha_mode = "CHANNEL_PACKED"
                 node_texture = shader.nodes.new(type='ShaderNodeTexImage')
@@ -758,6 +760,11 @@ class quake_shader:
         node_lm.name = "Baking Image"
         if shader.is_vertex_lit:
             node_lm.image = vt_image
+            for stage in shader.stages:
+                if stage.tcGen == TCGEN_LM and stage.diffuse.startswith("maps/"):
+                    image = bpy.data.images.get(Image.remove_file_extension(stage.diffuse))
+                    if image != None:
+                        node_lm.image = image
         else:
             node_lm.image = lm_image
             
@@ -949,7 +956,7 @@ class quake_shader:
                 print(shader.name + " shader is not supported right now")
             
         else:
-            img = Image.load_file(base_path, shader.texture)
+            img = Image.load_file(base_path + "/" + shader.texture)
             if img is not None:
                 img.alpha_mode = "CHANNEL_PACKED"
                 if shader.is_vertex_lit:
@@ -1070,9 +1077,9 @@ class quake_shader:
         node_BSDF.inputs["Alpha"].default_value = 0.5
         is_sky = False
         if "qer_editorimage" in shader.attributes:
-            image = Image.load_file(base_path, shader.attributes["qer_editorimage"][0])
+            image = Image.load_file(base_path + "/" + shader.attributes["qer_editorimage"][0])
         else:
-            image = Image.load_file(base_path, shader.texture)
+            image = Image.load_file(base_path + "/" + shader.texture)
             
         if image != None:
             node_img = shader.nodes.new(type='ShaderNodeTexImage')
@@ -1244,18 +1251,29 @@ def build_quake_shaders(import_settings, object_list):
                         for shader in shaders[dict_key]:
                             shader.finish_shader(base_path, import_settings)
                             
+                            has_external_lm = False
+                            for shader_stage in shader.stages:
+                                if shader_stage.tcGen == TCGEN_LM and shader_stage.diffuse.startswith("maps/"):
+                                    has_external_lm = True
+                            
                             #polygon offset to vertex group
-                            if "polygonoffset" in shader.attributes:
+                            if "polygonoffset" in shader.attributes or has_external_lm:
                                 for obj in object_list:
                                     for index, m in enumerate(obj.material_slots):
                                         if m.name == shader.name:
                                             verts = [v for f in obj.data.polygons 
                                                     if f.material_index == index for v in f.vertices]
                                             if len(verts):
-                                                vg = obj.vertex_groups.get("Decals")
-                                                if vg is None: 
-                                                    vg = obj.vertex_groups.new(name = "Decals")
-                                                vg.add(verts, 1.0, 'ADD')
+                                                if "polygonoffset" in shader.attributes:
+                                                    vg = obj.vertex_groups.get("Decals")
+                                                    if vg is None: 
+                                                        vg = obj.vertex_groups.new(name = "Decals")
+                                                    vg.add(verts, 1.0, 'ADD')
+                                                if has_external_lm:
+                                                    vg = obj.vertex_groups.get("ExternalLightmap")
+                                                    if vg is None: 
+                                                        vg = obj.vertex_groups.new(name = "ExternalLightmap")
+                                                    vg.add(verts, 1.0, 'ADD')
                                             break
                                                     
                         del shaders[dict_key]

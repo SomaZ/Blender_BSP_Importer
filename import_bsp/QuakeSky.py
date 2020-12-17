@@ -166,7 +166,7 @@ def make_equirectangular_from_sky(base_path, sky_name):
     biggest_w = 1
                  
     for index,tex in enumerate(textures):
-        image = Image.load_file(base_path, tex)
+        image = Image.load_file(base_path + "/" + tex)
         
         if image != None:
             cube[index] = image
