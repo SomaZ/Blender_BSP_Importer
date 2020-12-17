@@ -981,10 +981,15 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
     def execute(self, context):
         bsp = BspClasses.BSP(self.filepath)
         
+        if bpy.app.version >= (2, 91, 0):
+            obj_bsp_vert_index_layer = obj.data.attributes.get("BSP_VERT_INDEX")
+        else:
+            obj_bsp_vert_index_layer = obj.data.vertex_layers_int.get("BSP_VERT_INDEX")
+        
         if self.only_selected:
             objs = [obj for obj in context.selected_objects if obj.type=="MESH"]
         else:
-            objs = [obj for obj in context.scene.objects if obj.type=="MESH" and obj.data.vertex_layers_int.get("BSP_VERT_INDEX") is not None]
+            objs = [obj for obj in context.scene.objects if obj.type=="MESH" and obj_bsp_vert_index_layer is not None]
         
         meshes = [obj.to_mesh() for obj in objs]
         for mesh in meshes:
@@ -1002,9 +1007,14 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                     if not "Lightmapped" in group_map:
                         patch_lighting_type = False
                 
+                if bpy.app.version >= (2, 91, 0):
+                    msh_bsp_vert_index_layer = mesh.attributes.get("BSP_VERT_INDEX")
+                else:
+                    msh_bsp_vert_index_layer = mesh.vertex_layers_int.get("BSP_VERT_INDEX")
+                    
                 #check if its an imported bsp data set
-                if mesh.vertex_layers_int.get("BSP_VERT_INDEX") is not None:
-                    bsp_indices = mesh.vertex_layers_int["BSP_VERT_INDEX"]
+                if msh_bsp_vert_index_layer is not None:
+                    bsp_indices = msh_bsp_vert_index_layer
                     
                     if self.patch_lm_tcs and patch_lighting_type:
                         #store all vertices that are lightmapped
