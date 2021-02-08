@@ -189,8 +189,8 @@ def clamp_shift_tc(tc, min_tc, max_tc, u_shift, v_shift, flip_v):
     u = min(max(tc[0], min_tc), max_tc) + u_shift
     v = min(max(tc[1], min_tc), max_tc) + v_shift
     if flip_v:
-        return [u,1.0-v]
-    return [u,v]
+        return (u,1.0-v)
+    return (u,v)
     
 def pack_lm_tc(tc, lightmap_id, lightmap_size, import_settings):
     if (lightmap_id < 0):
@@ -199,12 +199,12 @@ def pack_lm_tc(tc, lightmap_id, lightmap_size, import_settings):
     packed_lm_size = import_settings.packed_lightmap_size
     num_columns = packed_lm_size[0] / lightmap_size[0]
     num_rows = packed_lm_size[1] / lightmap_size[1]
-    scale_value = [lightmap_size[0] / packed_lm_size[0], lightmap_size[1] / packed_lm_size[1]]
+    scale_value = (lightmap_size[0] / packed_lm_size[0], lightmap_size[1] / packed_lm_size[1])
     
     x = (lightmap_id%num_columns) * scale_value[0]
     y = floor(lightmap_id/num_columns) * scale_value[1]
     
-    packed_tc = [tc[0]*scale_value[0]+x,tc[1]*scale_value[1]+y]
+    packed_tc = (tc[0]*scale_value[0]+x,tc[1]*scale_value[1]+y)
     return packed_tc
 
 def get_lm_id(tc, lightmap_size, packed_lm_size):
@@ -222,13 +222,12 @@ def unpack_lm_tc(tc, lightmap_size, packed_lm_size):
     quadrant_x = floor(row/lightmap_size[0])
     quadrant_y = floor(column/lightmap_size[1])
     
-    scale = [packed_lm_size[0] / lightmap_size[0], packed_lm_size[1] / lightmap_size[1]]
+    scale = (packed_lm_size[0] / lightmap_size[0], packed_lm_size[1] / lightmap_size[1])
     lightmap_id = floor(quadrant_x + (scale[0] * quadrant_y))
     
     quadrant_scale = [lightmap_size[0] / packed_lm_size[0], lightmap_size[1] / packed_lm_size[1]]
     
-    tc[0] = (tc[0] - (quadrant_x * quadrant_scale[0])) * scale[0]
-    tc[1] = (tc[1] - (quadrant_y * quadrant_scale[1])) * scale[1]
+    tc = (tc[0] - (quadrant_x * quadrant_scale[0])) * scale[0], (tc[1] - (quadrant_y * quadrant_scale[1])) * scale[1]
     return lightmap_id
 
 #appends a 3 component byte color to a pixel list
@@ -375,52 +374,66 @@ def pack_lightgrid(bsp):
     lightvec.pack()  
             
 def lerpVertices(vertex1, vertex2, vertex_class, lightmaps):
-    vertexArray = []
-    vertexArray.append((vertex1.position[0] + vertex2.position[0])/2.0)
-    vertexArray.append((vertex1.position[1] + vertex2.position[1])/2.0)
-    vertexArray.append((vertex1.position[2] + vertex2.position[2])/2.0)
-    
-    vertexArray.append((vertex1.texcoord[0] + vertex2.texcoord[0])/2.0)
-    vertexArray.append(1.0 - (vertex1.texcoord[1] + vertex2.texcoord[1])/2.0)
-    vertexArray.append((vertex1.lm1coord[0] + vertex2.lm1coord[0])/2.0)
-    vertexArray.append((vertex1.lm1coord[1] + vertex2.lm1coord[1])/2.0)
-    
-    if lightmaps > 1:
-        vertexArray.append((vertex1.lm2coord[0] + vertex2.lm2coord[0])/2.0)
-        vertexArray.append((vertex1.lm2coord[1] + vertex2.lm2coord[1])/2.0)
-        vertexArray.append((vertex1.lm3coord[0] + vertex2.lm3coord[0])/2.0)
-        vertexArray.append((vertex1.lm3coord[1] + vertex2.lm3coord[1])/2.0)
-        vertexArray.append((vertex1.lm4coord[0] + vertex2.lm4coord[0])/2.0)
-        vertexArray.append((vertex1.lm4coord[1] + vertex2.lm4coord[1])/2.0)
-    
     vec = mathutils.Vector(vertex1.normal) + mathutils.Vector(vertex2.normal)
     vec.normalize()
     
-    vertexArray.append(vec[0])
-    vertexArray.append(vec[1])
-    vertexArray.append(vec[2])
-    
-    vertexArray.append(((vertex1.color1[0] + vertex2.color1[0])/2.0)*255.0)
-    vertexArray.append(((vertex1.color1[1] + vertex2.color1[1])/2.0)*255.0)
-    vertexArray.append(((vertex1.color1[2] + vertex2.color1[2])/2.0)*255.0)
-    vertexArray.append(((vertex1.color1[3] + vertex2.color1[3])/2.0)*255.0)
-    
-    if lightmaps > 1:
-        vertexArray.append(((vertex1.color2[0] + vertex2.color2[0])/2.0)*255.0)
-        vertexArray.append(((vertex1.color2[1] + vertex2.color2[1])/2.0)*255.0)
-        vertexArray.append(((vertex1.color2[2] + vertex2.color2[2])/2.0)*255.0)
-        vertexArray.append(((vertex1.color2[3] + vertex2.color2[3])/2.0)*255.0)
+    if lightmaps < 2:
+        vertexArray = (((vertex1.position[0] + vertex2.position[0])/2.0),
+        ((vertex1.position[1] + vertex2.position[1])/2.0),
+        ((vertex1.position[2] + vertex2.position[2])/2.0),
+        ((vertex1.texcoord[0] + vertex2.texcoord[0])/2.0),
+        (1.0 - (vertex1.texcoord[1] + vertex2.texcoord[1])/2.0),
+        ((vertex1.lm1coord[0] + vertex2.lm1coord[0])/2.0),
+        ((vertex1.lm1coord[1] + vertex2.lm1coord[1])/2.0),
         
-        vertexArray.append(((vertex1.color3[0] + vertex2.color3[0])/2.0)*255.0)
-        vertexArray.append(((vertex1.color3[1] + vertex2.color3[1])/2.0)*255.0)
-        vertexArray.append(((vertex1.color3[2] + vertex2.color3[2])/2.0)*255.0)
-        vertexArray.append(((vertex1.color3[3] + vertex2.color3[3])/2.0)*255.0)
+        (vec[0]),
+        (vec[1]),
+        (vec[2]),
         
-        vertexArray.append(((vertex1.color4[0] + vertex2.color4[0])/2.0)*255.0)
-        vertexArray.append(((vertex1.color4[1] + vertex2.color4[1])/2.0)*255.0)
-        vertexArray.append(((vertex1.color4[2] + vertex2.color4[2])/2.0)*255.0)
-        vertexArray.append(((vertex1.color4[3] + vertex2.color4[3])/2.0)*255.0)
-    
+        (((vertex1.color1[0] + vertex2.color1[0])/2.0)*255.0),
+        (((vertex1.color1[1] + vertex2.color1[1])/2.0)*255.0),
+        (((vertex1.color1[2] + vertex2.color1[2])/2.0)*255.0),
+        (((vertex1.color1[3] + vertex2.color1[3])/2.0)*255.0),
+        )
+    else:
+        vertexArray = (((vertex1.position[0] + vertex2.position[0])/2.0),
+        ((vertex1.position[1] + vertex2.position[1])/2.0),
+        ((vertex1.position[2] + vertex2.position[2])/2.0),
+        ((vertex1.texcoord[0] + vertex2.texcoord[0])/2.0),
+        (1.0 - (vertex1.texcoord[1] + vertex2.texcoord[1])/2.0),
+        ((vertex1.lm1coord[0] + vertex2.lm1coord[0])/2.0),
+        ((vertex1.lm1coord[1] + vertex2.lm1coord[1])/2.0),
+        
+        
+        ((vertex1.lm2coord[0] + vertex2.lm2coord[0])/2.0),
+        ((vertex1.lm2coord[1] + vertex2.lm2coord[1])/2.0),
+        ((vertex1.lm3coord[0] + vertex2.lm3coord[0])/2.0),
+        ((vertex1.lm3coord[1] + vertex2.lm3coord[1])/2.0),
+        ((vertex1.lm4coord[0] + vertex2.lm4coord[0])/2.0),
+        ((vertex1.lm4coord[1] + vertex2.lm4coord[1])/2.0),
+        
+        (vec[0]),
+        (vec[1]),
+        (vec[2]),
+        
+        (((vertex1.color1[0] + vertex2.color1[0])/2.0)*255.0),
+        (((vertex1.color1[1] + vertex2.color1[1])/2.0)*255.0),
+        (((vertex1.color1[2] + vertex2.color1[2])/2.0)*255.0),
+        (((vertex1.color1[3] + vertex2.color1[3])/2.0)*255.0),
+        
+        (((vertex1.color2[0] + vertex2.color2[0])/2.0)*255.0),
+        (((vertex1.color2[1] + vertex2.color2[1])/2.0)*255.0),
+        (((vertex1.color2[2] + vertex2.color2[2])/2.0)*255.0),
+        (((vertex1.color2[3] + vertex2.color2[3])/2.0)*255.0),
+        (((vertex1.color3[0] + vertex2.color3[0])/2.0)*255.0),
+        (((vertex1.color3[1] + vertex2.color3[1])/2.0)*255.0),
+        (((vertex1.color3[2] + vertex2.color3[2])/2.0)*255.0),
+        (((vertex1.color3[3] + vertex2.color3[3])/2.0)*255.0),
+        (((vertex1.color4[0] + vertex2.color4[0])/2.0)*255.0),
+        (((vertex1.color4[1] + vertex2.color4[1])/2.0)*255.0),
+        (((vertex1.color4[2] + vertex2.color4[2])/2.0)*255.0),
+        (((vertex1.color4[3] + vertex2.color4[3])/2.0)*255.0)
+        )
     return vertex_class(vertexArray)
             
 class blender_model_data:
@@ -480,10 +493,7 @@ class blender_model_data:
                 model.vertex_bsp_indices.append(index_2)
                 model.current_index += 1
             
-            indices = []
-            indices.append(model.index_mapping[index_0])
-            indices.append(model.index_mapping[index_1])
-            indices.append(model.index_mapping[index_2])
+            indices = model.index_mapping[index_0], model.index_mapping[index_1], model.index_mapping[index_2]
             tcs = []
             lm1_tcs = []
             colors = []
@@ -495,7 +505,7 @@ class blender_model_data:
                 colors3 = []
                 colors4 = []
             alphas = []
-            for face_index in [index_0, index_1, index_2]:
+            for face_index in (index_0, index_1, index_2):
                 tcs.append(drawverts_lump[face_index].texcoord)
                 
                 #packed lightmap tcs
