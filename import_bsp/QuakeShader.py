@@ -36,6 +36,11 @@ if "Parsing" in locals():
     imp.reload( Parsing )
 else:
     from .Parsing import *
+    
+if "QuakeLight" in locals():
+    imp.reload( QuakeLight )
+else:
+    from .QuakeLight import SRGBToLinear
 
 from math import radians
 
@@ -677,16 +682,35 @@ class quake_shader:
                                                         out_Color, 
                                                         out_Alpha)
                 added_stages += 1
+                
+            node_light = None
+            if "q3map_lightimage" in shader.attributes:
+                img = Image.load_file(base_path + "/" + shader.attributes["q3map_lightimage"][0])
+                if img is not None:
+                    node_light = shader.nodes.new(type='ShaderNodeTexImage')
+                    node_light.image = img
+                    node_light.location = 2600,0
+            elif "q3map_lightrgb" in shader.attributes:
+                color = shader.attributes["q3map_lightrgb"][0].split()
+                if len(color) >= 2:
+                    color = SRGBToLinear((float(color[0]), float(color[1]), float(color[2])))
+                    node_light = shader.nodes.new(type='ShaderNodeRGB')
+                    node_light.outputs[0].default_value = (color[0], color[1], color[2], 1.0)
                                                         
             if out_Color != None:
                 node_BSDF = shader.nodes.new(type="ShaderNodeBsdfPrincipled")
                 node_BSDF.location = (3000,0)
                 node_BSDF.inputs["Roughness"].default_value = 0.9999
                 shader.links.new(out_Color, node_BSDF.inputs["Base Color"])
-                if out_Glow != None:
+                if out_Glow != None or node_light != None:
                     new_node = shader.get_node_by_name("EmissionScaleNode")
-                    shader.links.new(out_Glow, new_node.inputs[0])
                     shader.links.new(new_node.outputs[0], node_BSDF.inputs["Emission"])
+                    if out_Glow != None:
+                        shader.links.new(out_Glow, new_node.inputs[2])
+                    if node_light != None:
+                        shader.links.new(node_light.outputs[0], new_node.inputs[0])
+                    if "q3map_surfacelight" in shader.attributes:
+                        new_node.inputs[1].default_value = float(shader.attributes["q3map_surfacelight"][0]) / 1000.0
                 if shader.mat.blend_method != "OPAQUE" and out_Alpha != None and "portal" not in shader.attributes:
                     shader.links.new(out_Alpha, node_BSDF.inputs["Alpha"])
                 shader.links.new(node_BSDF.outputs["BSDF"], shader.nodes["Output"].inputs[0])
@@ -694,10 +718,15 @@ class quake_shader:
                 shader.mat.blend_method = "BLEND"
                 node_Emiss = shader.nodes.new(type="ShaderNodeEmission")
                 node_Emiss.location = (3000,0)
-                if out_Glow != None:
+                if out_Glow != None or node_light != None:
                     new_node = shader.get_node_by_name("EmissionScaleNode")
-                    shader.links.new(out_Glow, new_node.inputs[0])
                     shader.links.new(new_node.outputs[0], node_Emiss.inputs["Color"])
+                    if out_Glow != None:
+                        shader.links.new(out_Glow, new_node.inputs[2])
+                    if node_light != None:
+                        shader.links.new(node_light.outputs[0], new_node.inputs[0])
+                    if "q3map_surfacelight" in shader.attributes:
+                        new_node.inputs[1].default_value = float(shader.attributes["q3map_surfacelight"][0]) / 1000.0
                 else:
                      node_Emiss.inputs["Color"].default_value = 0.0, 0.0, 0.0, 1.0
                      

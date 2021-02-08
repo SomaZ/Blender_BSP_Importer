@@ -688,6 +688,9 @@ class Q3_PT_ShaderPanel(bpy.types.Panel):
             if "Emission scale" in emission_group.nodes:
                 scale = emission_group.nodes["Emission scale"].outputs[0]
                 col.prop(scale, "default_value", text="Shader Emission Scale")
+            if "Extra emission scale" in emission_group.nodes:
+                scale = emission_group.nodes["Extra emission scale"].outputs[0]
+                col.prop(scale, "default_value", text="Extra Shader Emission Scale")
         
         
 class Q3_PT_EntityPanel(bpy.types.Panel):

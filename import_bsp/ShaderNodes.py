@@ -142,6 +142,7 @@ class Emission_Node(Generic_Node_Group):
         group_inputs.location = (-1600,0)
         emission_group.inputs.new('NodeSocketColor','Color')
         emission_group.inputs.new('NodeSocketFloat','Light')
+        emission_group.inputs.new('NodeSocketColor','ExtraColor')
         emission_group.inputs['Light'].default_value = 1.0
         
         group_outputs = emission_group.nodes.new('NodeGroupOutput')
@@ -157,12 +158,26 @@ class Emission_Node(Generic_Node_Group):
         scale.outputs[0].default_value = 1.0
         scale.name = "Emission scale"
         
+        extra_scale = emission_group.nodes.new(type="ShaderNodeValue")
+        extra_scale.outputs[0].default_value = 0.5
+        extra_scale.name = "Extra emission scale"
+        
         out_emission = emission_group.nodes.new(type="ShaderNodeVectorMath")
         out_emission.operation = "SCALE"
         emission_group.links.new(shader_emission.outputs[0], out_emission.inputs["Vector"])
         emission_group.links.new(scale.outputs[0], out_emission.inputs["Scale"])
         
-        emission_group.links.new(out_emission.outputs["Vector"], group_outputs.inputs['OutColor'])
+        out_extra_emission = emission_group.nodes.new(type="ShaderNodeVectorMath")
+        out_extra_emission.operation = "SCALE"
+        emission_group.links.new(group_inputs.outputs["ExtraColor"], out_extra_emission.inputs["Vector"])
+        emission_group.links.new(extra_scale.outputs[0], out_extra_emission.inputs["Scale"])
+        
+        out_full_emission = emission_group.nodes.new(type="ShaderNodeVectorMath")
+        out_full_emission.operation = "ADD"
+        emission_group.links.new(out_emission.outputs["Vector"], out_full_emission.inputs[0])
+        emission_group.links.new(out_extra_emission.outputs["Vector"], out_full_emission.inputs[1])
+        
+        emission_group.links.new(out_full_emission.outputs["Vector"], group_outputs.inputs['OutColor'])
         return emission_group
     
 class Color_Normalize_Node(Generic_Node_Group):
