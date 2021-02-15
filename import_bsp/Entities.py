@@ -73,9 +73,14 @@ def ImportEntities(bsp, import_settings):
             n_ent += 1
         elif line != " ":
             key,value = parse(line)
-            key = key.strip(" \"\t\n\r")
+            key = key.strip(" \"\t\n\r").lower()
             value = value.replace("\"", "")
-            if (key == "modelscale_vec") or (key == "angles") or (key == "gridsize") or (key == "origin"):
+            vector_keys = ( "modelscale_vec",
+                            "angles",
+                            "gridsize",
+                            "origin",
+                            "modelangles")
+            if key in vector_keys:
                 value = value.strip(" \"\t\n\r")
                 value = value.split(" ")
                 #oh man.... Problem in t1_rail
@@ -325,13 +330,15 @@ def ImportEntities(bsp, import_settings):
                     ob.scale = scale
                 if "modelscale_vec" in ent:
                     ob.scale = ent["modelscale_vec"]
-                if "angle" in ent :
+                if "angle" in ent:
                     ob.rotation_euler = (0.0,0.0,radians(float(ent["angle"])))
                 if "angles" in ent:
                     ob.rotation_euler = (radians(ent["angles"][2]),radians(ent["angles"][0]),radians(ent["angles"][1]))
                     
             if model2_ob != None:
                 model2_ob.parent = ob
+                if "modelangles" in ent:
+                    model2_ob.rotation_euler = (radians(ent["modelangles"][2]),radians(ent["modelangles"][0]),radians(ent["modelangles"][1]))
                 model2_ob.hide_select = True
         ob = None
                 
