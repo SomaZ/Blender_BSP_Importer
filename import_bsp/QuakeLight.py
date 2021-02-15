@@ -122,7 +122,7 @@ def storeLighmaps(bsp, image, n_lightmaps, internal=True, hdr=False, flip=False)
     num_rows = bpy.context.scene.id_tech_3_lightmaps_per_row
     num_columns = bpy.context.scene.id_tech_3_lightmaps_per_column
     numPixels = lm_size[0] * lm_size[1] * color_components
-    lightmaps = [[0] * numPixels for i in range(n_lightmaps)]
+    lightmaps = [[float(0.0)] * numPixels for i in range(n_lightmaps)]
     
     for pixel in range(packed_width*packed_height):
         #pixel position in packed texture
@@ -182,16 +182,16 @@ def storeLighmaps(bsp, image, n_lightmaps, internal=True, hdr=False, flip=False)
         image_settings.file_format = file_type
         image_settings.color_depth = '32' if hdr else '8'
         image_settings.color_mode = 'RGB'
+        img_name = "lm_export_buffer"
         
         for lightmap in range(n_lightmaps):
-            img_name = "lm_"+str(lightmap).zfill(4)
             image = bpy.data.images.get(img_name)
             if image == None:
-                image = bpy.data.images.new("lm_"+str(lightmap).zfill(4), width = lm_size[0], height = lm_size[1], float_buffer=True)
-                image.filepath_raw = bsp_path + img_name + file_ext.lower()
+                image = bpy.data.images.new(img_name, width = lm_size[0], height = lm_size[1], float_buffer=True)
                 image.colorspace_settings.name = color_space
                 image.file_format = file_type
                 
+            image.filepath_raw = bsp_path + "lm_" + str(lightmap).zfill(4) + file_ext.lower()
             image.pixels = lightmaps[lightmap]
             image.save_render(image.filepath_raw, scene=bpy.context.scene)
     
@@ -691,9 +691,9 @@ def createLightGridTextures():
     
     width, height = textures[0].size
     
-    buffer_names = [    "$Vector",
+    buffer_names = (    "$Vector",
                         "$Direct",
-                        "$Ambient"]
+                        "$Ambient")
                         
     buffers = [bpy.data.images.get(img) for img in buffer_names]
     for i, buf in enumerate(buffers):
@@ -701,7 +701,7 @@ def createLightGridTextures():
             buffers[i] = bpy.data.images.new(buffer_names[i], width=width, height=height, float_buffer=True)
             buffers[i].use_fake_user = True
     
-    normals = [ Vector((-0.1876, 0.5773, 0.7947)),      # Grid_00
+    normals = ( Vector((-0.1876, 0.5773, 0.7947)),      # Grid_00
                 Vector((-0.6071, 0.0000, 0.7947)),      # Grid_01
                 Vector((-0.1876, -0.5773, 0.7947)),     # Grid_02
                 Vector((0.4911, -0.3568, 0.7947)),      # Grid_03
@@ -721,8 +721,8 @@ def createLightGridTextures():
                 Vector((0.1876, 0.5774, -0.7947)),      # Grid_17
                 Vector((-0.4911, 0.3568, -0.7947)),     # Grid_18
                 Vector((-0.4911, -0.3568, -0.7947))     # Grid_19
-                ]
-    pixels = [  textures[0].pixels[:],
+                )
+    pixels = (  textures[0].pixels[:],
                 textures[1].pixels[:],
                 textures[2].pixels[:],
                 textures[3].pixels[:],
@@ -742,7 +742,7 @@ def createLightGridTextures():
                 textures[17].pixels[:],
                 textures[18].pixels[:],
                 textures[19].pixels[:]
-                ]
+                )
                 
     ambient_pixels = []
     direct_pixels = []

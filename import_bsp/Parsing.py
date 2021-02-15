@@ -24,7 +24,8 @@ def parse(line):
     return [key, value]
 
 def guess_model_name(file_path):
-    split_name = file_path.split("/models/")
+    split_name = file_path.replace("\\", "/")
+    split_name = split_name.split("/models/")
     if len(split_name) > 1:
         model_name = "models/" + (split_name[len(split_name)-1])
     else:
