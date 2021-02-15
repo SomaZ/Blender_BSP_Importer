@@ -191,10 +191,51 @@ def clamp_shift_tc(tc, min_tc, max_tc, u_shift, v_shift, flip_v):
     if flip_v:
         return (u,1.0-v)
     return (u,v)
+
+def unwrap_vert_map(vert_id, vertmap_size, current_id):
+    id = int(floor(current_id/3.0))
+    even = id % 2 == 0
+    id += floor(id / 2)
+    current_x = id % (vertmap_size[0] - 1)
+    current_y = 2 * floor(id / (vertmap_size[0] - 1))
     
-def pack_lm_tc(tc, lightmap_id, lightmap_size, import_settings):
+    eps_u = 0.005
+    if even:
+        eps_small = 0.495
+        eps_big = 1.505
+        if vert_id == 0:
+            return ((current_x + eps_small + eps_u) / vertmap_size[0], (current_y + eps_big) / vertmap_size[1])
+        elif vert_id == 1:
+            return ((current_x + eps_small + eps_u) / vertmap_size[0], (current_y + eps_small) / vertmap_size[1])
+        elif vert_id == 2:
+            return ((current_x + eps_big + eps_u) / vertmap_size[0], (current_y + eps_small) / vertmap_size[1])
+        #special case for patch surfaces
+        elif vert_id == 3:
+            return ((current_x + eps_big + eps_u) / vertmap_size[0], (current_y + eps_big) / vertmap_size[1])
+        else:
+            return (0.0, 0.0)
+    else:
+        eps_small = 0.505
+        eps_big = 1.505
+        current_x += 1
+        if vert_id == 0:
+            return ((current_x - eps_small - eps_u) / vertmap_size[0], (current_y + eps_big) / vertmap_size[1])
+        elif vert_id == 1:
+            return ((current_x + eps_small + eps_u) / vertmap_size[0], (current_y + eps_big) / vertmap_size[1])
+        elif vert_id == 2:
+            return ((current_x + eps_small + eps_u) / vertmap_size[0], (current_y + 0.49) / vertmap_size[1])
+        #special case for patch surfaces
+        elif vert_id == 3:
+            return ((current_x - eps_small - eps_u) / vertmap_size[0], (current_y + 0.49) / vertmap_size[1])
+        else:
+            return (0.0, 0.0)
+    
+def pack_lm_tc(tc, lightmap_id, lightmap_size, import_settings, v_id = 0, current_v_id = None):
     if (lightmap_id < 0):
-        return clamp_shift_tc(tc, 0.0, 1.0, lightmap_id, 0.0, True)
+        if current_v_id != None:
+            return unwrap_vert_map(v_id, [2048.0,2048.0], current_v_id)
+        else:
+            return clamp_shift_tc(tc, 0.0, 1.0, lightmap_id, 0.0, True)
     
     packed_lm_size = import_settings.packed_lightmap_size
     num_columns = packed_lm_size[0] / lightmap_size[0]
@@ -505,14 +546,17 @@ class blender_model_data:
                 colors3 = []
                 colors4 = []
             alphas = []
-            for face_index in (index_0, index_1, index_2):
+            for v_id, face_index in enumerate([index_0, index_1, index_2]):
                 tcs.append(drawverts_lump[face_index].texcoord)
                 
                 #packed lightmap tcs
                 lm1_tcs.append(pack_lm_tc(  drawverts_lump[face_index].lm1coord, 
                                             face.lm_indexes[0], 
                                             model.lightmap_size, 
-                                            import_settings))
+                                            import_settings,
+                                            v_id, bsp.filled_vert_map_verts))
+                if face.lm_indexes[0] < 0:
+                    bsp.filled_vert_map_verts += 1
                 colors.append(drawverts_lump[face_index].color1)
                 
                 if model.lightmaps > 1:
@@ -746,11 +790,13 @@ class blender_model_data:
             model.face_tcs.append([patch[i1].texcoord, patch[i2].texcoord, patch[i3].texcoord, patch[i4].texcoord])
             
             model.face_lm1_tcs.append([
-            pack_lm_tc(patch[i1].lm1coord, face.lm_indexes[0], model.lightmap_size, import_settings),
-            pack_lm_tc(patch[i2].lm1coord, face.lm_indexes[0], model.lightmap_size, import_settings),
-            pack_lm_tc(patch[i3].lm1coord, face.lm_indexes[0], model.lightmap_size, import_settings),
-            pack_lm_tc(patch[i4].lm1coord, face.lm_indexes[0], model.lightmap_size, import_settings)
+            pack_lm_tc(patch[i1].lm1coord, face.lm_indexes[0], model.lightmap_size, import_settings, 0, bsp.filled_vert_map_verts),
+            pack_lm_tc(patch[i2].lm1coord, face.lm_indexes[0], model.lightmap_size, import_settings, 1, bsp.filled_vert_map_verts),
+            pack_lm_tc(patch[i3].lm1coord, face.lm_indexes[0], model.lightmap_size, import_settings, 2, bsp.filled_vert_map_verts),
+            pack_lm_tc(patch[i4].lm1coord, face.lm_indexes[0], model.lightmap_size, import_settings, 3, bsp.filled_vert_map_verts)
             ])
+            if face.lm_indexes[0] < 0:
+                bsp.filled_vert_map_verts+=6
             model.face_vert_color.append([patch[i1].color1, patch[i2].color1, patch[i3].color1, patch[i4].color1])
             
             if model.lightmaps > 1:

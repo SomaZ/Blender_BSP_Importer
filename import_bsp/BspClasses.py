@@ -634,6 +634,7 @@ class BSP:
                 self.lightstyles = format.lightstyles
                 self.use_lightgridarray = format.use_lightgridarray
                 self.bsp_path = file_name
+                self.filled_vert_map_verts = 0
                 
         if self.valid:
             for lump in self.lumps:
