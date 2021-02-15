@@ -1257,7 +1257,7 @@ class Prepare_Lightmap_Baking(bpy.types.Operator):
             if obj.type=="MESH":
                 obj.select_set(False)
                 mesh = obj.data
-                if mesh.name.startswith("*"):
+                if mesh.name.startswith("*") and obj.name in bpy.context.view_layer.objects:
                     bpy.context.view_layer.objects.active = obj
                     obj.select_set(True)
                     if "LightmapUV" in mesh.uv_layers:
@@ -1285,13 +1285,11 @@ class Store_Vertex_Colors(bpy.types.Operator):
     
     def execute(self, context):
         objs = [obj for obj in context.selected_objects if obj.type=="MESH"]
-        for obj in objs:
-            mesh = obj.data
-            #TODO: handle lightsyles
-            success, message = QuakeLight.bake_uv_to_vc(mesh, "LightmapUV", "Color")
-            if not success:
-                self.report({"ERROR"}, message)
-                return {'CANCELLED'}
+        #TODO: handle lightsyles
+        success, message = QuakeLight.bake_uv_to_vc(objs, "LightmapUV", "Color")
+        if not success:
+            self.report({"ERROR"}, message)
+            return {'CANCELLED'}
         
         return {'FINISHED'}
     

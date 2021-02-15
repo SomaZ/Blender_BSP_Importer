@@ -804,7 +804,7 @@ def createLightGridTextures():
 def clamp_uv(val):
     return max(0, min(val, 1))
         
-def bake_uv_to_vc(mesh, uv_layer, vertex_layer):
+def bake_uv_to_vc(objs, uv_layer, vertex_layer):
 
     lightmap = bpy.data.images.get("$lightmap_bake")
     vertexmap = bpy.data.images.get("$vertmap_bake")
@@ -820,33 +820,35 @@ def bake_uv_to_vc(mesh, uv_layer, vertex_layer):
 
     lm_local_pixels = list(lightmap.pixels[:])
     vt_local_pixels = list(vertexmap.pixels[:])
-
-    for face in mesh.polygons:
-        mat_name = mesh.materials[face.material_index].name
-        
-        if mat_name.endswith(".vertex"):
-            local_pixels = vt_local_pixels
-            width = vt_width
-            height = vt_height
-        else:
-            local_pixels = lm_local_pixels
-            width = lm_width
-            height = lm_height
-        
-        for vert_idx, loop_idx in zip(face.vertices, face.loop_indices):
-            uv_coords = mesh.uv_layers[uv_layer].data[loop_idx].uv
-            # Just sample the closest pixel to the UV coordinate
-            # An improved approach might be to implement
-            # bilinear sampling here instead
-            target = [round(clamp_uv(uv_coords.x) * (width - 1)), round(clamp_uv(uv_coords.y) * (height - 1))]
-            index = ( target[1] * width + target[0] ) * 4
+    
+    for obj in objs:
+        mesh = obj.data
+        for face in mesh.polygons:
+            mat_name = mesh.materials[face.material_index].name
             
-            color = colorNormalize([local_pixels[index], local_pixels[index + 1], local_pixels[index + 2]], 1.0)
+            if mat_name.endswith(".vertex"):
+                local_pixels = vt_local_pixels
+                width = vt_width
+                height = vt_height
+            else:
+                local_pixels = lm_local_pixels
+                width = lm_width
+                height = lm_height
+            
+            for vert_idx, loop_idx in zip(face.vertices, face.loop_indices):
+                uv_coords = mesh.uv_layers[uv_layer].data[loop_idx].uv
+                # Just sample the closest pixel to the UV coordinate
+                # An improved approach might be to implement
+                # bilinear sampling here instead
+                target = [round(clamp_uv(uv_coords.x) * (width - 1)), round(clamp_uv(uv_coords.y) * (height - 1))]
+                index = ( target[1] * width + target[0] ) * 4
+                
+                color = colorNormalize([local_pixels[index], local_pixels[index + 1], local_pixels[index + 2]], 1.0)
 
-            mesh.vertex_colors[vertex_layer].data[loop_idx].color[0] = color[0]
-            mesh.vertex_colors[vertex_layer].data[loop_idx].color[1] = color[1]
-            mesh.vertex_colors[vertex_layer].data[loop_idx].color[2] = color[2]
-            #mesh.vertex_colors[vertex_layer].data[loop_idx].color[3] = 1.0
+                mesh.vertex_colors[vertex_layer].data[loop_idx].color[0] = color[0]
+                mesh.vertex_colors[vertex_layer].data[loop_idx].color[1] = color[1]
+                mesh.vertex_colors[vertex_layer].data[loop_idx].color[2] = color[2]
+                #mesh.vertex_colors[vertex_layer].data[loop_idx].color[3] = 1.0
     return True, "Vertex colors succesfully added to mesh"
 
 def storeHDRVertexColors(bsp, objs):
