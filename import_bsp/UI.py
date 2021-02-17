@@ -152,6 +152,10 @@ class Import_ID3_MD3(bpy.types.Operator, ImportHelper):
 
     filepath : StringProperty(name="File Path", description="File path used for importing the BSP file", maxlen= 1024, default="")
     import_tags : BoolProperty(name="Import Tags", description="Whether to import the md3 tags or not", default = True )
+    preset : EnumProperty(name="Import preset", description="You can select wether you want to import a md3 per object or merged into one object.", default='MERGED', items=[
+            ('MERGED', "Merged", "Merges all the md3 content into one object", 0),
+            ('OBJECTS', "Objects", "Imports MD3 objects", 1),
+        ])
     def execute(self, context):
         addon_name = __name__.split('.')[0]
         self.prefs = context.preferences.addons[addon_name].preferences
@@ -170,7 +174,7 @@ class Import_ID3_MD3(bpy.types.Operator, ImportHelper):
         
         fixed_filepath = self.filepath.replace("\\", "/")
         
-        objs = MD3.ImportMD3Object(fixed_filepath, self.import_tags)
+        objs = MD3.ImportMD3Object(fixed_filepath, self.import_tags, self.preset == 'OBJECTS')
         QuakeShader.build_quake_shaders(import_settings, objs)
         
         return {'FINISHED'}
@@ -186,13 +190,17 @@ class Export_ID3_MD3(bpy.types.Operator, ExportHelper):
     individual : BoolProperty(name="Local space coordinates", description="Uses every models local space coordinates instead of the world space")
     start_frame : IntProperty(name="Start Frame", description="First frame to export", default = 0, min = 0)
     end_frame : IntProperty(name="End Frame", description="Last frame to export", default = 1, min = 1)
+    preset : EnumProperty(name="Surfaces", description="You can select wether you want to export per object or merged based on materials.", default='MATERIALS', items=[
+            ('MATERIALS', "From Materials", "Merges surfaces based on materials. Supports multi material objects", 0),
+            ('OBJECTS', "From Objects", "Simply export objects. There will be no optimization", 1),
+        ])
     def execute(self, context):
         objects = context.scene.objects
         if self.only_selected:
             objects = context.selected_objects
             
         frame_list = range(self.start_frame, max(self.end_frame, self.start_frame) + 1)
-        status = MD3.ExportMD3(self.filepath, objects, frame_list, self.individual)
+        status = MD3.ExportMD3(self.filepath, objects, frame_list, self.individual, self.preset == 'MATERIALS')
         if status[0]:
             return {'FINISHED'}
         else:

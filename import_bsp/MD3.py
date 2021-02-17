@@ -41,11 +41,12 @@ class vertex_map:
         self.mesh = mesh
 
 class surface_descriptor:
-    def __init__(self, material):
+    def __init__(self, material, obj_name):
         self.current_index = 0
         self.vertex_mapping = []
         self.triangles = []
         self.material = material
+        self.obj_name = obj_name
         
     #always make sure that you pack the same material in one surface descriptor!
     def add_triangle(self, in_obj_id, in_mesh, in_triangle):
@@ -100,7 +101,9 @@ class surface_descriptor:
         return True
 
 class surface_factory:
-    def __init__(self, objects, individual):
+    valid = False
+    status = "Unknown Error"
+    def __init__(self, objects, individual, material_merge = True):
         self.individual = individual
         surfaces = {}
         self.surface_descriptors = []
@@ -108,13 +111,21 @@ class surface_factory:
         self.objects = objects
         #create a list for every material
         for obj in objects:
-            if len(obj.data.materials) == 0:
-                surfaces["NoShader"] = [surface_descriptor("NoShader")]
-            for mat in obj.data.materials:
-                mat_name = mat.name.split(".")[0]
-                if mat_name not in surfaces:
-                    surfaces[mat_name] = [surface_descriptor(mat_name)]
-                    self.num_surfaces += 1
+            if material_merge:
+                if len(obj.data.materials) == 0:
+                    surfaces["NoShader"] = [surface_descriptor("NoShader", obj.name)]
+                for mat in obj.data.materials:
+                    mat_name = mat.name.split(".")[0]
+                    if mat_name not in surfaces:
+                        surfaces[mat_name] = [surface_descriptor(mat_name, obj.name)]
+                        self.num_surfaces += 1
+            else:
+                if len(obj.data.materials) == 0:
+                    mat_name = "NoShader"
+                else:
+                    mat_name = obj.data.materials[0].name.split(".")[0]
+                surfaces[obj.name] = [surface_descriptor(mat_name, obj.name)]
+                self.num_surfaces += 1
         
         for obj_id, obj in enumerate(objects):
             mesh = obj.to_mesh()
@@ -124,27 +135,41 @@ class surface_factory:
             mesh.calc_loop_triangles()
             
             for triangle in mesh.loop_triangles:
-                if len(mesh.materials) == 0:
-                    mat = "NoShader"
+                if material_merge:
+                    if len(mesh.materials) == 0:
+                        mat = "NoShader"
+                    else:
+                        mat = mesh.materials[triangle.material_index].name
+                        mat = mat.split(".")[0]
+                        
+                    if mat in surfaces:
+                        surface_descr = surfaces[mat][len(surfaces[mat])-1]
+                        succeeded = surface_descr.add_triangle(obj_id, mesh, triangle)
+                        if not succeeded:
+                            new_surface_descr = surface_descriptor(mat, obj.name)
+                            new_surface_descr.add_triangle(obj_id, mesh, triangle)
+                            surfaces[mat].append(new_surface_descr)
+                            self.num_surfaces += 1
+                            if self.num_surfaces > 32:
+                                self.valid = False
+                                self.status = "Exported object(s) exceed max surfaces. Reduce model complexity."
+                                return
+                            self.status = (self.status + "Added additional surface for " + mat + " because there were too many vertices or triangles\n")
                 else:
-                    mat = mesh.materials[triangle.material_index].name
-                    mat = mat.split(".")[0]
-                    
-                if mat in surfaces:
-                    surface_descr = surfaces[mat][len(surfaces[mat])-1]
+                    surface_descr = surfaces[obj.name][len(surfaces[obj.name])-1]
                     succeeded = surface_descr.add_triangle(obj_id, mesh, triangle)
+                    # TODO: Split model, add numeric suffix to model names
                     if not succeeded:
-                        new_surface_descr = surface_descriptor(mat)
-                        new_surface_descr.add_triangle(obj_id, mesh, triangle)
-                        surfaces[mat].append(new_surface_descr)
-                        self.num_surfaces += 1
-                        if self.num_surfaces > 32:
-                            return
-                        print("Added additional surface for " + mat + " because there were too many vertices or triangles")
+                        self.valid = False
+                        self.status = "Object exceeds vertex or indices limit: " + obj.name
+                        return
             
         for mat in surfaces:
             for i in range(len(surfaces[mat])):
                 self.surface_descriptors.append(surfaces[mat][i])
+                
+        self.valid = True
+        self.status = "Added object(s) successfully to surface factory."
         return
                 
     def clear_meshes(self):
@@ -269,7 +294,7 @@ class MD3:
         def from_surface_descriptor(cls, sd):
             array = [None for i in range(12)]
             array[0] = b'IDP3'
-            array[1] = bytes(fillName(sd.material, 64),"ascii")
+            array[1] = bytes(fillName(sd.obj_name, 64),"ascii")
             array[2] = 0 #flags
             array[3] = 1 #n_frames
             surface = cls(array)
@@ -516,7 +541,7 @@ class MD3:
             return new_bytes
             
             
-def ImportMD3(model_name, zoffset, import_tags):
+def ImportMD3(model_name, zoffset, import_tags, per_object_import = False):
     
     mesh = None
     skip = False
@@ -607,6 +632,7 @@ def ImportMD3(model_name, zoffset, import_tags):
         shaderindex = 0
         face_index_offset = 0
         face_material_index = []
+        meshes = []
         
         #vertex groups
         surfaces = {}
@@ -641,6 +667,42 @@ def ImportMD3(model_name, zoffset, import_tags):
             face_shaders.append(surface.data[0].shaders.data[0])
             shaderindex += 1
             face_index_offset += n_indices
+            
+            if per_object_import:
+                mesh = bpy.data.meshes.new( surface.data[0].name )
+                mesh.from_pydata(vertex_pos, [], face_indices)
+                
+                mat = bpy.data.materials.get(surface.data[0].shaders.data[0].name)
+                if (mat == None):
+                    mat = bpy.data.materials.new(name=surface.data[0].shaders.data[0].name)
+                mesh.materials.append(mat)
+                mesh.polygons.foreach_set("material_index", face_material_index)
+                for poly in mesh.polygons:
+                    poly.use_smooth = True
+                    
+                mesh.vertices.foreach_set("normal", unpack_list(vertex_nor))
+                mesh.normals_split_custom_set_from_vertices(vertex_nor)
+                
+                mesh.uv_layers.new(do_init=False,name="UVMap")
+                mesh.uv_layers["UVMap"].data.foreach_set("uv", unpack_list(face_tcs))
+                
+                mesh.use_auto_smooth = True
+                            
+                mesh.update()
+                meshes.append(mesh)
+                
+                vertex_pos = []
+                vertex_nor = []
+                vertex_tc = []
+                face_indices = []
+                face_tcs = []
+                face_shaders = []
+                shaderindex = 0
+                face_index_offset = 0
+                face_material_index = []
+                
+        if per_object_import:
+            return meshes
         
         guessed_name = guess_model_name( model_name.lower() ).lower()
         if guessed_name.endswith(".md3"):
@@ -677,15 +739,19 @@ def ImportMD3(model_name, zoffset, import_tags):
         mesh.update()
             
     file.close
-    return mesh
+    return [mesh]
 
-def ImportMD3Object(file_path, import_tags):
-    mesh = ImportMD3(file_path, 0, import_tags)
-    ob = bpy.data.objects.new(mesh.name, mesh)
-    bpy.context.collection.objects.link(ob)
-    return [ob]
+def ImportMD3Object(file_path, import_tags, per_object_import = False):
+    meshes = ImportMD3(file_path, 0, import_tags, per_object_import)
+    objs = []
+    for mesh in meshes:
+        if mesh != None:
+            ob = bpy.data.objects.new(mesh.name, mesh)
+            bpy.context.collection.objects.link(ob)
+            objs.append(ob)
+    return objs
     
-def ExportMD3(file_path, objects, frame_list, individual):
+def ExportMD3(file_path, objects, frame_list, individual, material_merge = True):
     return_status = [False, "Unknown Error"]
     model_name = guess_model_name(file_path)
     
@@ -698,12 +764,25 @@ def ExportMD3(file_path, objects, frame_list, individual):
     eval_mesh_objects = [obj for obj in eval_objects if obj.type=="MESH"]
     eval_tag_objects = [obj for obj in eval_objects if obj.type=="EMPTY"]
     
-    sf = surface_factory(eval_mesh_objects, individual)
+    sf = surface_factory(eval_mesh_objects, individual, material_merge)
+    if not sf.valid:
+        return_status[1] = sf.status
+        return return_status
+    
     surface_descriptors = sf.surface_descriptors
     
     if sf.num_surfaces > 32:
         return_status[1] = "Can't export this model because it's too detailed"
         return return_status
+    
+    #check for vertices lying outside of md3 position range
+    for surf in surface_descriptors:
+        for map in surf.vertex_mapping:
+            mesh = map.mesh
+            print(mesh.vertices[map.vert].co)
+            if max(mesh.vertices[map.vert].co) >= 512.0 or min(mesh.vertices[map.vert].co) < -512.0:
+                return_status[1] = "Model exceeds MD3 bounds of 511.99 to -512.0 units per axis. Reposition model to fit into the bounds or scale down the model."
+                return return_status
     
     surface_bytes = bytearray()
     frame_bytes = MD3.frame.from_objects(eval_mesh_objects, individual).to_bytes()
@@ -776,8 +855,8 @@ def ExportMD3(file_path, objects, frame_list, individual):
     try:
         f.write(md3_bytes)
     except:
-        return_status[1] = "Writing the file went wrong"
-        return return_status    
+        return_status[1] = "Couldn't write file"
+        return return_status
     f.close()
     
     return (True, "Everything is fine")
