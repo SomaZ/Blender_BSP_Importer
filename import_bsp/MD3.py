@@ -467,8 +467,8 @@ class MD3:
             array.append(bytes(fillName("test", 16),"ascii"))
             frame = cls(array)
             
-            frame.min_bounds = objects[0].data.vertices[0].co
-            frame.max_bounds = objects[0].data.vertices[0].co
+            frame.min_bounds = [-512, -512, -512]
+            frame.max_bounds = [512, 512, 512]
             
             for obj in objects:
                 mesh = obj.data.copy()
@@ -779,7 +779,6 @@ def ExportMD3(file_path, objects, frame_list, individual, material_merge = True)
     for surf in surface_descriptors:
         for map in surf.vertex_mapping:
             mesh = map.mesh
-            print(mesh.vertices[map.vert].co)
             if max(mesh.vertices[map.vert].co) >= 512.0 or min(mesh.vertices[map.vert].co) < -512.0:
                 return_status[1] = "Model exceeds MD3 bounds of 511.99 to -512.0 units per axis. Reposition model to fit into the bounds or scale down the model."
                 return return_status

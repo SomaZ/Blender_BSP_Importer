@@ -307,6 +307,9 @@ class quake_shader:
             
             if split_name[1].endswith("brush"):
                 shader.is_brush = True
+                
+            if split_name[1].endswith("nodraw"):
+                shader.is_system_shader = True
         
         node_output = shader.nodes.new(type='ShaderNodeOutputMaterial')
         node_output.name = "Output"

@@ -581,7 +581,9 @@ class blender_model_data:
             model.face_vertices.append(indices)
             
             material_suffix = ""
-            if face.lm_indexes[0] < 0:
+            if shaders_lump[face.texture].flags == 0x00200000:
+                material_suffix = ".nodraw"
+            elif face.lm_indexes[0] < 0:
                 material_suffix = ".vertex"
             else:
                 model.vertex_groups["Lightmapped"].add(indices[0])
@@ -769,7 +771,9 @@ class blender_model_data:
                 model.current_index +=1
                 
             material_suffix = ""
-            if face.lm_indexes[0] < 0:
+            if shaders_lump[face.texture].flags == 0x00200000:
+                material_suffix = ".nodraw"
+            elif face.lm_indexes[0] < 0:
                 material_suffix = ".vertex"
             else:
                 model.vertex_groups["Lightmapped"].add(indicesPoints2[i1])
