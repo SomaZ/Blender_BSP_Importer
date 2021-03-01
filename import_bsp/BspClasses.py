@@ -748,13 +748,6 @@ def ImportBSP(import_settings):
             mesh.vertices.foreach_set("normal", unpack_list(model.normals))
             mesh.normals_split_custom_set_from_vertices(model.normals)
             
-            if bpy.app.version >= (2, 91, 0):
-                mesh.attributes.new(name="BSP_VERT_INDEX", type='INT', domain='VERTEX')
-                mesh.attributes["BSP_VERT_INDEX"].data.foreach_set("value", model.vertex_bsp_indices)
-            else:
-                mesh.vertex_layers_int.new(name="BSP_VERT_INDEX")
-                mesh.vertex_layers_int["BSP_VERT_INDEX"].data.foreach_set("value", model.vertex_bsp_indices)
-
             mesh.uv_layers.new(do_init=False,name="UVMap")
             mesh.uv_layers["UVMap"].data.foreach_set("uv", unpack_list(unpack_list(model.face_tcs)))
 
@@ -785,7 +778,17 @@ def ImportBSP(import_settings):
                 
             #ugly hack to get the vertex alpha.....
             mesh.vertex_colors.new(name = "Alpha")
-            mesh.vertex_colors["Alpha"].data.foreach_set("color", unpack_list(unpack_list(model.face_vert_alpha)))    
+            mesh.vertex_colors["Alpha"].data.foreach_set("color", unpack_list(unpack_list(model.face_vert_alpha)))
+            
+            if bpy.app.version >= (2, 92, 0):
+                mesh.attributes.new(name="BSP_VERT_INDEX", type='INT', domain='POINT')
+                mesh.attributes["BSP_VERT_INDEX"].data.foreach_set("value", model.vertex_bsp_indices)
+            elif bpy.app.version >= (2, 91, 0):
+                mesh.attributes.new(name="BSP_VERT_INDEX", type='INT', domain='VERTEX')
+                mesh.attributes["BSP_VERT_INDEX"].data.foreach_set("value", model.vertex_bsp_indices)
+            else:
+                mesh.vertex_layers_int.new(name="BSP_VERT_INDEX")
+                mesh.vertex_layers_int["BSP_VERT_INDEX"].data.foreach_set("value", model.vertex_bsp_indices)
             
             mesh.use_auto_smooth = True
             mesh.update()
