@@ -268,7 +268,8 @@ def unpack_lm_tc(tc, lightmap_size, packed_lm_size):
     
     quadrant_scale = [lightmap_size[0] / packed_lm_size[0], lightmap_size[1] / packed_lm_size[1]]
     
-    tc = (tc[0] - (quadrant_x * quadrant_scale[0])) * scale[0], (tc[1] - (quadrant_y * quadrant_scale[1])) * scale[1]
+    tc[0] = (tc[0] - (quadrant_x * quadrant_scale[0])) * scale[0]
+    tc[1] = (tc[1] - (quadrant_y * quadrant_scale[1])) * scale[1]
     return lightmap_id
 
 #appends a 3 component byte color to a pixel list
