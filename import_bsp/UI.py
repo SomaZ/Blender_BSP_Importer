@@ -1262,8 +1262,8 @@ class Prepare_Lightmap_Baking(bpy.types.Operator):
     def execute(self, context):
         bpy.context.view_layer.objects.active = None
         for obj in bpy.context.scene.objects:
+            obj.select_set(False)
             if obj.type=="MESH":
-                obj.select_set(False)
                 mesh = obj.data
                 if mesh.name.startswith("*") and obj.name in bpy.context.view_layer.objects:
                     bpy.context.view_layer.objects.active = obj
