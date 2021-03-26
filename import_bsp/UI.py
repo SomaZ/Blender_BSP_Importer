@@ -1325,6 +1325,39 @@ class Convert_Baked_Lightgrid(bpy.types.Operator):
         
         return {'FINISHED'}
     
+def pack_image(name):
+    image = bpy.data.images.get(name)
+    if image != None:
+        if image.packed_file == None or image.is_dirty:
+            image.pack()
+        return True
+    return False
+    
+class Pack_Lightmap_Images(bpy.types.Operator):
+    bl_idname = "q3.pack_lightmap_images"
+    bl_label = "Pack Lightmap Images"
+    bl_options = {"INTERNAL","REGISTER"}
+    
+    def execute(self, context):
+        images = ["$lightmap_bake", "$vertmap_bake"]
+        for image in images:
+            if not pack_image(image):
+                error = "Couldn't pack " + image + " image"
+                self.report({"ERROR"}, error)
+        return {'FINISHED'}
+
+class Pack_Lightgrid_Images(bpy.types.Operator):
+    bl_idname = "q3.pack_lightgrid_images"
+    bl_label = "Pack Lightgrid Images"
+    bl_options = {"INTERNAL","REGISTER"}
+    
+    def execute(self, context):
+        images = ["$Vector", "$Ambient", "$Direct"]
+        for image in images:
+            if not pack_image(image):
+                error = "Couldn't pack " + image + " image"
+                self.report({"ERROR"}, error)
+        return {'FINISHED'}
     
 class Q3_PT_EntExportPanel(bpy.types.Panel):
     bl_name = "Q3_PT_ent_panel"
@@ -1348,7 +1381,6 @@ class Q3_PT_EntExportPanel(bpy.types.Panel):
         #op = layout.operator("q3.export_map", text="Export .map") is it any different to .ent?
         op = layout.operator("q3.patch_bsp_ents", text="Patch .bsp Entities")
         
-        
 class Q3_PT_DataExportPanel(bpy.types.Panel):
     bl_idname = "Q3_PT_data_export_panel"
     bl_label = "Patch BSP Data"
@@ -1359,39 +1391,32 @@ class Q3_PT_DataExportPanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         layout.label(text = "1. Prepare your scene for baking")
-        layout.label(text = "Additionally, you need to unwrap all vertex lit")
-        layout.label(text = "surfaces else you can't bake vertex colors properly.")
         layout.separator()
-        layout.label(text = '2. Press "Prepare Lightmap Baking"')
-        op = layout.operator("q3.prepare_lm_baking", text="Prepare Lightmap Baking")
+        op = layout.operator("q3.prepare_lm_baking", text="2. Prepare Lightmap Baking")
         layout.separator()
         layout.label(text = '3. Keep the selection of objects and bake light:')
         layout.label(text = 'Bake Type: Diffuse only Direct and Indirect')
         layout.label(text = 'Margin: 1 px')
-        layout.label(text = 'Make sure you save or pack these images afterwards')
-        layout.label(text = '$lightmap_bake and $vertmap_bake')
         layout.separator()
-        layout.label(text = '4. Denoise $lightmap_bake and $vertmap_bake (optional)')
+        op = layout.operator("q3.pack_lightmap_images", text="4. Pack and Save Baked Images")
+        layout.separator()
+        layout.label(text = '5. Denoise $lightmap_bake and $vertmap_bake (optional)')
         layout.label(text = 'Make sure your Images you want to be baked are named')
         layout.label(text = '$lightmap_bake and $vertmap_bake')
         layout.separator()
-        layout.label(text = "5. Copy colors from the images to the vertex colors")
-        op = layout.operator("q3.store_vertex_colors", text="Images to Vertex Colors")
+        op = layout.operator("q3.store_vertex_colors", text="6. Copy Images to Vertex Colors")
         layout.separator()
-        layout.label(text = "6. Create the LightGrid object with:")
-        op = layout.operator("q3.create_lightgrid", text="Create Lightgrid")
+        op = layout.operator("q3.create_lightgrid", text="7. Create Lightgrid")
         layout.separator()
-        layout.label(text = "7. Select the LightGrid object and bake light:")
+        layout.label(text = "8. Select the LightGrid object and bake light:")
         layout.label(text = 'Bake Type: Diffuse only Direct and Indirect')
         layout.label(text = 'Margin: 0 px!')
         layout.separator()
-        layout.label(text = "8. Create the lightgrid images that can be stored")
-        layout.label(text = "in the BSP file:")
-        op = layout.operator("q3.convert_baked_lightgrid", text="Convert Baked Lightgrid")
-        layout.label(text = 'Make sure you save or pack these images afterwards')
-        layout.label(text = '$Direct, $Vector, $Ambient')
+        op = layout.operator("q3.convert_baked_lightgrid", text="9. Convert Baked Lightgrid")
         layout.separator()
-        op = layout.operator("q3.patch_bsp_data", text="Patch .bsp Data")
+        op = layout.operator("q3.pack_lightgrid_images", text="10. Pack and Save Converted Images")
+        layout.separator()
+        op = layout.operator("q3.patch_bsp_data", text="11. Patch .bsp Data")
 
 class Reload_preview_shader(bpy.types.Operator):
     """Reload Shaders"""
