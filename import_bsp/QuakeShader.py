@@ -1152,6 +1152,10 @@ class quake_shader:
                 shader.links.new(node_BSDF.outputs[0], eevee_out.inputs[0])
                 
             shader.mat.blend_method = "BLEND"
+        else:
+            shader.links.new(node_BSDF.outputs[0], shader.nodes["Output"].inputs[0])
+            shader.mat.shadow_method = 'NONE'
+            shader.mat.blend_method = "BLEND"
     
     def finish_shader(shader, base_path, import_settings):
         if shader.is_brush:
