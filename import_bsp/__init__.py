@@ -19,7 +19,7 @@
 bl_info = {
     "name": "Import id Tech 3 BSP",
     "author": "SomaZ",
-	"version": (0, 9, 5),
+	"version": (0, 9, 6),
     "description": "Importer for id Tech 3 BSP maps",
     "blender": (2, 83, 0),
     "location": "File > Import-Export",

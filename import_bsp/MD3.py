@@ -548,7 +548,8 @@ def ImportMD3(model_name, zoffset, import_tags, per_object_import = False):
     try:
         file = open(model_name, "rb")
     except:
-        return mesh
+        print("Couldn't open " + model_name + " \n")
+        return [mesh]
 
     if (not skip):
         magic_nr = file.read(4)

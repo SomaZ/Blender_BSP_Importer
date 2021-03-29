@@ -85,9 +85,9 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
 
     filepath : StringProperty(name="File Path", description="File path used for importing the BSP file", maxlen= 1024, default="")
     preset : EnumProperty(name="Import preset", description="You can select wether you want to import a bsp for editing, rendering, or previewing.", default='PREVIEW', items=[
-            ('PREVIEW', "Preview", "Trys to build eevee shaders, imports all misc_model_statics when available", 0),
-            ('EDITING', "Entity Editing", "Trys to build eevee shaders, imports all entitys", 1),
-            ('RENDERING', "Rendering", "Trys to build fitting cycles shaders, only imports visable enities", 2),
+            ('PREVIEW', "Preview", "Builds eevee shaders, imports all misc_model_statics when available", 0),
+            ('EDITING', "Entity Editing", "Builds eevee shaders, imports all entitys, enables entitiy modding", 1),
+            ('RENDERING', "Rendering", "Builds cycles shaders, only imports visable enities", 2),
             ('BRUSHES', "Shadow Brushes", "Imports Brushes as shadow casters", 3),
         ])
     subdivisions : IntProperty(name="Patch subdivisions", description="How often a patch is subdivided at import", default=2)
@@ -1143,7 +1143,6 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                 vertices.add(bsp_vert_index)
                                 bsp_vert = bsp.lumps["drawverts"].data[bsp_vert_index]
                                 if lightmapped_vertices[bsp_vert_index] or not patch_lighting_type:
-                                    
                                     lightmap_id.append(BspGeneric.get_lm_id(bsp_vert.lm1coord, lightmap_size, packed_lightmap_size))
                                     if bsp.lightmaps == 4:
                                         lightmap_id2.append(BspGeneric.get_lm_id(bsp_vert.lm2coord, lightmap_size, packed_lightmap_size))
@@ -1188,6 +1187,7 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                         break
                                 
                             if patch_lighting_type or bsp_surf.lm_indexes[0] >= 0:
+                                #bsp_surf.type = 1 #force using lightmaps for surfaces with less than 64 verticies
                                 bsp_surf.lm_indexes[0] = lightmap_id[0]
                                 if bsp.lightmaps == 4:
                                     bsp_surf.lm_indexes[1] = lightmap_id2[0]
