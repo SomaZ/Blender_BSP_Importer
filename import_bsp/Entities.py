@@ -2,7 +2,7 @@ import bpy
 import imp
 import json
 from enum import Enum
-from math import radians, pow, sqrt, atan
+from math import radians, degrees, pow, sqrt, atan
 
 if "MD3" in locals():
     imp.reload( MD3 )
@@ -354,3 +354,35 @@ def ImportEntities(bsp, import_settings):
                         s.clip_start = 4
                         s.clip_end = clip_end                        
     return obj_list
+
+misc_model_format = """{{
+    "classname" "misc_model"
+    "origin" "{origin[0]:.3f} {origin[1]:.3f} {origin[2]:.3f}"
+    "angles" "{rotation[0]:.3f} {rotation[1]:.3f} {rotation[2]:.3f}"
+    "modelscale_vec" "{scale[0]:.3f} {scale[1]:.3f} {scale[2]:.3f}"
+    "model" "{model_name}"
+    "spawnflags" "{spawn_flags}"
+}}
+"""
+
+def make_misc_model_entity_from_object(obj, model_name):
+    origin = [0.0, 0.0, 0.0]
+    scale = [1.0, 1.0, 1.0]
+    rotation = [0.0, 0.0, 0.0]
+    spawnflags = 0
+    if obj.type == 'MESH':
+        if obj.location[0].is_integer() and obj.location[1].is_integer() and obj.location[2].is_integer():
+            origin = (int(obj.location[0]), int(obj.location[1]), int(obj.location[2]))
+        else:
+            origin = (obj.location[0], obj.location[1], obj.location[2])
+        
+        rotation = (degrees(obj.rotation_euler[2]), degrees(obj.rotation_euler[0]), degrees(obj.rotation_euler[1]))
+        scale = (obj.scale[0], obj.scale[1], obj.scale[2])
+        if "spawnflags" in obj:
+            spawnflags = int(obj["spawnflags"])
+        return misc_model_format.format(origin=origin, rotation=rotation, scale=scale, model_name=model_name, spawn_flags=spawnflags)
+    else:
+        return None
+    
+def get_empty_wordspawn():
+    return '{\n\t"classname" "worldspawn"\n}\n'

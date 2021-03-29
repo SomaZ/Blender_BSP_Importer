@@ -1417,6 +1417,8 @@ class Q3_PT_DataExportPanel(bpy.types.Panel):
         op = layout.operator("q3.pack_lightgrid_images", text="10. Pack and Save Converted Images")
         layout.separator()
         op = layout.operator("q3.patch_bsp_data", text="11. Patch .bsp Data")
+        layout.separator()
+        op = layout.operator("q3.export_misc_model_map", text="Export misc_model .map")
 
 class Reload_preview_shader(bpy.types.Operator):
     """Reload Shaders"""
@@ -1501,4 +1503,50 @@ class Reload_render_shader(bpy.types.Operator):
                 modifier.strength = 0.1
                 modifier.name = "polygonOffset"
             
-        return {'FINISHED'} 
+        return {'FINISHED'}
+
+class Export_Misc_Model_Map(bpy.types.Operator, ExportHelper):
+    bl_idname = "q3.export_misc_model_map"
+    bl_label = "Export ID3 engine misc_model map (.map)"
+    filename_ext = ".map"
+    filter_glob : StringProperty(default="*.map", options={'HIDDEN'})
+
+    filepath : StringProperty(name="File Path", description="File path used for importing the BSP file", maxlen= 1024, default="")
+    only_selected : BoolProperty(name = "Export only selected", description="Exports only selected Objects", default=False)
+    def execute(self, context):
+        objects = context.scene.objects
+        if self.only_selected:
+            objects = context.selected_objects
+            
+        entity_str = Entities.get_empty_wordspawn()
+        
+        base_path, map_name = guess_base_path_and_mapname_from_map(self.filepath)
+        if not base_path or not map_name:
+            self.report({"ERROR"}, "Could not guess base path")
+            return {'CANCELLED'}
+        
+        md3_names = set()
+        #build list of models to export
+        for obj in objects:
+            if not "model" in obj and obj.type == 'MESH':
+                model_name = "models/map_objects/" + map_name + "/" + obj.data.name + ".md3"
+                export_path = base_path + model_name
+                if not export_path in md3_names:
+                    os.makedirs(base_path + "models/map_objects/" + map_name + "/", exist_ok=True)
+                    status = MD3.ExportMD3(export_path, [obj], [0], True, True)
+                    if not status[0]:
+                        self.report({"ERROR"}, status[1])
+                        return {'CANCELLED'}
+                    else:
+                        md3_names.add(export_path)
+                        
+                entity_str += Entities.make_misc_model_entity_from_object(obj, model_name)
+            
+        f = open(self.filepath, "w")
+        try:
+            f.write(entity_str)
+        except:
+            print("Failed writing: " + self.filepath)
+        f.close()
+        
+        return {'FINISHED'}

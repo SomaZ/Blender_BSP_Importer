@@ -720,6 +720,8 @@ def ImportBSP(import_settings):
         import_settings.log.append("took:" + str(perf_counter() - time_start) + " seconds")
         
         vertex_groups = {}
+        import_settings.log.append("----import models----")
+        time_start = perf_counter()
         
         for model_index in range(int(bsp.lumps["models"].count)):
             model = BspGeneric.blender_model_data()
@@ -794,11 +796,12 @@ def ImportBSP(import_settings):
             mesh.update()
             mesh.validate()
             
+        import_settings.log.append("took:" + str(perf_counter() - time_start) + " seconds")
+        
         #import entities and get object list
         import_settings.log.append("----ImportEntities----")
         time_start = perf_counter()
         ent_list = Entities.ImportEntities(bsp, import_settings)
-        
         import_settings.log.append("took:" + str(perf_counter() - time_start) + " seconds")
             
         #import lightgrid after entitys because the grid size can change

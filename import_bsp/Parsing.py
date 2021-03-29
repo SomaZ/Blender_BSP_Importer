@@ -33,6 +33,20 @@ def guess_model_name(file_path):
         model_name = "models/" + split_name[len(split_name)-1]
     return model_name
 
+def guess_base_path_and_mapname_from_map(file_path):
+    split_name = file_path.replace("\\", "/")
+    split_name = split_name.split("/maps/")
+    if len(split_name) > 1:
+        base_path = split_name[0] + "/"
+        map_name = split_name[1]
+    else:
+        return None, None
+        
+    if map_name.endswith(".map"):
+        map_name = map_name[:-len(".map")]
+        
+    return base_path, map_name
+
 def fillName(string, length):
     new_str = string[:length]
     while len(new_str) < length:
