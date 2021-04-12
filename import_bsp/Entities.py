@@ -149,7 +149,7 @@ def ImportEntities(bsp, import_settings):
             else:
                 #TODO: Fix reimporting model when only the zoffset is different
                 #check if model already loaded, make a copy of it, replace all the material names with new zoffset
-                me = MD3.ImportMD3(import_settings.base_path + model_name, zoffset, False)[0]
+                me = MD3.ImportMD3(import_settings.base_path + model_name, zoffset)[0]
                 if me == None:
                     print("Couldn't load " + import_settings.base_path + model_name)
                 else:

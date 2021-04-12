@@ -289,6 +289,11 @@ class MD3:
             self.tcs =          md3_array(self.tc,[self.off_tcs, self.n_verts])
             self.shaders =      md3_array(self.shader,[self.off_shaders, self.n_shaders])
             self.triangles =    md3_array(self.triangle,[self.off_tris, self.n_tris])
+            
+        def get_frame_vertex_lump(self, frame):
+            if frame > self.n_frames:
+                return None
+            return md3_array(self.vertex,[self.off_verts + frame*self.n_verts*self.vertex.size, self.n_verts])
         
         @classmethod
         def from_surface_descriptor(cls, sd):
@@ -541,7 +546,7 @@ class MD3:
             return new_bytes
             
             
-def ImportMD3(model_name, zoffset, import_tags, per_object_import = False):
+def ImportMD3(model_name, zoffset, import_tags, animations = None, per_object_import = False):
     
     mesh = None
     skip = False
@@ -594,6 +599,26 @@ def ImportMD3(model_name, zoffset, import_tags, per_object_import = False):
             surface.data[0].shaders.readFrom(file,ofsSurfaces)
             surface.data[0].triangles.readFrom(file,ofsSurfaces)
             
+            if animations != None:
+                if per_object_import:
+                    animations.append([[0, surface.data[0].vertices.data]])
+                else:
+                    if len(animations) == 0:
+                        animations.append([[0, surface.data[0].vertices.data]])
+                    else:
+                        animations[0][0][1] += surface.data[0].vertices.data
+                
+                for frame in range(1, surface.data[0].n_frames):
+                    current_frame_vertices = surface.data[0].get_frame_vertex_lump(frame)
+                    current_frame_vertices.readFrom(file,ofsSurfaces)
+                    if per_object_import:
+                        animations[surface_lump].append([frame, current_frame_vertices.data])
+                    else:
+                        if frame >= len(animations[0]):
+                            animations[0].append([frame, current_frame_vertices.data])
+                        else:
+                            animations[0][frame][1] += current_frame_vertices.data
+            
             surface_lumps.append(surface)
             ofsSurfaces += surface.data[0].off_end
             
@@ -606,10 +631,9 @@ def ImportMD3(model_name, zoffset, import_tags, per_object_import = False):
             print("\t\tLocal Origin: " + str(frame.local_origin))
             print("\t\tRadius: " + str(frame.radius))
             
-        
         if import_tags:
             tag_lump = lump(md3.tag)
-            tag_lump.set_offset_count([ofsTags, numTags])
+            tag_lump.set_offset_count([ofsTags, numTags*numFrames])
             tag_lump.readFrom(file)
             
             for tag in range(numTags):
@@ -623,6 +647,20 @@ def ImportMD3(model_name, zoffset, import_tags, per_object_import = False):
                 matrix.transpose()
                 matrix.translation = tag_lump.data[tag].origin
                 tag_obj.matrix_world = matrix
+                if animations != None:
+                    tag_obj.keyframe_insert('location', frame=0, group='LocRot')
+                    tag_obj.keyframe_insert('rotation_quaternion', frame=0, group='LocRot')
+                    for frame in range(1, numFrames):
+                        tag_id = tag + frame * numTags
+                        matrix = Matrix.Identity(4)
+                        matrix[0] = [*tag_lump.data[tag_id].axis_1, 0.0]
+                        matrix[1] = [*tag_lump.data[tag_id].axis_2, 0.0]
+                        matrix[2] = [*tag_lump.data[tag_id].axis_3, 0.0]
+                        matrix.transpose()
+                        matrix.translation = tag_lump.data[tag_id].origin
+                        tag_obj.matrix_world = matrix
+                        tag_obj.keyframe_insert('location', frame=frame, group='LocRot')
+                        tag_obj.keyframe_insert('rotation_quaternion', frame=frame, group='LocRot')
             
         vertex_pos = []
         vertex_nor = []
@@ -743,12 +781,30 @@ def ImportMD3(model_name, zoffset, import_tags, per_object_import = False):
     return [mesh]
 
 def ImportMD3Object(file_path, import_tags, per_object_import = False):
-    meshes = ImportMD3(file_path, 0, import_tags, per_object_import)
+    animations = []
+    meshes = ImportMD3(file_path, 0, import_tags, animations, per_object_import)
     objs = []
-    for mesh in meshes:
+    for id, mesh in enumerate(meshes):
         if mesh != None:
             ob = bpy.data.objects.new(mesh.name, mesh)
             bpy.context.collection.objects.link(ob)
+            if animations[id] != None:
+                ob.shape_key_add(name=str(0))
+                ob.data.shape_keys.use_relative = False
+                ob.data.shape_keys.eval_time = 0
+                ob.data.shape_keys.keyframe_insert('eval_time', frame=0)
+                #Set vertex data
+                for frame in range(1, len(animations[id])):
+                    shape_key = ob.shape_key_add(name=str(frame))
+                    vertices = shape_key.data
+                    for index, vertex in enumerate(vertices):
+                        vertex.co = animations[id][frame][1][index].position
+                #Set animation data
+                for frame in range(1, len(animations[id])):
+                    #Why blender, why 10?
+                    ob.data.shape_keys.eval_time = animations[id][frame][0] * 10.0
+                    ob.data.shape_keys.keyframe_insert('eval_time', frame=animations[id][frame][0])
+                    
             objs.append(ob)
     return objs
     

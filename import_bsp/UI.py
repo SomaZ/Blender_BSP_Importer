@@ -491,7 +491,7 @@ def update_model(self, context):
         if model_name.startswith("models/"):
             model_name = import_settings.base_path + model_name
             
-        mesh = MD3.ImportMD3(model_name + ".md3", zoffset, False)[0]
+        mesh = MD3.ImportMD3(model_name + ".md3", zoffset)[0]
         if mesh != None:
             obj.data = mesh
             obj.q3_dynamic_props.model = obj.data.name
@@ -558,7 +558,7 @@ def update_model2(self, context):
         if model_name.startswith("models/"):
             model_name = import_settings.base_path + model_name
             
-        mesh = MD3.ImportMD3(model_name + ".md3", zoffset, False)[0]
+        mesh = MD3.ImportMD3(model_name + ".md3", zoffset)[0]
         if mesh != None:
             children[0].data = mesh
             obj.q3_dynamic_props.model2 = children[0].data.name
