@@ -533,9 +533,9 @@ def update_model2(self, context):
         if children[0].data.name == obj.q3_dynamic_props.model2.split(".")[0]:
             return
     else:
-        ob.parent = make_empty_bsp_model(context)
-        ob.hide_select = True
-        children = [ob]
+        obj.parent = make_empty_bsp_model(context)
+        obj.hide_select = True
+        children = [obj]
     
     if mesh_name in bpy.data.meshes:
         children[0].data = bpy.data.meshes[mesh_name]

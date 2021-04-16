@@ -546,7 +546,7 @@ class MD3:
             return new_bytes
             
             
-def ImportMD3(model_name, zoffset, import_tags, animations = None, per_object_import = False):
+def ImportMD3(model_name, zoffset, import_tags = False, animations = None, per_object_import = False):
     
     mesh = None
     skip = False
