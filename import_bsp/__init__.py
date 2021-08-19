@@ -63,7 +63,9 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
 	
 classes = ( UI.Import_ID3_BSP,
             UI.Import_ID3_MD3,
+            UI.Import_ID3_TIK,
             UI.Export_ID3_MD3,
+            UI.Export_ID3_TIK,
             UI.Q3_PT_ShaderPanel,
             UI.Q3_PT_EntityPanel,
             UI.Reload_preview_shader,
@@ -97,7 +99,9 @@ def register():
         bpy.utils.register_class(cls)
     bpy.types.TOPBAR_MT_file_import.append(UI.menu_func_bsp_import)
     bpy.types.TOPBAR_MT_file_import.append(UI.menu_func_md3_import)
+    bpy.types.TOPBAR_MT_file_import.append(UI.menu_func_tik_import)
     bpy.types.TOPBAR_MT_file_export.append(UI.menu_func_md3_export)
+    bpy.types.TOPBAR_MT_file_export.append(UI.menu_func_tik_export)
     
     bpy.types.Object.q3_dynamic_props = bpy.props.PointerProperty(type=UI.DynamicProperties)
     bpy.types.Scene.id_tech_3_settings = bpy.props.PointerProperty(type=UI.SceneProperties)
@@ -114,7 +118,9 @@ def unregister():
     
     bpy.types.TOPBAR_MT_file_import.remove(UI.menu_func_bsp_import)
     bpy.types.TOPBAR_MT_file_import.remove(UI.menu_func_md3_import)
+    bpy.types.TOPBAR_MT_file_import.remove(UI.menu_func_tik_import)
     bpy.types.TOPBAR_MT_file_export.remove(UI.menu_func_md3_export)
+    bpy.types.TOPBAR_MT_file_export.remove(UI.menu_func_tik_export)
     
     for cls in classes:
         bpy.utils.unregister_class(cls)

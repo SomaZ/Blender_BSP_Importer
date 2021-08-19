@@ -2,13 +2,19 @@ import bpy
 import imp
 import json
 from enum import Enum
-from math import radians, pow, sqrt, atan
+from math import radians, pow, sqrt, atan, degrees
+from mathutils import Vector
 
 if "MD3" in locals():
     imp.reload( MD3 )
 else:
     from . import MD3
     
+if "TAN" in locals():
+    imp.reload( TAN )
+else:
+    from . import TAN    
+
 if "Parsing" in locals():
     imp.reload( Parsing )
 else:
@@ -34,7 +40,7 @@ def save_gamepack(dict, name):
 
 Dict = get_gamepack("JKA_SP.json")
 
-misc_model_md3s = ["misc_model_static", "misc_model_breakable"]
+misc_model_md3s = ["misc_model_static", "misc_model_breakable", "script_model"]
 
 type_matching = {   "STRING"    : "NONE",
                     "COLOR"     : "COLOR_GAMMA",
@@ -43,20 +49,23 @@ type_matching = {   "STRING"    : "NONE",
                     "FLOAT"     : "NONE",
 }
 
-def ImportEntities(bsp, import_settings):        
-    clip_end = 12000
-    
+def ImportEntities(bsp, import_settings):
     lump = bsp.lumps["entities"]
     stringdata = []
     for i in lump.data:
         stringdata.append(i.char.decode("ascii"))
     
     entities_string = "".join(stringdata)
+    return ImportEntitiesText(entities_string, import_settings, bsp)
+    
+def ImportEntitiesText(entities_string, import_settings, bsp = None, only_lights = False):
+    clip_end = 12000
     ent = {}
     entities = []
     n_ent = 0
     mesh = None
-    map_objects = ["*"+str(n) for n in range(int(bsp.lumps["models"].count))]
+    num_models = int(bsp.lumps["models"].count) if bsp != None else 0
+    map_objects = ["*"+str(n) for n in range(num_models)]
     md3_objects = []
     obj_list = []
     ob = None
@@ -107,138 +116,162 @@ def ImportEntities(bsp, import_settings):
         if "distancecull" in ent:
             clip_end = float(ent["distancecull"].replace('"',''))
         
-        if "gridsize" in ent:
+        if "gridsize" in ent and bsp != None:
             bsp.lightgrid_size = ent["gridsize"]
             bsp.lightgrid_inverse_size = [  1.0 / float(bsp.lightgrid_size[0]),
                                             1.0 / float(bsp.lightgrid_size[1]),
                                             1.0 / float(bsp.lightgrid_size[2]) ]
                                             
-        #force class model to be loaded
-        if ent["classname"].lower() in Dict:
-            if "Model" in Dict[ent["classname"].lower()]:
-                if Dict[ent["classname"].lower()]["Model"].lower() != "box":
-                    ent["model"] = Dict[ent["classname"].lower()]["Model"].lower()
-        
-        if n_ent == 0:
+        if n_ent == 0 and not only_lights:
             me = bpy.data.meshes["*0"]
             ob = bpy.data.objects.new("Entity " + (str(n_ent).zfill(4)), me)
             obj_list.append(ob)
-        
-        elif "model" in ent and ent["classname"].lower() != "misc_model":
-            if "model2" in ent:
-                model_name = ent["model2"]
-            else:
-                model_name = ent["model"]
+        else:
+            if "model" in ent and ent["model"].startswith("*") and not "classname" in ent:
+                ent["classname"] = "enviro_dynamic"
             
-            zoffset = 0  
-            if ent["classname"] in misc_model_md3s:
-                # FIXME: what if the model is not md3?
-                mesh_name = model_name[:-len(".md3")]
-                # FIXME: make zoffset driver based: create material hash, link zoffset prop to value in material
-                if "zoffset" in ent:
-                    zoffset = int(ent["zoffset"].replace('"','')) + 1
-                    mesh_name = mesh_name+".z"+str(zoffset)
-            else:
-                mesh_name = model_name
-                
-            if mesh_name in map_objects:
-                if mesh_name not in bpy.data.meshes:
-                    continue
-                me = bpy.data.meshes[mesh_name]
-                ob = bpy.data.objects.new(mesh_name, me)
-            else:
-                #TODO: Fix reimporting model when only the zoffset is different
-                #check if model already loaded, make a copy of it, replace all the material names with new zoffset
-                me = MD3.ImportMD3(import_settings.base_path + model_name, zoffset)[0]
-                if me == None:
-                    print("Couldn't load " + import_settings.base_path + model_name)
+            if not "classname" in ent:
+                print("Entity not parsed: " + str(ent))
+                continue
+            
+            has_runtime_model = ent["classname"].lower() in misc_model_md3s or ent["classname"].lower().startswith("enviro")
+            if "make_static" in ent and ent["make_static"] == "1":
+                has_runtime_model = False
+            
+            if ent["classname"].lower() in Dict:
+                if "Model" in Dict[ent["classname"].lower()]:
+                    if Dict[ent["classname"].lower()]["Model"].lower() != "box":
+                        ent["model"] = Dict[ent["classname"].lower()]["Model"].lower()
+            
+            if ("model" in ent and 
+                    has_runtime_model and not 
+                    only_lights):
+                if "model2" in ent:
+                    model_name = ent["model2"]
                 else:
-                    map_objects.append(mesh_name)
-                    md3_objects.append(mesh_name)
-                    me.name = mesh_name
-                    
-                if me == None:
-                    if (mesh == None):
-                        ent_object = bpy.ops.mesh.primitive_cube_add(size = 32.0, location=([0,0,0]))
-                        ent_object = bpy.context.object
-                        ent_object.name = "EntityBox"
-                        mesh = ent_object.data
-                        mesh.name = "EntityMesh"
-                        bpy.data.objects.remove(ent_object, do_unlink=True)
-                    me = mesh
-                    
-                ob = bpy.data.objects.new(mesh_name, me)
+                    model_name = ent["model"]
                 
-            obj_list.append(ob)
-            
-        elif import_settings.preset == "RENDERING":
-            if "classname" in ent:
-                #import lights
-                if ent["classname"].lower() == "light":
-                    name = "Entity " + (str(n_ent).zfill(4))
-                    intensity = 300
-                    color = [1.0, 1.0, 1.0]
-                    vector = [0.0, 0.0, -1.0]
-                    angle = 3.141592/2.0
-                    if "light" in ent:
-                        intensity = float(ent["light"])
-                    if "_color" in ent:
-                        color_str = ent["_color"].split()
-                        color = [float(color_str[0]), float(color_str[1]), float(color_str[2])]
+                zoffset = 0  
+                if ent["classname"] in misc_model_md3s:
+                    # FIXME: what if the model is not md3?
+                    mesh_name = model_name[:-len(".md3")]
+                    # FIXME: make zoffset driver based: create material hash, link zoffset prop to value in material
+                    if "zoffset" in ent:
+                        zoffset = int(ent["zoffset"].replace('"','')) + 1
+                        mesh_name = mesh_name+".z"+str(zoffset)
+                else:
+                    mesh_name = model_name
+                    
+                if mesh_name in map_objects:
+                    if mesh_name not in bpy.data.meshes:
+                        continue
+                    me = bpy.data.meshes[mesh_name]
+                    ob = bpy.data.objects.new(mesh_name, me)
+                else:
+                    #TODO: Fix reimporting model when only the zoffset is different
+                    #check if model already loaded, make a copy of it, replace all the material names with new zoffset
+                    if model_name.endswith(".tik"):
+                        try:
+                            me = TAN.ImportTIK(import_settings.base_path + "models/" + model_name, zoffset)
+                        except:
+                            try:
+                                me = TAN.ImportTIK(import_settings.base_path + model_name, zoffset)
+                            except:
+                                print("Couldn't load " + import_settings.base_path + model_name)
+                    else:   
+                        me = MD3.ImportMD3(import_settings.base_path + model_name, zoffset)
                         
-                    if "target" in ent:
-                        if ent["target"] in targets:
-                            if entities[targets[ent["target"]]]:
-                                target_ent = entities[targets[ent["target"]]]
-                                if "origin" in ent and "origin" in target_ent:
-                                    vector[0] = ent["origin"][0] - target_ent["origin"][0]
-                                    vector[1] = ent["origin"][1] - target_ent["origin"][1]
-                                    vector[2] = ent["origin"][2] - target_ent["origin"][2]
-                                    length = sqrt((vector[0]*vector[0])+(vector[1]*vector[1])+(vector[2]*vector[2]))
-                                    radius = 64.0
-                                    if "radius" in ent:
-                                        radius = float(ent["radius"])
-                                    angle = 2*(atan(radius/length))
-                        if "_sun" in ent:
-                            if ent["_sun"] == "1":
-                                light = QuakeLight.add_light(name, "SUN", intensity, color, vector, radians(1.5))
+                    if me == None:
+                        print("Couldn't load " + import_settings.base_path + model_name)
+                    else:
+                        me = me[0]
+                        map_objects.append(mesh_name)
+                        md3_objects.append(mesh_name)
+                        if me != None:
+                            me.name = mesh_name
+                        
+                    if me == None:
+                        if (mesh == None):
+                            ent_object = bpy.ops.mesh.primitive_cube_add(size = 32.0, location=([0,0,0]))
+                            ent_object = bpy.context.object
+                            ent_object.name = "EntityBox"
+                            mesh = ent_object.data
+                            mesh.name = "EntityMesh"
+                            bpy.data.objects.remove(ent_object, do_unlink=True)
+                        me = mesh
+                        
+                    ob = bpy.data.objects.new(mesh_name, me)
+                    
+                obj_list.append(ob)
+                
+            elif import_settings.preset == "RENDERING" or only_lights:
+                if "classname" in ent:
+                    #import lights
+                    if ent["classname"].lower() == "light":
+                        name = "Entity " + (str(n_ent).zfill(4))
+                        intensity = 300
+                        color = [1.0, 1.0, 1.0]
+                        vector = [0.0, 0.0, -1.0]
+                        angle = 3.141592/2.0
+                        if "light" in ent:
+                            intensity = float(ent["light"])
+                        if "_color" in ent:
+                            color_str = ent["_color"].split()
+                            color = [float(color_str[0]), float(color_str[1]), float(color_str[2])]
+                            
+                        if "target" in ent:
+                            if ent["target"] in targets:
+                                if entities[targets[ent["target"]]]:
+                                    target_ent = entities[targets[ent["target"]]]
+                                    if "origin" in ent and "origin" in target_ent:
+                                        vector[0] = ent["origin"][0] - target_ent["origin"][0]
+                                        vector[1] = ent["origin"][1] - target_ent["origin"][1]
+                                        vector[2] = ent["origin"][2] - target_ent["origin"][2]
+                                        length = sqrt((vector[0]*vector[0])+(vector[1]*vector[1])+(vector[2]*vector[2]))
+                                        radius = 64.0
+                                        if "radius" in ent:
+                                            radius = float(ent["radius"])
+                                        angle = 2*(atan(radius/length))
+                            if "_sun" in ent:
+                                if ent["_sun"] == "1":
+                                    light = QuakeLight.add_light(name, "SUN", intensity, color, vector, radians(1.5))
+                                else:
+                                    light = QuakeLight.add_light(name, "SPOT", intensity, color, vector, angle)
                             else:
                                 light = QuakeLight.add_light(name, "SPOT", intensity, color, vector, angle)
                         else:
-                            light = QuakeLight.add_light(name, "SPOT", intensity, color, vector, angle)
-                    else:
-                        light = QuakeLight.add_light(name, "POINT", intensity, color, vector, angle)
-                    
-                    if "origin" in ent:
-                        light.location = ent["origin"]
-            
-        elif import_settings.preset == "EDITING":
-            if (mesh == None):
-                ent_object = bpy.ops.mesh.primitive_cube_add(size = 32.0, location=([0,0,0]))
-                ent_object = bpy.context.object
-                ent_object.name = "EntityBox"
-                mesh = ent_object.data
-                mesh.name = "EntityMesh"
-                bpy.data.objects.remove(ent_object, do_unlink=True)
-                
-            ob = bpy.data.objects.new(name="Entity " + (str(n_ent).zfill(4)), object_data=mesh.copy())
-            if "classname" in ent:
-                if ent["classname"].lower() in Dict:
-                    material_name = str(Dict[ent["classname"].lower()]["Color"])
-                    if material_name != None:
-                        mat = bpy.data.materials.get(material_name)
-                        if (mat == None):
-                            mat = bpy.data.materials.new(name=material_name)
-                            mat.use_nodes = True
-                            node = mat.node_tree.nodes["Principled BSDF"]
-                            color_str = material_name.replace("[", "").replace("]", "").split(",")
-                            color = pow(float(color_str[0]), 1.0 / 2.2), pow(float(color_str[1]), 1.0 / 2.2), pow(float(color_str[2]), 1.0 / 2.2), 1.0
-                            node.inputs["Base Color"].default_value = color
-                            node.inputs["Emission"].default_value = color
-                        ob.data.materials.append(mat)
+                            light = QuakeLight.add_light(name, "POINT", intensity, color, vector, angle)
                         
-                else:            
-                    obj_list.append(ob)
+                        if "origin" in ent:
+                            light.location = ent["origin"]
+                
+            elif import_settings.preset == "EDITING":
+                if (mesh == None):
+                    ent_object = bpy.ops.mesh.primitive_cube_add(size = 32.0, location=([0,0,0]))
+                    ent_object = bpy.context.object
+                    ent_object.name = "EntityBox"
+                    mesh = ent_object.data
+                    mesh.name = "EntityMesh"
+                    bpy.data.objects.remove(ent_object, do_unlink=True)
+                    
+                ob = bpy.data.objects.new(name="Entity " + (str(n_ent).zfill(4)), object_data=mesh.copy())
+                if "classname" in ent:
+                    if ent["classname"].lower() in Dict:
+                        material_name = str(Dict[ent["classname"].lower()]["Color"])
+                        if material_name != None:
+                            mat = bpy.data.materials.get(material_name)
+                            if (mat == None):
+                                mat = bpy.data.materials.new(name=material_name)
+                                mat.use_nodes = True
+                                node = mat.node_tree.nodes["Principled BSDF"]
+                                color_str = material_name.replace("[", "").replace("]", "").split(",")
+                                color = pow(float(color_str[0]), 1.0 / 2.2), pow(float(color_str[1]), 1.0 / 2.2), pow(float(color_str[2]), 1.0 / 2.2), 1.0
+                                node.inputs["Base Color"].default_value = color
+                                node.inputs["Emission"].default_value = color
+                            ob.data.materials.append(mat)
+                            
+                    else:            
+                        obj_list.append(ob)
         
         if ob != None:
             model2_ob = None
@@ -354,3 +387,67 @@ def ImportEntities(bsp, import_settings):
                         s.clip_start = 4
                         s.clip_end = clip_end                        
     return obj_list
+
+def GetEntityStringFromScene():
+    filtered_keys = ["_rna_ui", "q3_dynamic_props"]
+    worldspawn = []
+    entities = []
+    for obj in bpy.context.scene.objects:
+        if obj.type == 'MESH' and "classname" in obj:
+            zero_origin = Vector([0.0, 0.0, 0.0])
+            if obj.location != zero_origin:
+                if obj.location[0].is_integer() and obj.location[1].is_integer() and obj.location[2].is_integer():
+                    obj["origin"] = [int(obj.location[0]), int(obj.location[1]), int(obj.location[2])]
+                else:
+                    obj["origin"] = [obj.location[0], obj.location[1], obj.location[2]]
+                    
+            if degrees(obj.rotation_euler[0]) == 0.0 and degrees(obj.rotation_euler[1]) == 0.0:
+                if degrees(obj.rotation_euler[2]) != 0.0:
+                    obj["angle"] = degrees(obj.rotation_euler[2])
+                    obj["angles"] = ""
+                else:
+                    obj["angle"] = ""
+                    obj["angles"] = ""
+            else:
+                obj["angles"] = (degrees(obj.rotation_euler[2]), degrees(obj.rotation_euler[0]), degrees(obj.rotation_euler[1]))
+                obj["angle"] = ""
+            
+            if obj.scale[0] != 1.0 or obj.scale[1] != 1.0 or obj.scale[2] != 1.0:
+                if obj.scale[0] == obj.scale[1] == obj.scale[2]:
+                    obj["modelscale"] = obj.scale[0]
+                    obj["modelscale_vec"] = ""
+                else:
+                    obj["modelscale_vec"] = (obj.scale[0], obj.scale[1], obj.scale[2])
+                    obj["modelscale"] = ""
+            else:
+                obj["modelscale"] = ""
+                obj["modelscale_vec"] = ""
+            
+            lines = []
+            lines.append("{")
+            for key in obj.keys():
+                if key.lower() not in filtered_keys and not hasattr(obj[key], "to_dict"):
+                    string = ""
+                    string = str(obj[key])
+                    #meeeeh nooooo, find better way!
+                    if string.startswith("<bpy id property array"):
+                        string = ""
+                        for i in obj[key].to_list():
+                            string += str(i) + " "
+                    if str(key) != "" and string.strip() != "":
+                        lines.append("\"" + str(key) + "\" \"" + string.strip() + "\"")
+            lines.append("}")
+            
+            if obj["classname"] == "worldspawn":
+                worldspawn = lines
+            else:
+                entities.append(lines)
+    
+    out_str = ""
+    for line in worldspawn:
+        out_str += line + "\n"
+    for entity in entities:
+        for line in entity:
+            out_str += line + "\n"
+    out_str += "\0"
+    return out_str

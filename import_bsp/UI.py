@@ -35,6 +35,11 @@ if "MD3" in locals():
 else:
     from . import MD3
     
+if "TAN" in locals():
+    imp.reload( TAN )
+else:
+    from . import TAN
+    
 if "QuakeShader" in locals():
     imp.reload( QuakeShader )
 else:
@@ -103,7 +108,7 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
         addon_name = __name__.split('.')[0]
         self.prefs = context.preferences.addons[addon_name].preferences
         
-        fixed_base_path = self.prefs.base_path
+        fixed_base_path = self.prefs.base_path.replace("\\", "/")
         if not fixed_base_path.endswith('/'):
             fixed_base_path = fixed_base_path + '/'
         
@@ -118,7 +123,7 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
         import_settings.mixed_lightmaps = False
         import_settings.log = []
         import_settings.log.append("----import_scene.ja_bsp----")
-        import_settings.filepath = self.filepath
+        import_settings.filepath = self.filepath.replace("\\", "/")
         
         #scene information
         context.scene.id_tech_3_importer_preset = self.preset
@@ -136,8 +141,10 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
         
         if self.properties.preset == "BRUSHES":
             context.scene.cycles.transparent_max_bounces = 32
-        if self.properties.preset == "RENDERING":
+        elif self.properties.preset == "RENDERING":
             context.scene.render.engine = "CYCLES"
+        else:
+            context.scene.render.engine = "BLENDER_EEVEE"
             
         #for line in import_settings.log:
         #    print(line)
@@ -150,7 +157,7 @@ class Import_ID3_MD3(bpy.types.Operator, ImportHelper):
     filename_ext = ".md3"
     filter_glob : StringProperty(default="*.md3", options={'HIDDEN'})
 
-    filepath : StringProperty(name="File Path", description="File path used for importing the BSP file", maxlen= 1024, default="")
+    filepath : StringProperty(name="File Path", description="File path used for importing the MD3 file", maxlen= 1024, default="")
     import_tags : BoolProperty(name="Import Tags", description="Whether to import the md3 tags or not", default = True )
     preset : EnumProperty(name="Import preset", description="You can select wether you want to import a md3 per object or merged into one object.", default='MERGED', items=[
             ('MERGED', "Merged", "Merges all the md3 content into one object", 0),
@@ -160,7 +167,7 @@ class Import_ID3_MD3(bpy.types.Operator, ImportHelper):
         addon_name = __name__.split('.')[0]
         self.prefs = context.preferences.addons[addon_name].preferences
         
-        fixed_base_path = self.prefs.base_path
+        fixed_base_path = self.prefs.base_path.replace("\\", "/")
         if not fixed_base_path.endswith('/'):
             fixed_base_path = fixed_base_path + '/'
         
@@ -170,11 +177,42 @@ class Import_ID3_MD3(bpy.types.Operator, ImportHelper):
         import_settings.shader_dirs = "shaders/", "scripts/"
         import_settings.bsp_name = ""
         import_settings.preset = "PREVIEW"
-        import_settings.filepath = self.filepath
+        import_settings.filepath = self.filepath.replace("\\", "/")
         
-        fixed_filepath = self.filepath.replace("\\", "/")
+        objs = MD3.ImportMD3Object(import_settings.filepath, self.import_tags, self.preset == 'OBJECTS')
+        QuakeShader.build_quake_shaders(import_settings, objs)
         
-        objs = MD3.ImportMD3Object(fixed_filepath, self.import_tags, self.preset == 'OBJECTS')
+        return {'FINISHED'}
+    
+class Import_ID3_TIK(bpy.types.Operator, ImportHelper):
+    bl_idname = "import_scene.id3_tik"
+    bl_label = "Import ID3 engine TIKK (.tik)"
+    filename_ext = ".tik"
+    filter_glob : StringProperty(default="*.tik", options={'HIDDEN'})
+
+    filepath : StringProperty(name="File Path", description="File path used for importing the TIK file", maxlen= 1024, default="")
+    import_tags : BoolProperty(name="Import Tags", description="Whether to import the Tikk tags or not", default = True )
+    preset : EnumProperty(name="Import preset", description="You can select wether you want to import a tik per object or merged into one object.", default='MERGED', items=[
+            ('MERGED', "Merged", "Merges all the tik content into one object", 0),
+            ('OBJECTS', "Objects", "Imports tik objects", 1),
+        ])
+    def execute(self, context):
+        addon_name = __name__.split('.')[0]
+        self.prefs = context.preferences.addons[addon_name].preferences
+        
+        fixed_base_path = self.prefs.base_path.replace("\\", "/")
+        if not fixed_base_path.endswith('/'):
+            fixed_base_path = fixed_base_path + '/'
+        
+        #trace some things like paths and lightmap size
+        import_settings = ImportSettings()
+        import_settings.base_path = fixed_base_path
+        import_settings.shader_dirs = "shaders/", "scripts/"
+        import_settings.bsp_name = ""
+        import_settings.preset = "PREVIEW"
+        import_settings.filepath = self.filepath.replace("\\", "/")
+        
+        objs = TAN.ImportTIKObject(import_settings.filepath, self.import_tags, self.preset == 'OBJECTS')
         QuakeShader.build_quake_shaders(import_settings, objs)
         
         return {'FINISHED'}
@@ -185,11 +223,11 @@ class Export_ID3_MD3(bpy.types.Operator, ExportHelper):
     filename_ext = ".md3"
     filter_glob : StringProperty(default="*.md3", options={'HIDDEN'})
 
-    filepath : StringProperty(name="File Path", description="File path used for importing the BSP file", maxlen= 1024, default="")
+    filepath : StringProperty(name="File Path", description="File path used for exporting the MD3 file", maxlen= 1024, default="")
     only_selected : BoolProperty(name = "Export only selected", description="Exports only selected Objects", default=False)
     individual : BoolProperty(name="Local space coordinates", description="Uses every models local space coordinates instead of the world space")
     start_frame : IntProperty(name="Start Frame", description="First frame to export", default = 0, min = 0)
-    end_frame : IntProperty(name="End Frame", description="Last frame to export", default = 1, min = 1)
+    end_frame : IntProperty(name="End Frame", description="Last frame to export", default = 0, min = 0)
     preset : EnumProperty(name="Surfaces", description="You can select wether you want to export per object or merged based on materials.", default='MATERIALS', items=[
             ('MATERIALS', "From Materials", "Merges surfaces based on materials. Supports multi material objects", 0),
             ('OBJECTS', "From Objects", "Simply export objects. There will be no optimization", 1),
@@ -200,7 +238,54 @@ class Export_ID3_MD3(bpy.types.Operator, ExportHelper):
             objects = context.selected_objects
             
         frame_list = range(self.start_frame, max(self.end_frame, self.start_frame) + 1)
-        status = MD3.ExportMD3(self.filepath, objects, frame_list, self.individual, self.preset == 'MATERIALS')
+        status = MD3.ExportMD3(self.filepath.replace("\\","/"), objects, frame_list, self.individual, self.preset == 'MATERIALS')
+        if status[0]:
+            return {'FINISHED'}
+        else:
+            self.report({"ERROR"}, status[1])
+            return {'CANCELLED'}
+        
+class Export_ID3_TIK(bpy.types.Operator, ExportHelper):
+    bl_idname = "export_scene.id3_tik"
+    bl_label = "Export ID3 engine TIK (.tik)"
+    filename_ext = ".tik"
+    filter_glob : StringProperty(default="*.tik", options={'HIDDEN'})
+
+    filepath : StringProperty(name="File Path", description="File path used for exporting the TIK file", maxlen= 1024, default="")
+    only_selected : BoolProperty(name = "Export only selected", description="Exports only selected Objects", default=False)
+    individual : BoolProperty(name="Local space coordinates", description="Uses every models local space coordinates instead of the world space")
+    start_frame : IntProperty(name="Start Frame", description="First frame to export", default = 0, min = 0)
+    end_frame : IntProperty(name="End Frame", description="Last frame to export", default = 0, min = 0)
+    type : EnumProperty(name="Surface Type", description="You can select wether you want to export a tan model or skb model", default='TAN', items=[
+            ('TAN', ".tan", "Exports a tan model", 0),
+            ('SKB', ".skb", "Exports a skb model", 1),
+        ])
+    preset : EnumProperty(name="Surfaces", description="You can select wether you want to export per object or merged based on materials.", default='MATERIALS', items=[
+            ('MATERIALS', "From Materials", "Merges surfaces based on materials. Supports multi material objects", 0),
+            ('OBJECTS', "From Objects", "Simply export objects. There will be no optimization", 1),
+        ])
+    sub_path : bpy.props.StringProperty(
+        name="Tan path",
+        description="Where to save the tan file relative to the TIK file",
+        default="",
+        maxlen=2048,
+        )
+    def execute(self, context):
+        objects = context.scene.objects
+        if self.only_selected:
+            objects = context.selected_objects
+            
+        fixed_subpath = self.sub_path.replace("\\","/")
+        if not fixed_subpath.endswith("/"):
+            fixed_subpath += "/"
+        if not fixed_subpath.startswith("/"):
+            fixed_subpath = "/" + fixed_subpath
+            
+        frame_list = range(self.start_frame, max(self.end_frame, self.start_frame) + 1)
+        if self.type == "TAN":
+            status = TAN.ExportTIK_TAN(self.filepath.replace("\\","/"), fixed_subpath, objects, frame_list, self.individual, self.preset == 'MATERIALS')
+        else:
+            self.report({"ERROR"}, "SKB exporting is not supported yet. :(")
         if status[0]:
             return {'FINISHED'}
         else:
@@ -213,8 +298,14 @@ def menu_func_bsp_import(self, context):
 def menu_func_md3_import(self, context):
     self.layout.operator(Import_ID3_MD3.bl_idname, text="ID3 MD3 (.md3)")
     
+def menu_func_tik_import(self, context):
+    self.layout.operator(Import_ID3_TIK.bl_idname, text="ID3 TIK (.tik)")
+    
 def menu_func_md3_export(self, context):
     self.layout.operator(Export_ID3_MD3.bl_idname, text="ID3 MD3 (.md3)")
+    
+def menu_func_tik_export(self, context):
+    self.layout.operator(Export_ID3_TIK.bl_idname, text="ID3 TIK (.tik)")
     
 flag_mapping = {
     1 : "b1",
@@ -867,51 +958,6 @@ class Q3_PT_EditEntityPanel(bpy.types.Panel):
                 layout.separator()
                 layout.operator("q3.update_entity_definition").name = classname
                 
-                
-def GetEntityStringFromScene():
-    filtered_keys = ["_rna_ui", "q3_dynamic_props"]
-    worldspawn = []
-    entities = []
-    for obj in bpy.context.scene.objects:
-        if obj.type == 'MESH' and "classname" in obj:
-            
-            #only update position for now, I have no idea how rotations are handled ingame
-            zero_origin = Vector([0.0, 0.0, 0.0])
-            if obj.location != zero_origin:
-                if obj.location[0].is_integer() and obj.location[1].is_integer() and obj.location[2].is_integer():
-                    obj["origin"] = [int(obj.location[0]), int(obj.location[1]), int(obj.location[2])]
-                else:
-                    obj["origin"] = [obj.location[0], obj.location[1], obj.location[2]]
-            
-            lines = []
-            lines.append("{")
-            for key in obj.keys():
-                if key.lower() not in filtered_keys and not hasattr(obj[key], "to_dict"):
-                    string = ""
-                    string = str(obj[key])
-                    #meeeeh nooooo, find better way!
-                    if string.startswith("<bpy id property array"):
-                        string = ""
-                        for i in obj[key].to_list():
-                            string += str(i) + " "
-                    lines.append("\"" + str(key) + "\" \"" + string.strip() + "\"")
-            lines.append("}")
-            
-            if obj["classname"] == "worldspawn":
-                worldspawn = lines
-            else:
-                entities.append(lines)
-    
-    out_str = ""
-    for line in worldspawn:
-        out_str += line + "\n"
-    for entity in entities:
-        for line in entity:
-            out_str += line + "\n"
-    out_str += "\0"
-    return out_str
-
-
 class ExportEnt(bpy.types.Operator, ExportHelper):
     bl_idname = "q3.export_ent"
     bl_label = "Export to .ent file"
@@ -921,7 +967,7 @@ class ExportEnt(bpy.types.Operator, ExportHelper):
     filepath : bpy.props.StringProperty(name="File", description="Where to write the .ent file", maxlen= 1024, default="")
     
     def execute(self, context):
-        entities = GetEntityStringFromScene()
+        entities = Entities.GetEntityStringFromScene()
         
         f = open(self.filepath, "w")
         try:
@@ -944,8 +990,8 @@ class PatchBspEntities(bpy.types.Operator, ExportHelper):
         
         bsp = BspClasses.BSP(self.filepath)
         
-        #exchange entity lump
-        entities = GetEntityStringFromScene()
+        #swap entity lump
+        entities = Entities.GetEntityStringFromScene()
         bsp.lumps["entities"].data = [BspClasses.entity([bytes(c, "ascii")]) for c in entities]
         
         #write bsp
@@ -987,9 +1033,28 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
     patch_external_flip : BoolProperty(name="Flip External Lightmaps", default = False)
     patch_empty_lm_lump : BoolProperty(name="Remove Lightmaps in BSP", default = False)
     patch_hdr : BoolProperty(name="HDR Lighting Export", default = False)
+    lightmap_gamma : EnumProperty(name="Lightmap Gamma", description="Lightmap Gamma Correction", default='sRGB', items=[
+            ('sRGB', "sRGB", "sRGB", 0),
+            ('2.0', "2.0", "2.0", 1),
+            ('4.0', "4.0", "4.0", 2)
+            ])
+    overbright_bits : EnumProperty(name="Overbright Bits", description="Overbright Bits", default='0', items=[
+            ('0', "0", "0", 0),
+            ('1', "1", "1", 1),
+            ('2', "2", "2", 2)
+            ])
+    compensate : BoolProperty(name="Compensate", default = False)
     
     #TODO Shader lump + shader assignments
     def execute(self, context):
+        class light_settings:
+            pass
+        light_settings = light_settings()
+        light_settings.gamma = self.lightmap_gamma
+        light_settings.overbright_bits = int(self.overbright_bits)
+        light_settings.compensate = self.compensate
+        light_settings.hdr = self.patch_hdr
+        
         bsp = BspClasses.BSP(self.filepath)
         
         if self.only_selected:
@@ -1142,7 +1207,7 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                             if patched_vertices[bsp_vert_index]:
                                 vertices.add(bsp_vert_index)
                                 bsp_vert = bsp.lumps["drawverts"].data[bsp_vert_index]
-                                if lightmapped_vertices[bsp_vert_index] or not patch_lighting_type:
+                                if lightmapped_vertices[bsp_vert_index] and patch_lighting_type:
                                     lightmap_id.append(BspGeneric.get_lm_id(bsp_vert.lm1coord, lightmap_size, packed_lightmap_size))
                                     if bsp.lightmaps == 4:
                                         lightmap_id2.append(BspGeneric.get_lm_id(bsp_vert.lm2coord, lightmap_size, packed_lightmap_size))
@@ -1155,7 +1220,7 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                 if patched_vertices[bsp_vert_index]:
                                     vertices.add(bsp_vert_index)
                                     bsp_vert = bsp.lumps["drawverts"].data[bsp_vert_index]
-                                    if lightmapped_vertices[bsp_vert_index] or not patch_lighting_type:
+                                    if lightmapped_vertices[bsp_vert_index] and patch_lighting_type:
                                         lightmap_id.append(BspGeneric.get_lm_id(bsp_vert.lm1coord, lightmap_size, packed_lightmap_size))
                                         if bsp.lightmaps == 4:
                                             lightmap_id2.append(BspGeneric.get_lm_id(bsp_vert.lm2coord, lightmap_size, packed_lightmap_size))
@@ -1167,6 +1232,7 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                             current_lm_id = lightmap_id[0]
                             for i in lightmap_id:
                                 if i != current_lm_id:
+                                    self.report({"WARNING"},"Warning: Surface found with multiple lightmap assignments which is not supported! Surface will be stored as vertex lit!")
                                     lightmap_id[0] = -3
                                     break
                             if bsp.lightmaps == 4:
@@ -1211,14 +1277,14 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                 if bsp_surf.lm_indexes[i] > n_lightmaps:
                     n_lightmaps = bsp_surf.lm_indexes[i]
             
-        #store lightmap
+        #store lightmaps
         if self.patch_lightmaps:
             lightmap_image = bpy.data.images.get(self.lightmap_to_use)
             if lightmap_image == None:
                 self.report({"ERROR"}, "Could not find selected lightmap atlas")
                 return {'CANCELLED'}
             self.report({"INFO"}, "Storing Lightmaps...")
-            success, message = QuakeLight.storeLighmaps(bsp, lightmap_image, n_lightmaps + 1, not self.patch_external, self.patch_hdr, self.patch_external_flip )
+            success, message = QuakeLight.storeLighmaps(bsp, lightmap_image, n_lightmaps + 1, light_settings, not self.patch_external, self.patch_external_flip )
             self.report({"INFO"} if success else {"ERROR"}, message)
         
         #clear lightmap lump        
@@ -1228,13 +1294,13 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
         #store lightgrid
         if self.patch_lightgrid:
             self.report({"INFO"}, "Storing Lightgrid...")
-            success, message = QuakeLight.storeLightgrid(bsp, self.patch_hdr)
+            success, message = QuakeLight.storeLightgrid(bsp, light_settings)
             self.report({"INFO"} if success else {"ERROR"}, message)
 
-        #save hdr vertex colors    
-        if self.patch_hdr:
-            self.report({"INFO"}, "Storing HDR Vertex Colors...")
-            success, message = QuakeLight.storeHDRVertexColors(bsp, objs)
+        #store vertex colors    
+        if self.patch_colors:
+            self.report({"INFO"}, "Storing Vertex Colors...")
+            success, message = QuakeLight.storeVertexColors(bsp, objs, light_settings, self.patch_colors)
             self.report({"INFO"} if success else {"ERROR"}, message)
         
         #write bsp
@@ -1400,11 +1466,11 @@ class Q3_PT_DataExportPanel(bpy.types.Panel):
         layout.separator()
         op = layout.operator("q3.pack_lightmap_images", text="4. Pack and Save Baked Images")
         layout.separator()
-        layout.label(text = '5. Denoise $lightmap_bake and $vertmap_bake (optional)')
+        layout.label(text = '5. Denoise $lightmap_bake and $vertmap_bake (opt.)')
         layout.label(text = 'Make sure your Images you want to be baked are named')
         layout.label(text = '$lightmap_bake and $vertmap_bake')
         layout.separator()
-        op = layout.operator("q3.store_vertex_colors", text="6. Copy Images to Vertex Colors")
+        op = layout.operator("q3.store_vertex_colors", text="6. Preview Vertex Colors (opt.)")
         layout.separator()
         op = layout.operator("q3.create_lightgrid", text="7. Create Lightgrid")
         layout.separator()
@@ -1430,7 +1496,7 @@ class Reload_preview_shader(bpy.types.Operator):
         
         #TODO: write shader dir to scene and read this
         import_settings = ImportSettings()
-        import_settings.base_path = prefs.base_path
+        import_settings.base_path = prefs.base_path.replace("\\", "/")
         import_settings.shader_dirs = "shaders/", "scripts/"
         import_settings.preset = 'PREVIEW'
             
@@ -1471,7 +1537,7 @@ class Reload_render_shader(bpy.types.Operator):
         
         #TODO: write shader dir to scene and read this
         import_settings = ImportSettings()
-        import_settings.base_path = prefs.base_path
+        import_settings.base_path = prefs.base_path.replace("\\", "/")
         import_settings.shader_dirs = "shaders/", "scripts/"
         import_settings.preset = 'RENDERING'
             

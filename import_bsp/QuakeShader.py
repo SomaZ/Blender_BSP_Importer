@@ -153,16 +153,16 @@ class vanilla_shader_stage:
     def setTcMod(stage, tcmod):
         if tcmod.startswith("scale"):
             stage.tcMods.append("scale")
-            stage.tcMods_arguments.append(tcmod.split(" ",1)[1].strip("\r\n\t "))
+            stage.tcMods_arguments.append(tcmod.split(" ",1)[1].strip("\r\n\t ").replace("'","").replace("`",""))
         elif tcmod.startswith("scroll"):
             stage.tcMods.append("scroll")
-            stage.tcMods_arguments.append(tcmod.split(" ",1)[1].strip("\r\n\t "))
+            stage.tcMods_arguments.append(tcmod.split(" ",1)[1].strip("\r\n\t ").replace("'","").replace("`",""))
         elif tcmod.startswith("turb"):
             stage.tcMods.append("turb")
-            stage.tcMods_arguments.append(tcmod.split(" ",1)[1].strip("\r\n\t "))
+            stage.tcMods_arguments.append(tcmod.split(" ",1)[1].strip("\r\n\t ").replace("'","").replace("`",""))
         elif tcmod.startswith("rotate"):
             stage.tcMods.append("rotate")
-            stage.tcMods_arguments.append(tcmod.split(" ",1)[1].strip("\r\n\t "))
+            stage.tcMods_arguments.append(tcmod.split(" ",1)[1].strip("\r\n\t ").replace("'","").replace("`",""))
         else:
             print("didn't parse tcMod: ", tcmod)
         
@@ -177,7 +177,7 @@ class vanilla_shader_stage:
             stage.lighting = LIGHTING_IDENTITY
         elif (lighting.startswith("const ")):
             stage.lighting = LIGHTING_CONST
-            color = filter(None, lighting.strip("\r\n\t").replace("(","").replace(")","").replace("const ","").split())
+            color = filter(None, lighting.strip("`'\r\n\t").replace("(","").replace(")","").replace("const ","").split())
             stage.color = [float(component) for component in color]
         else:
             stage.lighting = LIGHTING_IDENTITY
@@ -218,7 +218,7 @@ class vanilla_shader_stage:
         if (alpha.startswith("const")):
             stage.alpha = ALPHA_CONST
             try:
-                stage.alpha_value = float(alpha.split()[1].strip("\r\n\t "))
+                stage.alpha_value = float(alpha.split()[1].strip("\r\n\t ").replace("'","").replace("`",""))
             except:
                 print("alphaGen const with no value found")
                 stage.alpha_value = 0.5
@@ -536,6 +536,11 @@ class quake_shader:
             shader.is_explicit = True
             
     def finish_rendering_shader(shader, base_path, import_settings):
+        out_Color = None
+        out_Alpha = None
+        out_Glow = None
+        out_None = None
+        
         #we dont want the system shaders and "those" skys
         if shader.is_system_shader or "skyparms" in shader.attributes:
             shader.nodes.clear()
@@ -618,10 +623,6 @@ class quake_shader:
             return
         
         elif shader.is_explicit:
-            out_Color = None
-            out_Alpha = None
-            out_Glow = None
-            out_None = None
             stage_index = 0
             added_stages = 0
             shader_type = "OPAQUE"
@@ -650,7 +651,7 @@ class quake_shader:
                         shader_type = "MULTIPLY"
                         shader.mat.blend_method = "BLEND"
                         
-                if stage.blend.endswith("gl_zero"):
+                if stage.blend.endswith("gl_zero") and not stage.skip_alpha:
                     shader_type = "OPAQUE"
                     shader.mat.blend_method = "OPAQUE" if shader.mat.blend_method != "CLIP" else "CLIP"
                 
@@ -799,6 +800,11 @@ class quake_shader:
                         node_lm.image = image
         else:
             node_lm.image = lm_image
+        
+        if node_BSDF != None and node_BSDF.inputs.get("Normal"):
+            normal_node = shader.get_node_by_name("NormalSetNode")
+            normal_node.location = 700, -500
+            shader.links.new(normal_node.outputs[0], node_BSDF.inputs["Normal"])
             
         tc_gen = shader.get_tcGen_node(TCGEN_LM)
         if tc_gen is not None:
@@ -912,7 +918,7 @@ class quake_shader:
                     if shader.is_grid_lit and stage.lighting is LIGHTING_IDENTITY:
                         stage.lighting = LIGHTING_LIGHTGRID
                         
-                if stage.blend.endswith("gl_zero"):
+                if stage.blend.endswith("gl_zero") and not stage.skip_alpha:
                     shader_type = "OPAQUE"
                     shader.mat.blend_method = "OPAQUE" if shader.mat.blend_method != "CLIP" else "CLIP"
                         
@@ -1247,7 +1253,10 @@ def build_quake_shaders(import_settings, object_list):
                         if line in shaders and not current_shaders:
                             current_shaders = shaders[line]
                             dict_key = line
-                          
+                            if line == "textures/common/skyportal":
+                                for portal_shader in current_shaders:
+                                    portal_shader.is_system_shader = True
+                            
                     #shader attributes
                     elif is_open == 1 and current_shaders:
                         key, value = parse(line)

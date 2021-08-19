@@ -52,7 +52,7 @@ def create_white_image():
     image.pixels = pixels
     image.use_fake_user=True
 
-def pack_lightmaps(bsp, import_settings):
+def pack_lightmaps(bsp, lightmap_lump_name, import_settings):
     use_internal_lightmaps = True
     lightmaps = []
     n_lightmaps = 0
@@ -63,7 +63,7 @@ def pack_lightmaps(bsp, import_settings):
     lightmap_sizes = {}
     hasInternalLightmaps = False
     hasExternalLightmaps = False
-    for index in range(bsp.lumps["lightmaps"].count):
+    for index in range(bsp.lumps[lightmap_lump_name].count):
         lightmap_mapping[index] = "$lightmap"
         hasInternalLightmaps = True
         
@@ -121,9 +121,9 @@ def pack_lightmaps(bsp, import_settings):
         lightmaps = []
         #assume square lightmaps
         lightmap_size = bsp.internal_lightmap_size
-        for lm in bsp.lumps["lightmaps"].data:
+        for lm in bsp.lumps[lightmap_lump_name].data:
             lightmaps.append(lm.map)
-        n_lightmaps = bsp.lumps["lightmaps"].count
+        n_lightmaps = bsp.lumps[lightmap_lump_name].count
         color_scale = 255.0
         color_components = 3
     
@@ -368,7 +368,7 @@ def pack_lightgrid(bsp):
                 
             append_byte_to_color_list(l, l_pixels, 1.0)
     else:
-        a1_pixels = [0.0 for i in range(num_elements*4)]
+        a1_pixels = [0.3 for i in range(num_elements*4)]
         a2_pixels = [0.0 for i in range(num_elements*4)]
         a3_pixels = [0.0 for i in range(num_elements*4)]
         a4_pixels = [0.0 for i in range(num_elements*4)]
@@ -582,9 +582,7 @@ class blender_model_data:
             model.face_vertices.append(indices)
             
             material_suffix = ""
-            if shaders_lump[face.texture].flags == 0x00200000:
-                material_suffix = ".nodraw"
-            elif face.lm_indexes[0] < 0:
+            if face.lm_indexes[0] < 0:
                 material_suffix = ".vertex"
             else:
                 model.vertex_groups["Lightmapped"].add(indices[0])
@@ -968,7 +966,7 @@ class blender_model_data:
             for index in range(current_model.n_faces):
                 face = bsp.lumps["surfaces"].data[model_face + index]
                 #surface or mesh
-                if (face.type == 1 or face.type == 3):
+                if (face.type == 1 or face.type == 3 or face.type == 5):
                     model.parse_bsp_surface(bsp, face, bsp.lumps["shaders"].data, import_settings)
                 #patches
                 if (face.type == 2):
@@ -1016,7 +1014,7 @@ class blender_model_data:
             
         for face_instance in bsp.lumps["surfaces"].data:
             #surface or mesh
-            if (face_instance.type == 1 or face_instance.type == 3):
+            if (face_instance.type == 1 or face_instance.type == 3 or face_instance.type == 5):
                 model.parse_bsp_surface(bsp.lumps["drawverts"].data, face_instance, bsp.lumps["shaders"].data, import_settings)
                 
             #patches

@@ -100,11 +100,24 @@ class texture:
         array[2] = self.contents
         return array
     
-#string = fillName("testingaiowdjiooiaw3898127z3", 64)
-#print(bytes(string, 'ASCII'))
-#print(len(string))
+class texture_ef2:
+    size = STRING + INT + INT + INT
+    encoding = "<64siii"
+    def __init__(self, array):
+        self.name = array[0].decode("latin-1").strip("\0")
+        self.flags = array[1]
+        self.contents = array[2]
+        self.subdivisions = array[3]
+    def to_array(self):
+        #TODO: Check encoding?
+        array = [None for i in range(3)]
+        array[0] = bytes(fillName(self.name, 64),"latin-1")
+        array[1] = self.flags
+        array[2] = self.contents
+        array[3] = self.subdivisions
+        return array
 
-#rbsp and ibsp
+#rbsp and ibsp and ef2
 class plane:
     size = 3*FLOAT + FLOAT
     encoding = "<ffff"
@@ -117,7 +130,7 @@ class plane:
         array[3] = self.distance
         return array
 
-#rbsp and ibsp
+#rbsp and ibsp and ef2
 class node:
     size = INT + 2*INT + 3*INT + 3*INT
     encoding = "<iiiiiiiii"
@@ -134,7 +147,7 @@ class node:
         array[6], array[7], array[8] = self.maxs
         return array
         
-#rbsp and ibsp
+#rbsp and ibsp and ef2
 class leaf:
     size = INT + INT + 3*INT + 3*INT + INT + INT + INT + INT
     encoding = "<iiiiiiiiiiii"
@@ -143,8 +156,8 @@ class leaf:
         self.area = array[1]
         self.mins = [array[2],array[3],array[4]]
         self.maxs = [array[5],array[6],array[7]]
-        self.leafface = array[8]
-        self.n_leaffaces = array[9]
+        self.leafface = array[8]        # looks like ef2 has number of leaf faces first
+        self.n_leaffaces = array[9]     # and then the first leaf face
         self.leafbrush = array[10]
         self.n_leafbrushes = array[11]
     def to_array(self):
@@ -159,7 +172,7 @@ class leaf:
         array[11] = self.n_leafbrushes
         return array
 
-#rbsp and ibsp
+#rbsp and ibsp, probably also ef2
 class leafface:
     size = INT
     encoding = "<i"
@@ -170,7 +183,7 @@ class leafface:
         array[0] = self.face
         return array
 
-#rbsp and ibsp    
+#rbsp and ibsp, probably also ef2
 class leafbrush:
     size = INT
     encoding = "<i"
@@ -181,7 +194,7 @@ class leafbrush:
         array[0] = self.brush
         return array
 
-#rbsp and ibsp
+#rbsp and ibsp, probably also ef2
 class model:
     size = 3*FLOAT + 3*FLOAT + INT + INT + INT + INT
     encoding = "<ffffffiiii"
@@ -217,6 +230,21 @@ class brush:
         array[2] = self.texture
         return array
 
+#ef2
+class brush_ef2:
+    size = INT + INT + INT
+    encoding = "<iii"
+    def __init__ (self, array):
+        self.n_brushsides = array[0]
+        self.brushside = array[1]
+        self.texture = array[2]
+    def to_array(self):
+        array = [None for i in range(3)]
+        array[0] = self.n_brushsides
+        array[1] = self.brushside
+        array[2] = self.texture
+        return array
+
 #rbsp
 class brushside_rbsp:
     size = INT + INT + INT
@@ -243,6 +271,19 @@ class brushside_ibsp:
         array = [None for i in range(2)]
         array[0] = self.plane
         array[1] = self.texture
+        return array
+    
+#ef2
+class brushside_ef2:
+    size = INT + INT
+    encoding = "<ii"
+    def __init__ (self, array):
+        self.texture = array[0]
+        self.plane = array[1]
+    def to_array(self):
+        array = [None for i in range(2)]
+        array[0] = self.texture
+        array[1] = self.plane
         return array
 
 #rbsp
@@ -310,6 +351,32 @@ class vertex_ibsp:
         array[11] = int(self.color1[1] * 255.0)
         array[12] = int(self.color1[2] * 255.0)
         array[13] = int(self.color1[3] * 255.0)
+        return array
+    
+#ef2
+class vertex_ef2:
+    size = 3*FLOAT + 2*FLOAT + 3*FLOAT + 4*UBYTE + 3*FLOAT
+    encoding = "<ffffffffBBBBfff"
+    def __init__ (self, array):
+        self.position = [array[0],array[1],array[2]]
+        self.texcoord = [array[3], 1.0 - array[4]]
+        self.normal = [array[5],array[6],array[7]]
+        self.color1  = [float(array[8]/255.0),float(array[9]/255.0),float(array[10]/255.0),float(array[11]/255.0)]
+        self.lodExtra = float(array[12])
+        self.lm1coord = [array[13],array[14]]
+    def to_array(self):
+        array = [None for i in range(14)]
+        array[0], array[1], array[2] = self.position
+        array[3] = self.texcoord[0]
+        array[4] = 1.0 - self.texcoord[1]
+        array[5], array[6], array[7] = self.normal
+        
+        array[8] = int(self.color1[0] * 255.0)
+        array[9] = int(self.color1[1] * 255.0)
+        array[10] = int(self.color1[2] * 255.0)
+        array[11] = int(self.color1[3] * 255.0)
+        array[12] = float(self.lodExtra)
+        array[13], array[14] = self.lm1coord
         return array
         
 #rbsp and ibsp
@@ -458,8 +525,127 @@ class face_ibsp:
         array[24] = self.patch_width
         array[25] = self.patch_height
         return array
+    
+#fakk
+class face_fakk:
+    size = 14*INT + 13*FLOAT
+    encoding = "<iiiiiiiiiiiiffffffffffffiif"
+    def __init__(self, array):
+        self.texture = array[0]
+        self.effect = array[1]
+        self.type = array[2]
+        self.vertex = array[3]
+        self.n_vertexes = array[4]
+        self.index = array[5]
+        self.n_indexes = array[6]
+        self.lm_indexes = [array[7]]
+        self.lm_x = [array[8]]
+        self.lm_y = [array[9]]
+        self.lm_width = array[10]
+        self.lm_height = array[11]
+        self.lm_origin = [array[12],array[13],array[14]]
+        self.lm_vecs = [array[15],array[16],array[17],array[18],array[19],array[20],array[21],array[22],array[23]]
+        self.patch_width = array[24]
+        self.patch_height = array[25]
+        self.subdivisions = array[26]
+    def to_array(self):
+        array = [None for i in range(26)]
+        array[0] = self.texture
+        array[1] = self.effect
+        array[2] = self.type
+        array[3] = self.vertex
+        array[4] = self.n_vertexes
+        array[5] = self.index
+        array[6] = self.n_indexes
+        array[7] = self.lm_indexes[0]
+        array[8] = self.lm_x[0]
+        array[9] = self.lm_y[0]
+        array[10] = self.lm_width
+        array[11] = self.lm_height
+        array[12] = self.lm_origin[0]
+        array[13] = self.lm_origin[1]
+        array[14] = self.lm_origin[2]
+        array[15] = self.lm_vecs[0]
+        array[16] = self.lm_vecs[1]
+        array[17] = self.lm_vecs[2]
+        array[18] = self.lm_vecs[3]
+        array[19] = self.lm_vecs[4]
+        array[20] = self.lm_vecs[5]
+        array[21] = self.lm_vecs[6]
+        array[22] = self.lm_vecs[7]
+        array[23] = self.lm_vecs[8]
+        array[24] = self.patch_width
+        array[25] = self.patch_height
+        array[26] = self.subdivisions
+        return array
+    
+#ef2
+class face_ef2:
+    size = 14*INT + 12*FLOAT + FLOAT + INT + INT + 4*INT
+    encoding = "<iiiiiiiiiiiiffffffffffffiifiiiiii"
+    def __init__(self, array):
+        self.texture = array[0]
+        self.effect = array[1]
+        self.type = array[2]
+        self.vertex = array[3]
+        self.n_vertexes = array[4]
+        self.index = array[5]
+        self.n_indexes = array[6]
+        self.lm_indexes = [array[7]]
+        self.lm_x = [array[8]]
+        self.lm_y = [array[9]]
+        self.lm_width = array[10]
+        self.lm_height = array[11]
+        self.lm_origin = [array[12],array[13],array[14]]
+        self.lm_vecs = [array[15],array[16],array[17],array[18],array[19],array[20],array[21],array[22],array[23]]
+        self.patch_width = array[24]
+        self.patch_height = array[25]
+        self.subdivisions = array[26]
+        self.baseLightingSurface = array[27]
+        self.inverted = array[28]
+        self.faceflags = [array[29], array[30], array[31], array[32]]
+        if self.baseLightingSurface != -1:
+            print("Type : " + str(self.type))
+            print("lm_indexes : " + str(self.lm_indexes[0]))
+            print("baseLightingSurface: " + str(self.baseLightingSurface))
+    def to_array(self):
+        array = [None for i in range(26)]
+        array[0] = self.texture
+        array[1] = self.effect
+        array[2] = self.type
+        array[3] = self.vertex
+        array[4] = self.n_vertexes
+        array[5] = self.index
+        array[6] = self.n_indexes
+        array[7] = self.lm_indexes[0]
+        array[8] = self.lm_x[0]
+        array[9] = self.lm_y[0]
+        array[10] = self.lm_width
+        array[11] = self.lm_height
+        array[12] = self.lm_origin[0]
+        array[13] = self.lm_origin[1]
+        array[14] = self.lm_origin[2]
+        array[15] = self.lm_vecs[0]
+        array[16] = self.lm_vecs[1]
+        array[17] = self.lm_vecs[2]
+        array[18] = self.lm_vecs[3]
+        array[19] = self.lm_vecs[4]
+        array[20] = self.lm_vecs[5]
+        array[21] = self.lm_vecs[6]
+        array[22] = self.lm_vecs[7]
+        array[23] = self.lm_vecs[8]
+        array[24] = self.patch_width
+        array[25] = self.patch_height
+        array[26] = self.subdivisions
+        array[27] = self.baseLightingSurface
+        array[28] = self.inverted
+        array[29] = self.faceflags[0]
+        array[30] = self.faceflags[1]
+        array[31] = self.faceflags[2]
+        array[32] = self.faceflags[3]
+        return array
 
-#rbsp and ibsp
+#rbsp and ibsp and ef2
 class lightmap:
     size = 128*128*3*UBYTE
     encoding = "<49152B"
@@ -498,7 +684,7 @@ class lightgrid_rbsp:
         array[28],array[29] = self.lat_long
         return array
         
-#ibsp
+#ibsp and fakk
 class lightgrid_ibsp:
     size = 8*UBYTE
     encoding = "<8B"
@@ -606,6 +792,93 @@ class IBSP:
                 "lightgrid":        lump( lightgrid_ibsp ),
                 "visdata":          lump( visdata )
                 }
+                
+class EF2BSP:
+    BSP_MAGIC = b'EF2!'
+    BSP_VERSION = 0x14 #not used right now
+    
+    lightgrid_size = [192,192,320]
+    lightgrid_inverse_size = [  1.0 / float(lightgrid_size[0]),
+                                1.0 / float(lightgrid_size[1]),
+                                1.0 / float(lightgrid_size[2]) ]
+    lightgrid_origin = [0.0,0.0,0.0]
+    lightgrid_z_step = 0.0
+    lightgrid_inverse_dim = [0.0,0.0,0.0]
+    lightgrid_dim = [0.0,0.0,0.0]
+    
+    lightmap_size = [128,128]
+    lightmaps = 1
+    lightstyles = 0
+    use_lightgridarray = False
+
+    lumps = {   "shaders":          lump( texture_ef2 ),
+                "planes":           lump( plane ),
+                "lightmaps":        lump( lightmap ),
+                "baselightmaps":    lump( lightmap ),
+                "contlightmaps":    lump( lightmap ),
+                "surfaces":         lump( face_ef2 ),
+                "drawverts":        lump( vertex_ef2 ),
+                "drawindexes":      lump( meshvert ),
+                "leafbrushes":      lump( leafbrush ),
+                "leaffaces":        lump( leafface ),
+                "leafs":            lump( leaf ),
+                "nodes":            lump( node ),
+                "brushsides":       lump( brushside_ef2 ),
+                "brushes":          lump( brush_ef2 ),
+                "fogs":             lump( effect ),
+                "models":           lump( model ),
+                "entities":         lump( entity ),
+                "visdata":          lump( visdata ),
+                "lightgrid":        lump( lightgrid_ibsp ),
+                "entlights":        lump( entity ),
+                "entlightvis":      lump( entity ),
+                "lightdefs":        lump( entity ),
+                "baselightingverts":lump( entity ),
+                "contlightingverts":lump( entity ),
+                "baselightingsurfs":lump( entity ),
+                "lightingsurfs":    lump( entity ),
+                "lightingvertsurfs":lump( entity ),
+                "lightinggroups":   lump( entity ),
+                "staticLodModels":  lump( entity ),
+                "bspinfo":          lump( entity ),
+                }
+
+class FAKKBSP:
+    BSP_MAGIC = b'FAKK'
+    BSP_VERSION = 0xc #not used right now
+    
+    lightgrid_size = [192,192,320]
+    lightgrid_inverse_size = [  1.0 / float(lightgrid_size[0]),
+                                1.0 / float(lightgrid_size[1]),
+                                1.0 / float(lightgrid_size[2]) ]
+    lightgrid_origin = [0.0,0.0,0.0]
+    lightgrid_z_step = 0.0
+    lightgrid_inverse_dim = [0.0,0.0,0.0]
+    lightgrid_dim = [0.0,0.0,0.0]
+    
+    lightmap_size = [128,128]
+    lightmaps = 1
+    lightstyles = 0
+    use_lightgridarray = False
+
+    lumps = {   "shaders":          lump( texture_ef2 ),
+                "planes":           lump( plane ),
+                "lightmaps":        lump( lightmap ),
+                "surfaces":         lump( face_fakk ),
+                "drawverts":        lump( vertex_ibsp ),
+                "drawindexes":      lump( meshvert ),
+                "leafbrushes":      lump( leafbrush ),
+                "leaffaces":        lump( leafface ),
+                "leafs":            lump( leaf ),
+                "nodes":            lump( node ),
+                "brushsides":       lump( brushside_ef2 ),
+                "brushes":          lump( brush_ef2 ),
+                "fogs":             lump( effect ),
+                "models":           lump( model ),
+                "entities":         lump( entity ),
+                "visdata":          lump( visdata ),
+                "lightgrid":        lump( lightgrid_ibsp ),
+                }
 
 class BSP:
     def __init__(self, file_name):
@@ -615,7 +888,10 @@ class BSP:
         magic_nr = file.read(4)
         version_nr = struct.unpack("<i", file.read(4))[0]
         
-        bsp_formats = [RBSP, IBSP]
+        if magic_nr in (EF2BSP.BSP_MAGIC, FAKKBSP.BSP_MAGIC):
+            checksum = struct.unpack("<i", file.read(4))[0]
+        
+        bsp_formats = [RBSP, IBSP, EF2BSP, FAKKBSP]
         for format in bsp_formats:
             if format.BSP_MAGIC == magic_nr:
                 self.valid = True
@@ -639,9 +915,9 @@ class BSP:
         if self.valid:
             for lump in self.lumps:
                 self.lumps[lump].set_offset_size(struct.unpack("<ii", file.read(8)))
-                print(lump + "offset " + str(self.lumps[lump].offset) + " size " + str(self.lumps[lump].size))
             for lump in self.lumps:
                 self.lumps[lump].readFrom(file)
+                print(lump + "offset " + str(self.lumps[lump].offset) + "\t size " + str(self.lumps[lump].size) + "\t count " + str(self.lumps[lump].count))
         else:
             print("Could not import the bsp. Bsp Version: " + str(magic_nr) + " " + str(version_nr))
                 
@@ -716,7 +992,19 @@ def ImportBSP(import_settings):
         #because of varying packed lightmap size
         import_settings.log.append("----pack_lightmaps----")
         time_start = perf_counter()
-        BspGeneric.pack_lightmaps(bsp, import_settings)
+        
+        if "baselightmaps" in bsp.lumps:
+            BspGeneric.pack_lightmaps(bsp, "baselightmaps", import_settings)
+            image = bpy.data.images.get("$lightmap")
+            if image != None:
+                image.name = "$baselightmap"
+        if "contlightmaps" in bsp.lumps:
+            BspGeneric.pack_lightmaps(bsp, "contlightmaps", import_settings)
+            image = bpy.data.images.get("$lightmap")
+            if image != None:
+                image.name = "$contlightmap"
+        
+        BspGeneric.pack_lightmaps(bsp, "lightmaps", import_settings)
         import_settings.log.append("took:" + str(perf_counter() - time_start) + " seconds")
         
         vertex_groups = {}

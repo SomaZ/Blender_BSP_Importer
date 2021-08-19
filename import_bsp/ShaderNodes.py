@@ -41,12 +41,16 @@ def create_static_node(shader, name):
     elif name == "EmissionScaleNode":
         node = shader.nodes.new(type="ShaderNodeGroup")
         node.node_tree = Emission_Node.get_node_tree(None)
+    elif name == "NormalSetNode":
+        node = shader.nodes.new(type="ShaderNodeGroup")
+        node.node_tree = Normal_Set_Node.get_node_tree(None)
     else:
         print("unrecognized static node: ", name)
         return None
     
     node.name = name
-    node.location = shader.static_nodes[name]
+    if name in shader.static_nodes:
+        node.location = shader.static_nodes[name]
     return node
 
 class Generic_Node_Group():
@@ -179,6 +183,32 @@ class Emission_Node(Generic_Node_Group):
         
         emission_group.links.new(out_full_emission.outputs["Vector"], group_outputs.inputs['OutColor'])
         return emission_group
+    
+class Normal_Set_Node(Generic_Node_Group):
+    name = 'NormalSetNode'
+    @classmethod
+    def create_node_tree(self, empty):
+        normal_group = bpy.data.node_groups.new(self.name, 'ShaderNodeTree')
+        
+        group_inputs = normal_group.nodes.new('NodeGroupInput')
+        group_inputs.location = (-1600,0)
+        
+        group_outputs = normal_group.nodes.new('NodeGroupOutput')
+        group_outputs.location = (1300,0)
+        normal_group.outputs.new('NodeSocketVector','OutNormal')
+        
+        normal = normal_group.nodes.new(type="ShaderNodeNormal")
+        normal.name = "Tangent Space Normal"
+        normal.outputs[0].default_value = (0, 0, 1)
+        normal.location = (0,0)
+        
+        normal_map = normal_group.nodes.new(type="ShaderNodeNormalMap")
+        normal_map.uv_map = "UVMap"
+        normal_map.location = (400,0)
+        normal_group.links.new(normal.outputs[0], normal_map.inputs["Color"])
+        
+        normal_group.links.new(normal_map.outputs["Normal"], group_outputs.inputs['OutNormal'])
+        return normal_group
     
 class Color_Normalize_Node(Generic_Node_Group):
     name = 'ColorNormalize'
