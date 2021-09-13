@@ -127,14 +127,18 @@ def ImportEntitiesText(entities_string, import_settings, bsp = None, only_lights
             ob = bpy.data.objects.new("Entity " + (str(n_ent).zfill(4)), me)
             obj_list.append(ob)
         else:
-            if "model" in ent and ent["model"].startswith("*") and not "classname" in ent:
-                ent["classname"] = "enviro_dynamic"
+            has_runtime_model = False
+            if "model" in ent and ent["model"].startswith("*"):
+                has_runtime_model = True
+                if not "classname" in ent:
+                    ent["classname"] = "enviro_dynamic"
             
             if not "classname" in ent:
                 print("Entity not parsed: " + str(ent))
                 continue
             
-            has_runtime_model = ent["classname"].lower() in misc_model_md3s or ent["classname"].lower().startswith("enviro")
+            if not has_runtime_model:
+                has_runtime_model = ent["classname"].lower() in misc_model_md3s or ent["classname"].lower().startswith("enviro")
             if "make_static" in ent and ent["make_static"] == "1":
                 has_runtime_model = False
             
@@ -143,8 +147,8 @@ def ImportEntitiesText(entities_string, import_settings, bsp = None, only_lights
                     if Dict[ent["classname"].lower()]["Model"].lower() != "box":
                         ent["model"] = Dict[ent["classname"].lower()]["Model"].lower()
             
-            if ("model" in ent and 
-                    has_runtime_model and not 
+            if ("model" in ent and
+                    has_runtime_model and not
                     only_lights):
                 if "model2" in ent:
                     model_name = ent["model2"]
