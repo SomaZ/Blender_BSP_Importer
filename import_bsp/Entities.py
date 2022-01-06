@@ -26,14 +26,14 @@ else:
     from . import QuakeLight
 
 def get_gamepack(name):
-    file_path = bpy.utils.script_paths("addons/import_bsp/gamepacks/")[0]
+    file_path = bpy.utils.script_paths(subdir="addons/import_bsp/gamepacks/")[0]
     if file_path is not None:
         with open(file_path + name) as file:
             return json.load(file)
     return None
 
 def save_gamepack(dict, name):
-    file_path = bpy.utils.script_paths("addons/import_bsp/gamepacks/")[0]
+    file_path = bpy.utils.script_paths(subdir="addons/import_bsp/gamepacks/")[0]
     if file_path is not None:
         with open(file_path + name, 'w') as file:
             json.dump(dict, file, indent=4,)
