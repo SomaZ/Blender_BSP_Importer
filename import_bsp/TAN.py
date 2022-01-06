@@ -542,7 +542,7 @@ class TAN:
         @classmethod
         def from_empty(cls, empty):
             array = []
-            for i in range(11):
+            for i in range(12):
                 array.append(0.0)
             tag = cls(array)
             tag.origin = empty.location.copy()
