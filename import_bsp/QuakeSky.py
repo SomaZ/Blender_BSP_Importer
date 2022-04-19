@@ -4,12 +4,12 @@ if "bpy" not in locals():
     import bpy
 
 if "Image" in locals():
-    imp.reload( Image )
+    imp.reload(Image)
 else:
     from . import Image
-    
+
 if "QuakeLight" in locals():
-    imp.reload( QuakeLight )
+    imp.reload(QuakeLight)
 else:
     from . import QuakeLight
 
@@ -50,7 +50,7 @@ fragment_shader = '''
     uniform sampler2D tex_lf;
     uniform sampler2D tex_rt;
     uniform float clamp_value;
-    
+
     in vec2 tc;
     #define PI 3.14159265358979323846
     #define UP 0
@@ -62,12 +62,12 @@ fragment_shader = '''
 
     void main()
     {
-        vec2 thetaphi = ((tc * 2.0) - vec2(1.0)) * vec2(PI, PI / 2.0) - vec2(PI / 2.0, 0.0); 
+        vec2 thetaphi = ((tc * 2.0) - vec2(1.0)) * vec2(PI, PI / 2.0) - vec2(PI / 2.0, 0.0);
         vec3 rayDirection = vec3(cos(thetaphi.y) * cos(thetaphi.x), sin(thetaphi.y), cos(thetaphi.y) * sin(thetaphi.x));
         vec3 absDirection = abs(rayDirection);
         int read_texture = 0;
         vec2 read_tc = vec2(0.0);
-        
+
         if (absDirection.y > absDirection.x && absDirection.y > absDirection.z)
         {
             if (absDirection.y > 0.0)
@@ -118,10 +118,10 @@ fragment_shader = '''
             }
             read_tc = vec2(rayDirection.x, rayDirection.y) * 0.5 + 0.5;
         }
-        
+
         vec4 color = vec4(0.0);
         read_tc = clamp(read_tc, vec2(clamp_value), vec2(1.0 - clamp_value));
-        
+
         switch (read_texture)
         {
             case UP:
@@ -143,7 +143,7 @@ fragment_shader = '''
                 color = texture(tex_rt, read_tc);
                 break;
             default:
-                break;  
+                break;
         }
         // TODO: Check color space?
         gl_FragColor = color;
@@ -151,24 +151,25 @@ fragment_shader = '''
 '''
 
 shader = gpu.types.GPUShader(vertex_shader, fragment_shader)
-batch = batch_for_shader(shader, 'TRIS', {"vertex_id" : (0, 1, 2)})
+batch = batch_for_shader(shader, 'TRIS', {"vertex_id": (0, 1, 2)})
+
 
 def make_equirectangular_from_sky(base_path, sky_name):
-    textures = [sky_name + "_up", 
+    textures = [sky_name + "_up",
                 sky_name + "_dn",
                 sky_name + "_ft",
                 sky_name + "_bk",
                 sky_name + "_lf",
-                sky_name + "_rt" ]
+                sky_name + "_rt"]
     cube = [None for x in range(6)]
-    
+
     biggest_h = 1
     biggest_w = 1
-                 
-    for index,tex in enumerate(textures):
+
+    for index, tex in enumerate(textures):
         image = Image.load_file(base_path + "/" + tex)
-        
-        if image != None:
+
+        if image is not None:
             cube[index] = image
             if image.gl_load():
                 raise Exception()
@@ -179,7 +180,7 @@ def make_equirectangular_from_sky(base_path, sky_name):
 
     equi_w = min(8192, biggest_w*4)
     equi_h = min(4096, biggest_h*2)
-    
+
     offscreen = gpu.types.GPUOffScreen(equi_w, equi_h)
     with offscreen.bind():
         bgl.glClear(bgl.GL_COLOR_BUFFER_BIT)
@@ -187,27 +188,27 @@ def make_equirectangular_from_sky(base_path, sky_name):
             # reset matrices -> use normalized device coordinates [-1, 1]
             gpu.matrix.load_matrix(Matrix.Identity(4))
             gpu.matrix.load_projection_matrix(Matrix.Identity(4))
-            
-            if cube[0] != None:
+
+            if cube[0] is not None:
                 bgl.glActiveTexture(bgl.GL_TEXTURE0)
                 bgl.glBindTexture(bgl.GL_TEXTURE_2D, cube[0].bindcode)
-            if cube[1] != None:
+            if cube[1] is not None:
                 bgl.glActiveTexture(bgl.GL_TEXTURE1)
                 bgl.glBindTexture(bgl.GL_TEXTURE_2D, cube[1].bindcode)
-            if cube[2] != None:
+            if cube[2] is not None:
                 bgl.glActiveTexture(bgl.GL_TEXTURE2)
                 bgl.glBindTexture(bgl.GL_TEXTURE_2D, cube[2].bindcode)
-            if cube[3] != None:
+            if cube[3] is not None:
                 bgl.glActiveTexture(bgl.GL_TEXTURE3)
                 bgl.glBindTexture(bgl.GL_TEXTURE_2D, cube[3].bindcode)
-            if cube[4] != None:
+            if cube[4] is not None:
                 bgl.glActiveTexture(bgl.GL_TEXTURE4)
                 bgl.glBindTexture(bgl.GL_TEXTURE_2D, cube[4].bindcode)
-            if cube[5] != None:
+            if cube[5] is not None:
                 bgl.glActiveTexture(bgl.GL_TEXTURE5)
                 bgl.glBindTexture(bgl.GL_TEXTURE_2D, cube[5].bindcode)
-            
-            #now draw
+
+            # now draw
             shader.bind()
             shader.uniform_int("tex_up", 0)
             shader.uniform_int("tex_dn", 1)
@@ -217,29 +218,31 @@ def make_equirectangular_from_sky(base_path, sky_name):
             shader.uniform_int("tex_rt", 5)
             shader.uniform_float("clamp_value", 1.0 / biggest_h)
             batch.draw(shader)
-            
+
         buffer = bgl.Buffer(bgl.GL_FLOAT, equi_w * equi_h * 4)
         bgl.glReadBuffer(bgl.GL_BACK)
-        bgl.glReadPixels(0, 0, equi_w, equi_h, bgl.GL_RGBA, bgl.GL_FLOAT, buffer)
-        
+        bgl.glReadPixels(0, 0, equi_w, equi_h,
+                         bgl.GL_RGBA, bgl.GL_FLOAT, buffer)
+
     offscreen.free()
-    
+
     image = bpy.data.images.get(sky_name)
-    if image == None:
+    if image is None:
         image = bpy.data.images.new(sky_name, width=equi_w, height=equi_h)
     image.scale(equi_w, equi_h)
     image.pixels = buffer
     image.pack()
     return image
 
+
 def add_sun(shader, function, sun_parms, i):
-    
+
     color = [0.0, 0.0, 0.0]
     intensity = 1.0
     parms = sun_parms.split()
     rotation = [0.0, 0.0]
     name = shader + "_" + function + "." + str(i)
-     
+
     if function == "sun":
         if len(parms) < 6:
             print("not enogh sun parameters")
@@ -252,12 +255,12 @@ def add_sun(shader, function, sun_parms, i):
     elif function == "q3gl2_sun":
         if len(parms) < 9:
             print("not enogh q3gl2_sun parameters")
-        
+
     color = Vector((float(parms[0]), float(parms[1]), float(parms[2])))
     color.normalize()
     intensity = float(parms[3])
     rotation = [float(parms[4]), float(parms[5])]
-    
+
     light_vec = [0.0, 0.0, 0.0]
     rotation[0] = rotation[0] / 180.0 * math.pi
     rotation[1] = rotation[1] / 180.0 * math.pi
@@ -265,7 +268,7 @@ def add_sun(shader, function, sun_parms, i):
     light_vec[1] = math.sin(rotation[0]) * math.cos(rotation[1])
     light_vec[2] = math.sin(rotation[1])
     angle = math.radians(1.5)
-    
+
     QuakeLight.add_light(name, "SUN", intensity, color, light_vec, angle)
-    
+
     return True
