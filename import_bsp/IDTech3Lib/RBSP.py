@@ -17,7 +17,8 @@
 # ##### END GPL LICENSE BLOCK #####
 
 from ctypes import (LittleEndianStructure,
-                    c_char, c_float, c_int, c_ubyte, sizeof)
+                    c_char, c_float, c_int, c_short, c_ubyte, sizeof)
+# replace with numpy array
 from mathutils import Vector
 
 
@@ -105,7 +106,8 @@ class BSP_BRUSH(LittleEndianStructure):
 class BSP_BRUSH_SIDE(LittleEndianStructure):
     _fields_ = [
         ("plane", c_int),
-        ("texture", c_int)
+        ("texture", c_int),
+        ("face", c_int),
     ]
 
 
@@ -114,8 +116,14 @@ class BSP_VERTEX(LittleEndianStructure):
         ("position", c_float * 3),
         ("texcoord", c_float * 2),
         ("lm1coord", c_float * 2),
+        ("lm2coord", c_float * 2),
+        ("lm3coord", c_float * 2),
+        ("lm4coord", c_float * 2),
         ("normal", c_float * 3),
         ("color1", c_ubyte * 4),
+        ("color2", c_ubyte * 4),
+        ("color3", c_ubyte * 4),
+        ("color4", c_ubyte * 4),
     ]
 
 
@@ -142,9 +150,11 @@ class BSP_SURFACE(LittleEndianStructure):
         ("n_vertexes", c_int),
         ("index", c_int),
         ("n_indexes", c_int),
-        ("lm_indexes", c_int),
-        ("lm_x", c_int),
-        ("lm_y", c_int),
+        ("lm_styles", c_ubyte * 4),
+        ("vertex_styles", c_ubyte * 4),
+        ("lm_indexes", c_int * 4),
+        ("lm_x", c_int * 4),
+        ("lm_y", c_int * 4),
         ("lm_width", c_int),
         ("lm_height", c_int),
         ("lm_origin", c_float * 3),
@@ -163,7 +173,14 @@ class BSP_LIGHTMAP(LittleEndianStructure):
 class BSP_LIGHTGRID(LittleEndianStructure):
     _fields_ = [
         ("ambient1", c_ubyte * 3),
+        ("ambient2", c_ubyte * 3),
+        ("ambient3", c_ubyte * 3),
+        ("ambient4", c_ubyte * 3),
         ("direct1", c_ubyte * 3),
+        ("direct2", c_ubyte * 3),
+        ("direct3", c_ubyte * 3),
+        ("direct4", c_ubyte * 3),
+        ("styles", c_ubyte * 4),
         ("lat_long", c_ubyte * 2)
     ]
 
@@ -174,9 +191,15 @@ class BSP_VIS(LittleEndianStructure):
     ]
 
 
+class BSP_LIGHTGRID_ARRAY(LittleEndianStructure):
+    _fields_ = [
+        ("index", c_short),
+    ]
+
+
 class BSP_INFO:
-    bsp_magic = b'IBSP'
-    bsp_version = 0x1
+    bsp_magic = b'RBSP'
+    bsp_version = 0
 
     lightgrid_size = [64, 64, 128]
     lightgrid_inverse_size = [1.0 / float(lightgrid_size[0]),
@@ -184,9 +207,9 @@ class BSP_INFO:
                               1.0 / float(lightgrid_size[2])]
 
     lightmap_size = [128, 128]
-    lightmaps = 1
-    lightstyles = 0
-    use_lightgridarray = False
+    lightmaps = 4
+    lightstyles = 4
+    use_lightgridarray = True
 
     lumps = {"entities":         BSP_ENTITY,
              "shaders":          BSP_SHADER,
@@ -204,7 +227,8 @@ class BSP_INFO:
              "surfaces":         BSP_SURFACE,
              "lightmaps":        BSP_LIGHTMAP,
              "lightgrid":        BSP_LIGHTGRID,
-             "visdata":          BSP_VIS
+             "visdata":          BSP_VIS,
+             "lightgridarray":   BSP_LIGHTGRID_ARRAY
              }
 
     header_size = sizeof(BSP_HEADER)
@@ -227,15 +251,22 @@ class BSP_INFO:
             vertex1: BSP_VERTEX,
             vertex2: BSP_VERTEX
             ) -> BSP_VERTEX:
-        vec = Vector(vertex1.normal) + Vector(vertex2.normal)
-        vec.normalize()
 
         lerped_vert = BSP_VERTEX()
+
+        vec = Vector(vertex1.normal) + Vector(vertex2.normal)
+        vec.normalize()
         lerped_vert.normal[0] = vec[0]
         lerped_vert.normal[1] = vec[1]
         lerped_vert.normal[2] = vec[2]
         cls.lerp_vec(vertex1.position, vertex2.position, lerped_vert.position)
         cls.lerp_vec(vertex1.texcoord, vertex2.texcoord, lerped_vert.texcoord)
         cls.lerp_vec(vertex1.lm1coord, vertex2.lm1coord, lerped_vert.lm1coord)
+        cls.lerp_vec(vertex1.lm2coord, vertex2.lm2coord, lerped_vert.lm2coord)
+        cls.lerp_vec(vertex1.lm3coord, vertex2.lm3coord, lerped_vert.lm3coord)
+        cls.lerp_vec(vertex1.lm4coord, vertex2.lm4coord, lerped_vert.lm4coord)
         cls.lerp_ivec(vertex1.color1, vertex2.color1, lerped_vert.color1)
+        cls.lerp_ivec(vertex1.color2, vertex2.color2, lerped_vert.color2)
+        cls.lerp_ivec(vertex1.color3, vertex2.color3, lerped_vert.color3)
+        cls.lerp_ivec(vertex1.color4, vertex2.color4, lerped_vert.color4)
         return lerped_vert

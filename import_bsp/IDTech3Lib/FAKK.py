@@ -17,7 +17,8 @@
 # ##### END GPL LICENSE BLOCK #####
 
 from ctypes import (LittleEndianStructure,
-                    c_char, c_float, c_int, c_short, c_ubyte, sizeof)
+                    c_char, c_float, c_int, c_ubyte, sizeof)
+# replace with numpy array
 from mathutils import Vector
 
 
@@ -25,6 +26,7 @@ class BSP_HEADER(LittleEndianStructure):
     _fields_ = [
         ("magic_nr", c_char*4),
         ("version_nr", c_int),
+        ("checksum", c_int),
     ]
 
 
@@ -39,6 +41,7 @@ class BSP_SHADER(LittleEndianStructure):
         ("name", c_char * 64),
         ("flags", c_int),
         ("contents", c_int),
+        ("subdivisions", c_int),
     ]
 
 
@@ -106,7 +109,6 @@ class BSP_BRUSH_SIDE(LittleEndianStructure):
     _fields_ = [
         ("plane", c_int),
         ("texture", c_int),
-        ("face", c_int),
     ]
 
 
@@ -115,14 +117,8 @@ class BSP_VERTEX(LittleEndianStructure):
         ("position", c_float * 3),
         ("texcoord", c_float * 2),
         ("lm1coord", c_float * 2),
-        ("lm2coord", c_float * 2),
-        ("lm3coord", c_float * 2),
-        ("lm4coord", c_float * 2),
         ("normal", c_float * 3),
         ("color1", c_ubyte * 4),
-        ("color2", c_ubyte * 4),
-        ("color3", c_ubyte * 4),
-        ("color4", c_ubyte * 4),
     ]
 
 
@@ -149,17 +145,16 @@ class BSP_SURFACE(LittleEndianStructure):
         ("n_vertexes", c_int),
         ("index", c_int),
         ("n_indexes", c_int),
-        ("lm_styles", c_ubyte * 4),
-        ("vertex_styles", c_ubyte * 4),
-        ("lm_indexes", c_int * 4),
-        ("lm_x", c_int * 4),
-        ("lm_y", c_int * 4),
+        ("lm_indexes", c_int),
+        ("lm_x", c_int),
+        ("lm_y", c_int),
         ("lm_width", c_int),
         ("lm_height", c_int),
         ("lm_origin", c_float * 3),
         ("lm_vecs", c_float * 9),
         ("patch_width", c_int),
         ("patch_height", c_int),
+        ("subdivisions", c_float),
     ]
 
 
@@ -172,14 +167,7 @@ class BSP_LIGHTMAP(LittleEndianStructure):
 class BSP_LIGHTGRID(LittleEndianStructure):
     _fields_ = [
         ("ambient1", c_ubyte * 3),
-        ("ambient2", c_ubyte * 3),
-        ("ambient3", c_ubyte * 3),
-        ("ambient4", c_ubyte * 3),
         ("direct1", c_ubyte * 3),
-        ("direct2", c_ubyte * 3),
-        ("direct3", c_ubyte * 3),
-        ("direct4", c_ubyte * 3),
-        ("styles", c_ubyte * 4),
         ("lat_long", c_ubyte * 2)
     ]
 
@@ -190,49 +178,46 @@ class BSP_VIS(LittleEndianStructure):
     ]
 
 
-class BSP_LIGHTGRID_ARRAY(LittleEndianStructure):
-    _fields_ = [
-        ("index", c_short),
-    ]
-
-
 class BSP_INFO:
-    bsp_magic = b'RBSP'
-    bsp_version = 0
+    bsp_magic = b'FAKK'
+    bsp_version = 0xc
 
-    lightgrid_size = [64, 64, 128]
+    lightgrid_size = [192, 192, 320]
     lightgrid_inverse_size = [1.0 / float(lightgrid_size[0]),
                               1.0 / float(lightgrid_size[1]),
                               1.0 / float(lightgrid_size[2])]
 
     lightmap_size = [128, 128]
-    lightmaps = 4
-    lightstyles = 4
-    use_lightgridarray = True
+    lightmaps = 1
+    lightstyles = 0
+    use_lightgridarray = False
 
-    lumps = {"entities":         BSP_ENTITY,
-             "shaders":          BSP_SHADER,
+    lumps = {"shaders":          BSP_SHADER,
              "planes":           BSP_PLANE,
-             "nodes":            BSP_NODE,
-             "leafs":            BSP_LEAF,
-             "leaffaces":        BSP_LEAF_FACE,
-             "leafbrushes":      BSP_LEAF_BRUSH,
-             "models":           BSP_MODEL,
-             "brushes":          BSP_BRUSH,
-             "brushsides":       BSP_BRUSH_SIDE,
+             "lightmaps":        BSP_LIGHTMAP,
+             "surfaces":         BSP_SURFACE,
              "drawverts":        BSP_VERTEX,
              "drawindexes":      BSP_INDEX,
+             "leafbrushes":      BSP_LEAF_BRUSH,
+             "leaffaces":        BSP_LEAF_FACE,
+             "leafs":            BSP_LEAF,
+             "nodes":            BSP_NODE,
+             "brushsides":       BSP_BRUSH_SIDE,
+             "brushes":          BSP_BRUSH,
              "fogs":             BSP_FOG,
-             "surfaces":         BSP_SURFACE,
-             "lightmaps":        BSP_LIGHTMAP,
-             "lightgrid":        BSP_LIGHTGRID,
+             "models":           BSP_MODEL,
+             "entities":         BSP_ENTITY,
              "visdata":          BSP_VIS,
-             "lightgridarray":   BSP_LIGHTGRID_ARRAY
+             "lightgrid":        BSP_LIGHTGRID,
+             "entlights":        BSP_ENTITY,
+             "entlightvis":      BSP_ENTITY,
+             "lightdefs":        BSP_ENTITY,
              }
 
     header_size = sizeof(BSP_HEADER)
 
-    lightmap_lumps = ("lightmaps",)
+    lightmap_lumps = ("lightmaps",
+                      )
 
     @staticmethod
     def lerp_vec(vec1, vec2, vec_out):
@@ -250,22 +235,15 @@ class BSP_INFO:
             vertex1: BSP_VERTEX,
             vertex2: BSP_VERTEX
             ) -> BSP_VERTEX:
-
-        lerped_vert = BSP_VERTEX()
-
         vec = Vector(vertex1.normal) + Vector(vertex2.normal)
         vec.normalize()
+
+        lerped_vert = BSP_VERTEX()
         lerped_vert.normal[0] = vec[0]
         lerped_vert.normal[1] = vec[1]
         lerped_vert.normal[2] = vec[2]
         cls.lerp_vec(vertex1.position, vertex2.position, lerped_vert.position)
         cls.lerp_vec(vertex1.texcoord, vertex2.texcoord, lerped_vert.texcoord)
         cls.lerp_vec(vertex1.lm1coord, vertex2.lm1coord, lerped_vert.lm1coord)
-        cls.lerp_vec(vertex1.lm2coord, vertex2.lm2coord, lerped_vert.lm2coord)
-        cls.lerp_vec(vertex1.lm3coord, vertex2.lm3coord, lerped_vert.lm3coord)
-        cls.lerp_vec(vertex1.lm4coord, vertex2.lm4coord, lerped_vert.lm4coord)
         cls.lerp_ivec(vertex1.color1, vertex2.color1, lerped_vert.color1)
-        cls.lerp_ivec(vertex1.color2, vertex2.color2, lerped_vert.color2)
-        cls.lerp_ivec(vertex1.color3, vertex2.color3, lerped_vert.color3)
-        cls.lerp_ivec(vertex1.color4, vertex2.color4, lerped_vert.color4)
         return lerped_vert

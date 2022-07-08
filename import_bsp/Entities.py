@@ -5,6 +5,8 @@ from enum import Enum
 from math import radians, pow, sqrt, atan, degrees
 from mathutils import Vector
 
+from .IDTech3Lib.Parsing import *
+
 if "MD3" in locals():
     imp.reload(MD3)
 else:
@@ -15,19 +17,25 @@ if "TAN" in locals():
 else:
     from . import TAN
 
-if "Parsing" in locals():
-    imp.reload(Parsing)
-else:
-    from .Parsing import *
-
 if "QuakeLight" in locals():
     imp.reload(QuakeLight)
 else:
     from . import QuakeLight
 
+from .IDTech3Lib.ID3Object import ID3Object
+
+
+def is_float(value):
+    try:
+        float(value)
+        return True
+    except Exception:
+        return False
+
 
 def get_gamepack(name):
-    file_path = bpy.utils.script_paths(subdir="addons/import_bsp/gamepacks/")[0]
+    file_path = bpy.utils.script_paths(
+        subdir="addons/import_bsp/gamepacks/")[0]
     if file_path is not None:
         with open(file_path + name) as file:
             return json.load(file)
@@ -35,7 +43,8 @@ def get_gamepack(name):
 
 
 def save_gamepack(dict, name):
-    file_path = bpy.utils.script_paths(subdir="addons/import_bsp/gamepacks/")[0]
+    file_path = bpy.utils.script_paths(
+        subdir="addons/import_bsp/gamepacks/")[0]
     if file_path is not None:
         with open(file_path + name, 'w') as file:
             json.dump(dict, file, indent=4,)
@@ -56,12 +65,8 @@ type_matching = {"STRING": "NONE",
 def ImportEntities(VFS, bsp, import_settings):
     lump = bsp.lumps["entities"]
     stringdata = []
-    try:
-        for i in lump:
-            stringdata.append(i.char.decode("ascii"))
-    except Exception:
-        for i in lump.data:
-            stringdata.append(i.char.decode("ascii"))
+    for i in lump:
+        stringdata.append(i.char.decode("ascii"))
 
     entities_string = "".join(stringdata)
     return ImportEntitiesText(VFS, entities_string, import_settings, bsp)
@@ -77,15 +82,11 @@ def ImportEntitiesText(VFS,
     entities = []
     n_ent = 0
     mesh = None
-    try:
-        num_models = (int(len(bsp.lumps["models"]))
-                      if bsp is not None else 0)
-    except Exception:
-        num_models = (int(len(bsp.lumps["models"].data))
-                      if bsp is not None else 0)
+    num_models = (int(len(bsp.lumps["models"]))
+                  if bsp is not None else 0)
     map_objects = ["*"+str(n) for n in range(num_models)]
     md3_objects = []
-    obj_list = []
+    obj_dict = {}
     ob = None
     targets = {}
 
@@ -96,8 +97,7 @@ def ImportEntitiesText(VFS,
             entities.append(ent)
             ob = None
             if "targetname" in ent:
-                targets[ent["targetname"]] = n_ent
-            n_ent += 1
+                targets[ent["targetname"]] = entities.index(ent)
         elif line != " ":
             key, value = parse(line)
             key = key.strip(" \"\t\n\r").lower()
@@ -133,7 +133,30 @@ def ImportEntitiesText(VFS,
                 except Exception:
                     value = float(value.split(" ")[0])
 
+            if (key == "angle"):
+                try:
+                    value = float(value)
+                except Exception:
+                    value = float(value.split(" ")[0])
+
             ent[key] = value
+
+    for n_ent, ent in enumerate(entities):
+
+        if "classname" not in ent:
+            print("Entity not parsed: " + str(ent))
+            continue
+
+        if n_ent == 0:
+            new_object = ID3Object.from_entity_dict(ent, "worldspawn", "*0")
+            obj_dict["worldspawn"] = new_object
+            continue
+
+        name = ent["classname"] + "_" + str(n_ent).zfill(4)
+        new_object = ID3Object.from_entity_dict(ent, name)
+        obj_dict[name] = new_object
+
+    return obj_dict
 
     for n_ent, ent in enumerate(entities):
         mesh_name = ""
@@ -147,7 +170,9 @@ def ImportEntitiesText(VFS,
                                           1.0 / float(bsp.lightgrid_size[2])]
 
         if n_ent == 0 and not only_lights:
-            me = bpy.data.meshes["*0"]
+            me = bpy.data.meshes.get("*0")
+            if me is None:
+                continue
             ob = bpy.data.objects.new("Entity " + (str(n_ent).zfill(4)), me)
             obj_list.append(ob)
         else:
@@ -171,9 +196,8 @@ def ImportEntitiesText(VFS,
 
             if ent["classname"].lower() in Dict:
                 if "Model" in Dict[ent["classname"].lower()]:
-                    if Dict[
-                            ent["classname"].lower()][
-                                "Model"].lower() != "box":
+                    if (Dict[ent["classname"].lower()]["Model"].lower() !=
+                       "box"):
                         ent["model"] = Dict[ent["classname"].lower()
                                             ]["Model"].lower()
 

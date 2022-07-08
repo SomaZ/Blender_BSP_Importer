@@ -17,14 +17,40 @@
 # ##### END GPL LICENSE BLOCK #####
 
 from ctypes import LittleEndianStructure, c_char, c_int, sizeof
-from typing import List
 from .RBSP import BSP_INFO as RBSP
 from .IBSP import BSP_INFO as IBSP
 from .EF2BSP import BSP_INFO as EF2BSP
 from .FAKK import BSP_INFO as FAKK
-from .Model import ID3Model as MODEL
-from .Image import ID3Image as IMAGE
-from math import floor, ceil, pi, sin, cos
+from .ID3Model import ID3Model as MODEL
+from .ID3Image import ID3Image as IMAGE
+from math import floor, ceil
+from numpy import array, dot, sin, cos, sqrt, pi
+from struct import unpack
+
+
+def normalize(vector):
+    sqr_length = dot(vector, vector)
+    if sqr_length == 0.0:
+        return array((0.0, 0.0, 0.0))
+    return vector / sqrt(sqr_length)
+
+
+def create_new_image(name, width, height, data):
+    image = IMAGE()
+    image.name = name
+    image.width = int(width)
+    image.height = int(height)
+    image.data = data
+    image.num_components = 4
+    return image
+
+
+# appends a 3 component byte color to a pixel list
+def append_byte_to_color_list(byte_color, list, scale):
+    list.append(byte_color[0]*scale)
+    list.append(byte_color[1]*scale)
+    list.append(byte_color[2]*scale)
+    list.append(255.0 * scale)
 
 
 class BSP_HEADER(LittleEndianStructure):
@@ -94,7 +120,6 @@ class BSP_READER:
         bsp_info = self.magic_mapping[self.header.magic_nr]
         offset = bsp_info.header_size
         for lump in bsp_info.lumps:
-            print(lump)
             lump_header = BSP_LUMP_HEADER.from_buffer_copy(byte_array, offset)
             lump_reader = BSP_LUMP_READER(lump_header, bsp_info.lumps[lump])
             self.lumps[lump] = lump_reader.readFrom(byte_array)
@@ -143,14 +168,6 @@ class BSP_READER:
         self.num_internal_lm_ids = num_internal_lm_ids
         self.lm_packable = num_internal_lm_ids > 0
 
-        # check if we can unwrap for vertex map baking
-        self.vm_packable = False
-        if ((len(self.lumps[self.lightmap_lumps[0]]) > 0 and
-             len(self.external_lm_files) == 0) or
-            (len(self.lumps[self.lightmap_lumps[0]]) == 0 and
-             len(self.external_lm_files) > 0)):
-            self.vm_packable = True
-
         # check if the map utilizes deluxemapping
         if num_internal_lm_ids <= 0:
             self.deluxemapping = False
@@ -170,7 +187,7 @@ class BSP_READER:
                         self.deluxemapping = False
                         break
 
-    def compute_packed_lightmap_size(self) -> List[float]:
+    def compute_packed_lightmap_size(self) -> list[float]:
         if not self.lm_packable:
             return self.internal_lightmap_size
 
@@ -195,7 +212,7 @@ class BSP_READER:
             packed_lightmap_size[1] = packed_lightmap_size[1] // 2
         return packed_lightmap_size
 
-    def get_bsp_models(self) -> List[MODEL]:
+    def get_bsp_models(self) -> list[MODEL]:
         pack_lightmap_uvs = (
             self.lightmap_size[0] != self.internal_lightmap_size[0] or
             self.lightmap_size[1] != self.internal_lightmap_size[1]
@@ -284,7 +301,7 @@ class BSP_READER:
         if len(self.lightmap_lumps) == 0:
             return []
 
-        lightmaps = []
+        images = []
         for lightmap_name in self.lightmap_lumps:
             if not pack_lightmaps:
                 for id, bsp_image in enumerate(self.lumps[lightmap_name]):
@@ -307,7 +324,7 @@ class BSP_READER:
                     image.bppc = 8
                     image.data_type = "bytes"
                     image.data = bsp_image.map
-                    lightmaps.append(image)
+                    images.append(image)
             else:
                 deluxemapped = (
                     self.deluxemapping and lightmap_name == "lightmaps")
@@ -327,7 +344,7 @@ class BSP_READER:
                 image.bppc = 8
                 image.data_type = "bytes"
                 image.data = pixels
-                lightmaps.append(image)
+                images.append(image)
 
                 if deluxemapped:
                     pixels = self.pack_lightmap(
@@ -342,6 +359,183 @@ class BSP_READER:
                     image.bppc = 8
                     image.data_type = "bytes"
                     image.data = pixels
-                    lightmaps.append(image)
+                    images.append(image)
 
-        return lightmaps
+        # ------------------------------------------------------ #
+        # ------------------LIGHTGRID IMAGES-------------------- #
+        # ------------------------------------------------------ #
+
+        world_mins = self.lumps["models"][0].mins
+        world_maxs = self.lumps["models"][0].maxs
+
+        lightgrid_origin = [self.lightgrid_size[0] *
+                            ceil(world_mins[0] / self.lightgrid_size[0]),
+                            self.lightgrid_size[1] *
+                            ceil(world_mins[1] / self.lightgrid_size[1]),
+                            self.lightgrid_size[2] *
+                            ceil(world_mins[2] / self.lightgrid_size[2])]
+
+        self.lightgrid_origin = lightgrid_origin
+
+        maxs = [self.lightgrid_size[0] *
+                floor(world_maxs[0] / self.lightgrid_size[0]),
+                self.lightgrid_size[1] *
+                floor(world_maxs[1] / self.lightgrid_size[1]),
+                self.lightgrid_size[2] *
+                floor(world_maxs[2] / self.lightgrid_size[2])]
+
+        lightgrid_dimensions = [(maxs[0] - lightgrid_origin[0]) /
+                                self.lightgrid_size[0] + 1,
+                                (maxs[1] - lightgrid_origin[1]) /
+                                self.lightgrid_size[1] + 1,
+                                (maxs[2] - lightgrid_origin[2]) /
+                                self.lightgrid_size[2] + 1]
+
+        self.lightgrid_inverse_dim = [1.0 / lightgrid_dimensions[0],
+                                      1.0 /
+                                      (lightgrid_dimensions[1]
+                                      * lightgrid_dimensions[2]),
+                                      1.0 / lightgrid_dimensions[2]]
+
+        self.lightgrid_z_step = 1.0 / lightgrid_dimensions[2]
+        self.lightgrid_dim = lightgrid_dimensions
+
+        a1_pixels = []
+        a2_pixels = []
+        a3_pixels = []
+        a4_pixels = []
+        d1_pixels = []
+        d2_pixels = []
+        d3_pixels = []
+        d4_pixels = []
+        l_pixels = []
+
+        num_elements = int(lightgrid_dimensions[0] *
+                           lightgrid_dimensions[1] *
+                           lightgrid_dimensions[2])
+        if "lightgridarray" in self.lumps:
+            num_elements_bsp = len(self.lumps["lightgridarray"])
+        else:
+            num_elements_bsp = len(self.lumps["lightgrid"])
+
+        if num_elements == num_elements_bsp:
+            for pixel in range(num_elements):
+
+                if "lightgridarray" in self.lumps:
+                    index = unpack(
+                        "<H",
+                        self.lumps["lightgridarray"][pixel])[0]
+                else:
+                    index = pixel
+
+                ambient1 = array((0, 0, 0))
+                ambient2 = array((0, 0, 0))
+                ambient3 = array((0, 0, 0))
+                ambient4 = array((0, 0, 0))
+                direct1 = array((0, 0, 0))
+                direct2 = array((0, 0, 0))
+                direct3 = array((0, 0, 0))
+                direct4 = array((0, 0, 0))
+                l_vec = array((0, 0, 0))
+
+                ambient1 = self.lumps["lightgrid"][index].ambient1
+                direct1 = self.lumps["lightgrid"][index].direct1
+                if self.lightmaps > 1:
+                    ambient2 = self.lumps["lightgrid"][index].ambient2
+                    ambient3 = self.lumps["lightgrid"][index].ambient3
+                    ambient4 = self.lumps["lightgrid"][index].ambient4
+                    direct2 = self.lumps["lightgrid"][index].direct2
+                    direct3 = self.lumps["lightgrid"][index].direct3
+                    direct4 = self.lumps["lightgrid"][index].direct4
+
+                lat = ((self.lumps["lightgrid"][index].lat_long[0]/255.0) *
+                       2.0 * pi)
+                long = ((self.lumps["lightgrid"][index].lat_long[1]/255.0) *
+                        2.0 * pi)
+
+                slat = sin(lat)
+                clat = cos(lat)
+                slong = sin(long)
+                clong = cos(long)
+
+                l_vec = normalize(array(
+                    (clat * slong, slat * slong, clong)))
+
+                color_scale = 1.0
+                append_byte_to_color_list(ambient1, a1_pixels, color_scale)
+                append_byte_to_color_list(direct1, d1_pixels, color_scale)
+                if self.lightmaps == 4:
+                    append_byte_to_color_list(ambient2, a2_pixels, color_scale)
+                    append_byte_to_color_list(ambient3, a3_pixels, color_scale)
+                    append_byte_to_color_list(ambient4, a4_pixels, color_scale)
+                    append_byte_to_color_list(direct2, d2_pixels, color_scale)
+                    append_byte_to_color_list(direct3, d3_pixels, color_scale)
+                    append_byte_to_color_list(direct4, d4_pixels, color_scale)
+
+                append_byte_to_color_list(l_vec, l_pixels, 255.0)
+        else:
+            a1_pixels = [0.3 for i in range(num_elements*4)]
+            a2_pixels = [0.0 for i in range(num_elements*4)]
+            a3_pixels = [0.0 for i in range(num_elements*4)]
+            a4_pixels = [0.0 for i in range(num_elements*4)]
+            d1_pixels = [0.0 for i in range(num_elements*4)]
+            d2_pixels = [0.0 for i in range(num_elements*4)]
+            d3_pixels = [0.0 for i in range(num_elements*4)]
+            d4_pixels = [0.0 for i in range(num_elements*4)]
+            l_pixels = [0.0 for i in range(num_elements*4)]
+            print("Lightgridarray mismatch!")
+            print(str(num_elements) + " != " + str(num_elements_bsp))
+
+        images.append(create_new_image(
+            "$lightgrid_ambient1",
+            lightgrid_dimensions[0],
+            lightgrid_dimensions[1] * lightgrid_dimensions[2],
+            a1_pixels))
+
+        images.append(create_new_image(
+            "$lightgrid_direct1",
+            lightgrid_dimensions[0],
+            lightgrid_dimensions[1] * lightgrid_dimensions[2],
+            d1_pixels))
+
+        if self.lightmaps > 1:
+            images.append(create_new_image(
+                "$lightgrid_ambient2",
+                lightgrid_dimensions[0],
+                lightgrid_dimensions[1] * lightgrid_dimensions[2],
+                a2_pixels))
+            images.append(create_new_image(
+                "$lightgrid_ambient3",
+                lightgrid_dimensions[0],
+                lightgrid_dimensions[1] * lightgrid_dimensions[2],
+                a3_pixels))
+            images.append(create_new_image(
+                "$lightgrid_ambient4",
+                lightgrid_dimensions[0],
+                lightgrid_dimensions[1] * lightgrid_dimensions[2],
+                a4_pixels))
+
+            images.append(create_new_image(
+                "$lightgrid_direct2",
+                lightgrid_dimensions[0],
+                lightgrid_dimensions[1] * lightgrid_dimensions[2],
+                d2_pixels))
+            images.append(create_new_image(
+                "$lightgrid_direct3",
+                lightgrid_dimensions[0],
+                lightgrid_dimensions[1] * lightgrid_dimensions[2],
+                d3_pixels))
+            images.append(create_new_image(
+                "$lightgrid_direct4",
+                lightgrid_dimensions[0],
+                lightgrid_dimensions[1] * lightgrid_dimensions[2],
+                d4_pixels))
+
+        images.append(create_new_image(
+            "$lightgrid_vector",
+            lightgrid_dimensions[0],
+            lightgrid_dimensions[1] *
+            lightgrid_dimensions[2],
+            l_pixels))
+
+        return images

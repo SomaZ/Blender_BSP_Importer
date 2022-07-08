@@ -14,7 +14,7 @@ if "Image" in locals():
 else:
     from . import Image
 
-from .Parsing import guess_model_name, fillName
+from .IDTech3Lib.Parsing import guess_model_name, fillName
 
 from math import pi, sin, cos, atan2, acos, sqrt
 from mathutils import Matrix

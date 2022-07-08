@@ -2,7 +2,6 @@ from enum import Enum
 from dataclasses import dataclass, field
 from .Parsing import guess_map_name
 from enum import IntFlag
-from http.client import SWITCHING_PROTOCOLS
 
 
 class Preset(Enum):

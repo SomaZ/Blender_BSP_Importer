@@ -15,15 +15,10 @@ if "ImportHelper" not in locals():
 if "ExportHelper" not in locals():
     from bpy_extras.io_utils import ExportHelper
 
-if "BspClasses" in locals():
-    imp.reload(BspClasses)
+if "BspHelper" in locals():
+    imp.reload(BspHelper)
 else:
-    from . import BspClasses
-
-if "BspGeneric" in locals():
-    imp.reload(BspGeneric)
-else:
-    from . import BspGeneric
+    from . import BspHelper
 
 if "Entities" in locals():
     imp.reload(Entities)
@@ -65,27 +60,27 @@ if "IntProperty" not in locals():
 if "PropertyGroup" not in locals():
     from bpy.types import PropertyGroup
 
-if "struct" not in locals():
-    import struct
-
-from .Quake3VFS import Q3VFS
+from .IDTech3Lib.ID3VFS import Q3VFS
 
 if "os" not in locals():
     import os
 
-if "BspBlender" in locals():
-    imp.reload(BspBlender)
+if "BlenderBSP" in locals():
+    imp.reload(BlenderBSP)
 else:
-    from . import BspBlender
+    from . import BlenderBSP
 
 if "Import_Settings" not in locals():
-    from .BspImportSettings import Import_Settings
+    from .IDTech3Lib.BspImportSettings import Import_Settings
 
 if "Preset" not in locals():
-    from .BspImportSettings import Preset
+    from .IDTech3Lib.BspImportSettings import Preset
 
 if "SURFACE_TYPES" not in locals():
-    from .BspImportSettings import SURFACE_TYPE
+    from .IDTech3Lib.BspImportSettings import SURFACE_TYPE
+
+from .IDTech3Lib.ID3Brushes import parse_brush
+from .IDTech3Lib import MAP
 
 
 class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
@@ -175,7 +170,7 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
         if self.preset != "BRUSHES":
             context.scene.id_tech_3_bsp_path = self.filepath
 
-        BspBlender.import_bsp_file(import_settings)
+        BlenderBSP.import_bsp_file(import_settings)
 
         # set world color to black to remove additional lighting
         background = context.scene.world.node_tree.nodes.get("Background")
@@ -249,7 +244,7 @@ class Import_ID3_MD3(bpy.types.Operator, ImportHelper):
             self.filepath.replace("\\", "/"),
             self.import_tags,
             self.preset == 'OBJECTS')
-        QuakeShader.build_quake_shaders(import_settings, objs)
+        QuakeShader.build_quake_shaders(VFS, import_settings, objs)
 
         return {'FINISHED'}
 
@@ -305,7 +300,7 @@ class Import_ID3_TIK(bpy.types.Operator, ImportHelper):
             self.filepath.replace("\\", "/"),
             self.import_tags,
             self.preset == 'OBJECTS')
-        QuakeShader.build_quake_shaders(import_settings, objs)
+        QuakeShader.build_quake_shaders(VFS, import_settings, objs)
 
         return {'FINISHED'}
 
@@ -1340,7 +1335,11 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
         bsp = BspClasses.BSP(self.filepath)
 
         if self.only_selected:
-            objs = [obj for obj in context.selected_objects if obj.type == "MESH"]
+            objs = [
+                obj
+                for obj in context.selected_objects
+                if obj.type == "MESH"
+            ]
         else:
             if bpy.app.version >= (2, 91, 0):
                 objs = [obj for obj in context.scene.objects if obj.type ==
@@ -1539,23 +1538,23 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                     bsp.lumps["drawverts"].data[bsp_vert_index])
                                 if lightmapped_vertices[bsp_vert_index] and patch_lighting_type:
                                     lightmap_id.append(
-                                        BspGeneric.get_lm_id(
+                                        BspHelper.get_lm_id(
                                             bsp_vert.lm1coord,
                                             lightmap_size,
                                             packed_lightmap_size))
                                     if bsp.lightmaps == 4:
                                         lightmap_id2.append(
-                                            BspGeneric.get_lm_id(
+                                            BspHelper.get_lm_id(
                                                 bsp_vert.lm2coord,
                                                 lightmap_size,
                                                 packed_lightmap_size))
                                         lightmap_id3.append(
-                                            BspGeneric.get_lm_id(
+                                            BspHelper.get_lm_id(
                                                 bsp_vert.lm3coord,
                                                 lightmap_size,
                                                 packed_lightmap_size))
                                         lightmap_id4.append(
-                                            BspGeneric.get_lm_id(
+                                            BspHelper.get_lm_id(
                                                 bsp_vert.lm4coord,
                                                 lightmap_size,
                                                 packed_lightmap_size))
@@ -1569,23 +1568,23 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                     bsp_vert = bsp.lumps["drawverts"].data[bsp_vert_index]
                                     if lightmapped_vertices[bsp_vert_index] and patch_lighting_type:
                                         lightmap_id.append(
-                                            BspGeneric.get_lm_id(
+                                            BspHelper.get_lm_id(
                                                 bsp_vert.lm1coord,
                                                 lightmap_size,
                                                 packed_lightmap_size))
                                         if bsp.lightmaps == 4:
                                             lightmap_id2.append(
-                                                BspGeneric.get_lm_id(
+                                                BspHelper.get_lm_id(
                                                     bsp_vert.lm2coord,
                                                     lightmap_size,
                                                     packed_lightmap_size))
                                             lightmap_id3.append(
-                                                BspGeneric.get_lm_id(
+                                                BspHelper.get_lm_id(
                                                     bsp_vert.lm3coord,
                                                     lightmap_size,
                                                     packed_lightmap_size))
                                             lightmap_id4.append(
-                                                BspGeneric.get_lm_id(
+                                                BspHelper.get_lm_id(
                                                     bsp_vert.lm4coord,
                                                     lightmap_size,
                                                     packed_lightmap_size))
@@ -1632,20 +1631,20 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                         # unpack lightmap tcs
                         for i in vertices:
                             bsp_vert = bsp.lumps["drawverts"].data[i]
-                            BspGeneric.unpack_lm_tc(
+                            BspHelper.unpack_lm_tc(
                                 bsp_vert.lm1coord,
                                 lightmap_size,
                                 packed_lightmap_size)
                             if bsp.lightmaps == 4:
-                                BspGeneric.unpack_lm_tc(
+                                BspHelper.unpack_lm_tc(
                                     bsp_vert.lm2coord,
                                     lightmap_size,
                                     packed_lightmap_size)
-                                BspGeneric.unpack_lm_tc(
+                                BspHelper.unpack_lm_tc(
                                     bsp_vert.lm3coord,
                                     lightmap_size,
                                     packed_lightmap_size)
-                                BspGeneric.unpack_lm_tc(
+                                BspHelper.unpack_lm_tc(
                                     bsp_vert.lm4coord,
                                     lightmap_size,
                                     packed_lightmap_size)
@@ -1840,9 +1839,104 @@ class TEST_OPERATOR(bpy.types.Operator):
 
         if not import_settings.base_paths[0].endswith('/'):
             import_settings.base_paths[0] = import_settings.base_paths[0] + '/'
-        filename = "C:/Program Files (x86)/Steam/steamapps/common/Jedi Academy/GameData/unpacked/maps/CRT.bsp"
-        BspBlender.import_bsp_file(filename, import_settings)
 
+        import_settings = Import_Settings(
+            base_paths=['G:/Xonotic/unpacked/'],
+            preset=Preset.RENDERING.value,
+        )
+
+        VFS = Q3VFS()
+        VFS.add_base('G:/Xonotic/unpacked/')
+        VFS.build_index()
+
+        file = ('G:/Xonotic/unpacked/'
+                'maps/solarium.map')
+
+        byte_array = VFS.get(file)
+        entities = MAP.read_map_file(byte_array)
+        objects = []
+
+        for ent_id, ent in enumerate(entities):
+            index_mapping = None
+            current_index = 0
+            positions = []
+            uv_list = []
+            indices = []
+            materials = []
+            material_ids = []
+            material_sizes = {}
+            if "surfaces" not in ent:
+                continue
+            for surf in ent["surfaces"]:
+                if surf.type == "BRUSH":
+                    for plane in surf.planes:
+                        mat = plane.material
+                        if mat not in materials:
+                            materials.append(mat)
+
+            material_sizes = (
+                QuakeShader.get_shader_image_sizes(
+                    VFS,
+                    import_settings,
+                    materials))
+
+            for surf in ent["surfaces"]:
+                if surf.type == "BRUSH":
+                    final_points, uvs, faces, mats = parse_brush(
+                        surf.planes, material_sizes)
+                    for mat in mats:
+                        if mat not in materials:
+                            materials.append(mat)
+
+                    index_mapping = [-2] * len(final_points)
+                    for index, (point, uv) in enumerate(
+                            zip(final_points, uvs)):
+                        index_mapping[index] = current_index
+                        current_index += 1
+                        positions.append(point)
+                        uv_list.append(uv)
+
+                    for face, mat in zip(faces, mats):
+                        # add vertices to model
+                        model_indices = []
+                        for index in face:
+                            model_indices.append(index_mapping[index])
+                        indices.append(model_indices)
+                        material_ids.append(materials.index(mat))
+            name = "entity" + str(ent_id)
+            mesh = bpy.data.meshes.new(name)
+            mesh.from_pydata(
+                positions,
+                [],
+                indices)
+
+            for texture_instance in materials:
+                mat = bpy.data.materials.get(texture_instance)
+                if (mat is None):
+                    mat = bpy.data.materials.new(name=texture_instance)
+                mesh.materials.append(mat)
+            mesh.polygons.foreach_set("material_index", material_ids)
+
+            uvs = []
+            uv_layer = "UVMap"
+            for uv in uv_list:
+                uvs.append(uv[0])
+                uvs.append(1.0 - uv[1])
+
+            mesh.uv_layers.new(do_init=False, name=uv_layer)
+            mesh.uv_layers[uv_layer].data.foreach_set(
+                "uv", uvs)
+
+            mesh.use_auto_smooth = True
+            mesh.update()
+            mesh.validate()
+            ob = bpy.data.objects.new(
+                    name=name,
+                    object_data=mesh)
+            objects.append(ob)
+            bpy.context.collection.objects.link(ob)
+
+        QuakeShader.build_quake_shaders(VFS, import_settings, objects)
         return {'FINISHED'}
 
 
@@ -1940,25 +2034,14 @@ class Reload_preview_shader(bpy.types.Operator):
             preset=Preset.PREVIEW.value,
         )
 
+        # initialize virtual file system
+        VFS = Q3VFS()
+        for base_path in import_settings.base_paths:
+            VFS.add_base(base_path)
+        VFS.build_index()
+
         objs = [obj for obj in context.selected_objects if obj.type == "MESH"]
-
-        for obj in objs:
-            vg = obj.vertex_groups.get("Decals")
-            if vg is not None:
-                obj.vertex_groups.remove(vg)
-            mod = obj.modifiers.get("polygonOffset")
-            if mod is not None:
-                obj.modifiers.remove(mod)
-
-        QuakeShader.build_quake_shaders(import_settings, objs)
-
-        for obj in objs:
-            vg = obj.vertex_groups.get("Decals")
-            if vg is not None:
-                modifier = obj.modifiers.new("polygonOffset", type="DISPLACE")
-                modifier.vertex_group = "Decals"
-                modifier.strength = 0.1
-                modifier.name = "polygonOffset"
+        QuakeShader.build_quake_shaders(VFS, import_settings, objs)
 
         return {'FINISHED'}
 
@@ -1983,27 +2066,13 @@ class Reload_render_shader(bpy.types.Operator):
             preset=Preset.RENDERING.value,
         )
 
+        # initialize virtual file system
+        VFS = Q3VFS()
+        for base_path in import_settings.base_paths:
+            VFS.add_base(base_path)
+        VFS.build_index()
+
         objs = [obj for obj in context.selected_objects if obj.type == "MESH"]
-
-        for obj in objs:
-            vg = obj.vertex_groups.get("ExternalLightmap")
-            if vg is not None:
-                obj.vertex_groups.remove(vg)
-            vg = obj.vertex_groups.get("Decals")
-            if vg is not None:
-                obj.vertex_groups.remove(vg)
-            mod = obj.modifiers.get("polygonOffset")
-            if mod is not None:
-                obj.modifiers.remove(mod)
-
-        QuakeShader.build_quake_shaders(import_settings, objs)
-
-        for obj in objs:
-            vg = obj.vertex_groups.get("Decals")
-            if vg is not None:
-                modifier = obj.modifiers.new("polygonOffset", type="DISPLACE")
-                modifier.vertex_group = "Decals"
-                modifier.strength = 0.1
-                modifier.name = "polygonOffset"
+        QuakeShader.build_quake_shaders(VFS, import_settings, objs)
 
         return {'FINISHED'}

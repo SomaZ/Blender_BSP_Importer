@@ -17,7 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 from math import floor, ceil, pi, sin, cos
-from .BspBrushes import Plane, parse_brush
+from .ID3Brushes import Plane, parse_brush
 from .BspImportSettings import SURFACE_TYPE
 
 
@@ -56,6 +56,11 @@ class ID3Model:
 
         def add_indexed(self, data):
             self.indexed.append(data)
+
+        def add_unindexed(self, data):
+            if self.unindexed is None:
+                self.unindexed = []
+            self.unindexed.append(data)
 
         def get_indexed(self, cast=None):
             if cast is None:
@@ -136,7 +141,7 @@ class ID3Model:
         self.uv_layers["UVMap"] = (
             self.VertexAttribute(self.indices))
         self.current_index = 0
-        self.index_mapping = []
+        self.index_mapping = None
         self.num_bsp_vertices = 0
 
         self.MAX_GRID_SIZE = 65
@@ -431,7 +436,7 @@ class ID3Model:
             elif surface_type == SURFACE_TYPE.PATCH:
                 self.add_bsp_patch(bsp, face, import_settings)
 
-        if bool(import_settings.surface_types & SURFACE_TYPE.BRUSH):
+        if import_settings.preset == "SHADOW_BRUSHES":
             for mat_id in range(len(self.material_names)):
                 self.material_names[mat_id] = (self.material_names[mat_id] +
                                                ".brush")
@@ -451,69 +456,41 @@ class ID3Model:
 
         for i in range(bsp_model.n_brushes):
             brush_id = first_brush + i
-
             bsp_brush = bsp.lumps["brushes"][brush_id]
-            shader = (bsp.lumps["shaders"][bsp_brush.texture].name.decode(
-                "latin-1") +
-                      ".brush")
-            if not (shader in self.material_names):
-                self.material_names.append(shader)
-
-            brush_shader_id = self.material_names.index(shader)
-
             planes = []
-            brush_materials = []
             for side in range(bsp_brush.n_brushsides):
                 brushside = bsp.lumps["brushsides"][
                     bsp_brush.brushside + side]
                 bsp_plane = bsp.lumps["planes"][brushside.plane]
-                shader = bsp.lumps["shaders"][
-                    brushside.texture].name.decode("latin-1") + ".brush"
+                shader = bsp.lumps["shaders"][brushside.texture].name.decode(
+                    "latin-1")
 
-                if not (shader in self.material_names):
-                    self.material_names.append(shader)
+                if import_settings.preset == "SHADOW_BRUSHES":
+                    shader = shader + ".brush"
 
-                if not (shader in brush_materials):
-                    brush_materials.append(shader)
-
-                mat_id = brush_materials.index(shader)
                 planes.append(Plane(
-                    distance=bsp_plane.distance,
-                    normal=tuple(bsp_plane.normal),
-                    material_id=mat_id))
+                    tuple(bsp_plane.normal),
+                    bsp_plane.distance,
+                    shader))
 
-            final_points, faces = parse_brush(planes, None)
+            final_points, uvs, faces, mats = parse_brush(planes)
 
-            self.index_mapping = [-2] * len(final_points)
-            for index, point in enumerate(final_points):
-                self.index_mapping[index] = self.current_index
+            index_mapping = [-2] * len(final_points)
+            for index, (point, uv) in enumerate(zip(final_points, uvs)):
+                index_mapping[index] = self.current_index
                 self.current_index += 1
-                self.positions.add_indexed(
-                    point)
+                self.positions.add_indexed(point)
+                self.uv_layers["UVMap"].add_unindexed(uv)
 
-                self.uv_layers["UVMap"].add_indexed(
-                    (0.0, 0.0))
-
-            for face in faces:
+            for face, material in zip(faces, mats):
                 # add vertices to model
-                model_indices = []
-                for index in face:
-                    model_indices.append(self.index_mapping[index])
-                self.indices.append(model_indices)
+                self.indices.append([index_mapping[index] for index in face])
 
-                # add faces to model
-                shaders_lump = bsp.lumps["shaders"]
-                if brush_shader_id <= len(bsp.lumps["shaders"]):
-                    material_name = (
-                        shaders_lump[brush_shader_id].name.decode("latin-1") +
-                        ".brush")
-                else:
-                    material_name = "noshader"
+                if material not in self.material_names:
+                    self.material_names.append(material)
 
-                if material_name not in self.material_names:
-                    self.material_names.append(material_name)
                 self.material_id.append(
-                    self.material_names.index(material_name))
+                    self.material_names.index(material))
 
     def pack_lightmap_uvs(self, bsp):
         layer_name = "LightmapUV"

@@ -24,8 +24,10 @@ import cProfile
 if "bpy" not in locals():
     import bpy
 
-from .BSP import BSP_READER as BSP
-from .Quake3VFS import Q3VFS
+from .IDTech3Lib.BSP import BSP_READER as BSP
+from .IDTech3Lib import MAP
+from .IDTech3Lib.ID3VFS import Q3VFS
+from . import BspHelper
 from math import floor
 
 if "Entities" in locals():
@@ -33,8 +35,14 @@ if "Entities" in locals():
 else:
     from . import Entities
 
+if "QuakeShader" in locals():
+    imp.reload(QuakeShader)
+else:
+    from . import QuakeShader
+
 
 def create_meshes_from_models(models):
+    return_meshes = {}
     for model in models:
         name = model.name
         mesh = bpy.data.meshes.new(name)
@@ -63,17 +71,15 @@ def create_meshes_from_models(models):
             mesh.normals_split_custom_set_from_vertices(indexed_normals)
 
         for uv_layer in model.uv_layers:
+            uvs = []
             if uv_layer.startswith("Lightmap"):
-                uvs = []
                 for uv in model.uv_layers[uv_layer].get_unindexed(tuple):
                     uvs.append(uv[0])
                     uvs.append(uv[1])
             else:
-                uvs = []
                 for uv in model.uv_layers[uv_layer].get_unindexed(tuple):
                     uvs.append(uv[0])
                     uvs.append(1.0 - uv[1])
-
             mesh.uv_layers.new(do_init=False, name=uv_layer)
             mesh.uv_layers[uv_layer].data.foreach_set(
                 "uv", uvs)
@@ -112,6 +118,39 @@ def create_meshes_from_models(models):
         mesh.use_auto_smooth = True
         mesh.update()
         mesh.validate()
+        if name in return_meshes:
+            print("Double mesh name found! Mesh did not get added: " + name)
+            continue
+        return_meshes[name] = mesh
+    return return_meshes
+
+
+def create_bsp_objects(objects, meshes):
+    if len(objects) <= 0:
+        return None
+    object_list = []
+    for obj_name in objects:
+        obj = objects[obj_name]
+        if obj.mesh_name is None:
+            print("Didnt add object: " + str(obj.name))
+            continue
+        if obj.mesh_name not in meshes:
+            print("Didnt find mesh in meshes: " +
+                  str(obj.mesh_name) +
+                  " in object " +
+                  str(obj.name))
+            continue
+        blender_mesh = meshes[obj.mesh_name]
+        blender_obj = bpy.data.objects.new(obj.name, blender_mesh)
+        blender_obj.location = obj.position
+
+        if not blender_mesh.name.startswith("*"):
+            blender_obj.rotation_euler = obj.rotation
+            blender_obj.scale = obj.scale
+
+        bpy.context.collection.objects.link(blender_obj)
+        object_list.append(blender_obj)
+    return object_list
 
 
 def import_bsp_file(import_settings):
@@ -135,27 +174,48 @@ def import_bsp_file(import_settings):
     # profiler.print_stats()
 
     # convert bsp data to blender data
-    create_meshes_from_models(bsp_models)
+    blender_meshes = create_meshes_from_models(bsp_models)
 
     # create blender objects
-    if import_settings.preset == "BRUSHES":
-        for model in bsp_models:
-            name = model.name
-            mesh = bpy.data.meshes.get(name)
+    blender_objects = []
+    bsp_objects = None
+    BRUSH_IMPORTS = ["BRUSHES", "SHADOW_BRUSHES"]
+    if import_settings.preset in BRUSH_IMPORTS:
+        for mesh_name in blender_meshes:
+            mesh = blender_meshes[mesh_name]
             if mesh is None:
-                mesh = bpy.data.meshes.new(name)
+                mesh = bpy.data.meshes.new(mesh_name)
             ob = bpy.data.objects.new(
-                    name=name,
+                    name=mesh_name,
                     object_data=mesh)
+            blender_objects.append(ob)
             bpy.context.collection.objects.link(ob)
-        for a in bpy.context.screen.areas:
-            if a.type == 'VIEW_3D':
-                for s in a.spaces:
-                    if s.type == 'VIEW_3D':
-                        s.clip_start = 4
-                        s.clip_end = 40000
     else:
-        Entities.ImportEntities(VFS, bsp_file, import_settings)
+        bsp_objects = Entities.ImportEntities(VFS, bsp_file, import_settings)
+        blender_objects = create_bsp_objects(bsp_objects, blender_meshes)
+
+    # get clip data and gridsize
+    clip_end = 40000
+    if bsp_objects is not None and "worldspawn" in bsp_objects:
+        worldspawn_object = bsp_objects["worldspawn"]
+        custom_parameters = worldspawn_object.custom_parameters
+
+        if ("distancecull" in custom_parameters and
+           import_settings.preset == "PREVIEW"):
+            clip_end = float(custom_parameters["distancecull"])
+        if "gridsize" in custom_parameters:
+            grid_size = custom_parameters["gridsize"]
+            bsp_file.lightgrid_size = grid_size
+            bsp_file.lightgrid_inverse_size = [1.0 / float(grid_size[0]),
+                                               1.0 / float(grid_size[1]),
+                                               1.0 / float(grid_size[2])]
+    # apply clip data
+    for a in bpy.context.screen.areas:
+        if a.type == 'VIEW_3D':
+            for s in a.spaces:
+                if s.type == 'VIEW_3D':
+                    s.clip_start = 4
+                    s.clip_end = clip_end
 
     bsp_images = bsp_file.get_bsp_images()
     for image in bsp_images:
@@ -228,3 +288,20 @@ def import_bsp_file(import_settings):
             height=bsp_file.lightmap_size[1])
         new_image.pixels = atlas_pixels
         new_image.alpha_mode = 'CHANNEL_PACKED'
+
+    QuakeShader.init_shader_system(bsp_file)
+    QuakeShader.build_quake_shaders(VFS, import_settings, blender_objects)
+
+
+def import_map_file(import_settings):
+
+    # initialize virtual file system
+    VFS = Q3VFS()
+    for base_path in import_settings.base_paths:
+        VFS.add_base(base_path)
+    VFS.build_index()
+
+    byte_array = VFS.get(import_settings.file)
+
+    entities = MAP.read_map_file(byte_array)
+    objects = []

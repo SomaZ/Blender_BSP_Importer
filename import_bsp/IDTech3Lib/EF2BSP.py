@@ -18,6 +18,7 @@
 
 from ctypes import (LittleEndianStructure,
                     c_char, c_float, c_int, c_ubyte, sizeof)
+# replace with numpy array
 from mathutils import Vector
 
 
@@ -66,8 +67,8 @@ class BSP_LEAF(LittleEndianStructure):
         ("area", c_int),
         ("mins", c_int * 3),
         ("maxs", c_int * 3),
-        ("leafface", c_int),
         ("n_leaffaces", c_int),
+        ("leafface", c_int),
         ("leafbrush", c_int),
         ("n_leafbrushes", c_int),
     ]
@@ -98,16 +99,16 @@ class BSP_MODEL(LittleEndianStructure):
 
 class BSP_BRUSH(LittleEndianStructure):
     _fields_ = [
-        ("brushside", c_int),
         ("n_brushsides", c_int),
+        ("brushside", c_int),
         ("texture", c_int),
     ]
 
 
 class BSP_BRUSH_SIDE(LittleEndianStructure):
     _fields_ = [
-        ("plane", c_int),
         ("texture", c_int),
+        ("plane", c_int),
     ]
 
 
@@ -115,9 +116,10 @@ class BSP_VERTEX(LittleEndianStructure):
     _fields_ = [
         ("position", c_float * 3),
         ("texcoord", c_float * 2),
-        ("lm1coord", c_float * 2),
         ("normal", c_float * 3),
         ("color1", c_ubyte * 4),
+        ("lod_extra", c_float),
+        ("lm1coord", c_float * 2),
     ]
 
 
@@ -154,6 +156,9 @@ class BSP_SURFACE(LittleEndianStructure):
         ("patch_width", c_int),
         ("patch_height", c_int),
         ("subdivisions", c_float),
+        ("baseLightingSurface", c_int),
+        ("inverted", c_int),
+        ("faceFlags", c_int * 4),
     ]
 
 
@@ -178,8 +183,8 @@ class BSP_VIS(LittleEndianStructure):
 
 
 class BSP_INFO:
-    bsp_magic = b'FAKK'
-    bsp_version = 0xc
+    bsp_magic = b'EF2!'
+    bsp_version = 0x14
 
     lightgrid_size = [192, 192, 320]
     lightgrid_inverse_size = [1.0 / float(lightgrid_size[0]),
@@ -194,6 +199,8 @@ class BSP_INFO:
     lumps = {"shaders":          BSP_SHADER,
              "planes":           BSP_PLANE,
              "lightmaps":        BSP_LIGHTMAP,
+             "baselightmaps":    BSP_LIGHTMAP,
+             "contlightmaps":    BSP_LIGHTMAP,
              "surfaces":         BSP_SURFACE,
              "drawverts":        BSP_VERTEX,
              "drawindexes":      BSP_INDEX,
@@ -211,12 +218,21 @@ class BSP_INFO:
              "entlights":        BSP_ENTITY,
              "entlightvis":      BSP_ENTITY,
              "lightdefs":        BSP_ENTITY,
+             "baselightingverts": BSP_ENTITY,
+             "contlightingverts": BSP_ENTITY,
+             "baselightingsurfs": BSP_ENTITY,
+             "lightingsurfs":    BSP_ENTITY,
+             "lightingvertsurfs": BSP_ENTITY,
+             "lightinggroups":   BSP_ENTITY,
+             "staticLodModels":  BSP_ENTITY,
+             "bspinfo":          BSP_ENTITY,
              }
 
     header_size = sizeof(BSP_HEADER)
 
     lightmap_lumps = ("lightmaps",
-                      )
+                      "baselightmaps",
+                      "contlightmaps")
 
     @staticmethod
     def lerp_vec(vec1, vec2, vec_out):

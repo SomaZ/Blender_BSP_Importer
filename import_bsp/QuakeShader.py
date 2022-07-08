@@ -36,7 +36,7 @@ else:
 if "Parsing" in locals():
     imp.reload(Parsing)
 else:
-    from .Parsing import *
+    from .IDTech3Lib.Parsing import *
 
 if "QuakeLight" in locals():
     imp.reload(QuakeLight)
@@ -44,6 +44,7 @@ else:
     from .QuakeLight import SRGBToLinear
 
 from math import radians
+from .IDTech3Lib import ID3Shader
 
 LIGHTING_IDENTITY = 0
 LIGHTING_VERTEX = 1
@@ -173,7 +174,8 @@ class vanilla_shader_stage:
             print("didn't parse tcMod: ", tcmod)
 
     def setLighting(stage, lighting):
-        if (lighting.startswith("vertex") or lighting.startswith("exactvertex")):
+        if (lighting.startswith("vertex") or
+           lighting.startswith("exactvertex")):
             stage.lighting = LIGHTING_VERTEX
         elif (lighting.startswith("oneminusvertex")):
             stage.lighting = -LIGHTING_VERTEX
@@ -464,9 +466,8 @@ class quake_shader:
         new_alpha_out = alpha_out
         node_blend = None
         if stage.valid:
-            if (stage.diffuse == "$whiteimage" or stage.diffuse == "$lightmap"):
-                img = bpy.data.images.get(stage.diffuse)
-            else:
+            img = bpy.data.images.get(stage.diffuse)
+            if img is None:
                 img = Image.load_file(base_path + "/" + stage.diffuse)
 
             if img is not None:
@@ -594,9 +595,9 @@ class quake_shader:
         out_Alpha = None
         out_Glow = None
         out_None = None
-
+        shader_atts = shader.attributes
         # we dont want the system shaders and "those" skys
-        if shader.is_system_shader or "skyparms" in shader.attributes:
+        if shader.is_system_shader or "skyparms" in shader_atts:
             shader.nodes.clear()
             node_output = shader.nodes.new(type='ShaderNodeOutputMaterial')
             node_output.name = "Output"
@@ -606,8 +607,9 @@ class quake_shader:
             node_BSDF.location = (3000, 0)
             shader.links.new(node_BSDF.outputs["BSDF"], node_output.inputs[0])
             shader.mat.blend_method = "BLEND"
-            if "skyparms" in shader.attributes:
-                skyname = shader.attributes["skyparms"][0].split()[0]
+
+            if "skyparms" in shader_atts:
+                skyname = shader_atts["skyparms"][0].split()[0]
                 image = bpy.data.images.get(skyname)
                 if image is None:
                     image = QuakeSky.make_equirectangular_from_sky(
@@ -662,17 +664,17 @@ class quake_shader:
                 bpy.context.scene.world.node_tree.links.new(
                     mx_node.outputs["Color"], bg_node.inputs["Color"])
 
-            if "sun" in shader.attributes:
-                for i, sun_parms in enumerate(shader.attributes["sun"]):
+            if "sun" in shader_atts:
+                for i, sun_parms in enumerate(shader_atts["sun"]):
                     QuakeSky.add_sun(shader.name, "sun", sun_parms, i)
-            if "q3map_sun" in shader.attributes:
-                for i, sun_parms in enumerate(shader.attributes["q3map_sun"]):
+            if "q3map_sun" in shader_atts:
+                for i, sun_parms in enumerate(shader_atts["q3map_sun"]):
                     QuakeSky.add_sun(shader.name, "q3map_sun", sun_parms, i)
-            if "q3map_sunext" in shader.attributes:
-                for i, sun_parms in enumerate(shader.attributes["q3map_sunext"]):
+            if "q3map_sunext" in shader_atts:
+                for i, sun_parms in enumerate(shader_atts["q3map_sunext"]):
                     QuakeSky.add_sun(shader.name, "q3map_sunext", sun_parms, i)
-            if "q3gl2_sun" in shader.attributes:
-                for i, sun_parms in enumerate(shader.attributes["q3gl2_sun"]):
+            if "q3gl2_sun" in shader_atts:
+                for i, sun_parms in enumerate(shader_atts["q3gl2_sun"]):
                     QuakeSky.add_sun(shader.name, "q3gl2_sun", sun_parms, i)
 
             node_lm = shader.nodes.new(type='ShaderNodeTexImage')
@@ -710,35 +712,45 @@ class quake_shader:
                         shader_type = "ADD"
                         shader.mat.blend_method = "BLEND"
                 else:
-                    if stage.blend.endswith("gl_one_minus_src_alpha") and shader_type == "ADD":
+                    if (stage.blend.endswith("gl_one_minus_src_alpha") and
+                       shader_type == "ADD"):
                         shader_type = "BLEND"
                         shader.mat.blend_method = "BLEND"
-                    if stage.blend.endswith("gl_src_alpha") and shader_type == "ADD":
+                    if (stage.blend.endswith("gl_src_alpha") and
+                       shader_type == "ADD"):
                         shader_type = "BLEND"
                         shader.mat.blend_method = "BLEND"
-                    if stage.blend.endswith("gl_src_color") and shader_type == "ADD" and not stage.lightmap:
+                    if (stage.blend.endswith("gl_src_color") and
+                       shader_type == "ADD" and not stage.lightmap):
                         shader_type = "MULTIPLY"
                         shader.mat.blend_method = "BLEND"
-                    if stage.blend.startswith("gl_dst_color") and shader_type == "ADD" and not stage.lightmap:
+                    if (stage.blend.startswith("gl_dst_color") and
+                       shader_type == "ADD" and not stage.lightmap):
                         shader_type = "MULTIPLY"
                         shader.mat.blend_method = "BLEND"
 
                 if stage.blend.endswith("gl_zero") and not stage.skip_alpha:
                     shader_type = "OPAQUE"
-                    shader.mat.blend_method = "OPAQUE" if shader.mat.blend_method != "CLIP" else "CLIP"
+                    shader.mat.blend_method = (
+                        "OPAQUE"
+                        if shader.mat.blend_method != "CLIP"
+                        else "CLIP"
+                    )
 
                 stage_index += 1
 
                 if stage.lightmap:
                     continue
-                if stage.tcGen == TCGEN_LM and stage.diffuse.startswith("maps/"):
+                if (stage.tcGen == TCGEN_LM and
+                   stage.diffuse.startswith("maps/")):
                     continue
                 if stage.tcGen == TCGEN_ENV:
                     continue
                 if stage.alpha == ALPHA_SPEC:
                     continue
 
-                if stage.lighting == LIGHTING_VERTEX or stage.lighting == LIGHTING_LIGHTGRID:
+                if (stage.lighting == LIGHTING_VERTEX or
+                   stage.lighting == LIGHTING_LIGHTGRID):
                     stage.lighting = 0
 
                 if added_stages == 0:
@@ -794,10 +806,13 @@ class quake_shader:
                         new_node.inputs[1].default_value = (
                             float(shader.attributes["q3map_surfacelight"][0]) /
                             1000.0)
-                if shader.mat.blend_method != "OPAQUE" and out_Alpha is not None and "portal" not in shader.attributes:
+                if (shader.mat.blend_method != "OPAQUE" and
+                   out_Alpha is not None and
+                   "portal" not in shader.attributes):
                     shader.links.new(out_Alpha, node_BSDF.inputs["Alpha"])
                 shader.links.new(
-                    node_BSDF.outputs["BSDF"], shader.nodes["Output"].inputs[0])
+                    node_BSDF.outputs["BSDF"],
+                    shader.nodes["Output"].inputs[0])
             else:
                 shader.mat.blend_method = "BLEND"
                 node_Emiss = shader.nodes.new(type="ShaderNodeEmission")
@@ -897,7 +912,8 @@ class quake_shader:
         if shader.is_vertex_lit:
             node_lm.image = vt_image
             for stage in shader.stages:
-                if stage.tcGen == TCGEN_LM and stage.diffuse.startswith("maps/"):
+                if (stage.tcGen == TCGEN_LM and
+                   stage.diffuse.startswith("maps/")):
                     image = bpy.data.images.get(
                         Image.remove_file_extension(stage.diffuse))
                     if image is None:
@@ -917,7 +933,8 @@ class quake_shader:
 
         shader.mat.use_backface_culling = True
         if "cull" in shader.attributes:
-            if shader.attributes["cull"][0] == "twosided" or shader.attributes["cull"][0] == "none":
+            if (shader.attributes["cull"][0] == "twosided" or
+               shader.attributes["cull"][0] == "none"):
                 shader.mat.use_backface_culling = False
 
         if shader.mat.use_backface_culling:
@@ -1024,16 +1041,23 @@ class quake_shader:
                     if stage.blend != BLEND_NONE:
                         shader_type = "ADD"
                         shader.mat.blend_method = "BLEND"
-                    if shader.is_vertex_lit and stage.lighting is LIGHTING_IDENTITY:
+                    if (shader.is_vertex_lit and
+                       stage.lighting is LIGHTING_IDENTITY):
                         stage.lighting = LIGHTING_VERTEX
-                    if shader.is_grid_lit and stage.lighting is LIGHTING_IDENTITY:
+                    if (shader.is_grid_lit and
+                       stage.lighting is LIGHTING_IDENTITY):
                         stage.lighting = LIGHTING_LIGHTGRID
 
                 if stage.blend.endswith("gl_zero") and not stage.skip_alpha:
                     shader_type = "OPAQUE"
-                    shader.mat.blend_method = "OPAQUE" if shader.mat.blend_method != "CLIP" else "CLIP"
+                    shader.mat.blend_method = (
+                        "OPAQUE"
+                        if shader.mat.blend_method != "CLIP"
+                        else "CLIP"
+                    )
 
-                if not shader.is_grid_lit and stage.lighting is LIGHTING_LIGHTGRID:
+                if (not shader.is_grid_lit and
+                   stage.lighting is LIGHTING_LIGHTGRID):
                     stage.lighting = LIGHTING_VERTEX
 
                 if stage.lightmap and not lightmap_available:
@@ -1041,19 +1065,23 @@ class quake_shader:
                     stage.lighting = LIGHTING_VERTEX
 
                 # TODO: proper handling of additive and multiplicative shaders
-                if stage.blend.endswith("gl_one_minus_src_alpha") and shader_type == "ADD":
+                if (stage.blend.endswith("gl_one_minus_src_alpha") and
+                   shader_type == "ADD"):
                     shader_type = "BLEND"
                     shader.mat.blend_method = "BLEND"
 
-                if stage.blend.endswith("gl_src_alpha") and shader_type == "ADD":
+                if (stage.blend.endswith("gl_src_alpha") and
+                   shader_type == "ADD"):
                     shader_type = "BLEND"
                     shader.mat.blend_method = "BLEND"
 
-                if stage.blend.endswith("gl_src_color") and shader_type == "ADD" and not stage.lightmap:
+                if (stage.blend.endswith("gl_src_color") and
+                   shader_type == "ADD" and not stage.lightmap):
                     shader_type = "MULTIPLY"
                     shader.mat.blend_method = "BLEND"
 
-                if stage.blend.startswith("gl_dst_color") and shader_type == "ADD" and not stage.lightmap:
+                if (stage.blend.startswith("gl_dst_color") and
+                   shader_type == "ADD" and not stage.lightmap):
                     shader_type = "MULTIPLY"
                     shader.mat.blend_method = "BLEND"
 
@@ -1072,7 +1100,8 @@ class quake_shader:
                 if stage.depthwrite:
                     if stage.blend != BLEND_NONE and shader_type == "ADD":
                         shader.mat.blend_method = "BLEND"
-                    if stage.alpha_clip != ACLIP_NONE and shader.mat.blend_method != "OPAQUE":
+                    if (stage.alpha_clip != ACLIP_NONE and
+                       shader.mat.blend_method != "OPAQUE"):
                         shader.mat.blend_method = "CLIP"
 
                 stage_index += 1
@@ -1090,19 +1119,25 @@ class quake_shader:
                         color_out = shader.get_rgbGen_node(
                             LIGHTING_LIGHTGRID).outputs[0]
                     elif shader.last_blend is not None:
-                        shader.links.new(shader.get_rgbGen_node(LIGHTING_LIGHTGRID).outputs[0],
-                                         shader.last_blend.inputs['rgbGen'])
+                        shader.links.new(
+                            shader.get_rgbGen_node(
+                                LIGHTING_LIGHTGRID).outputs[0],
+                            shader.last_blend.inputs['rgbGen'])
                 else:
                     if stage.skip_alpha:
-                        color_out, none_out = shader.build_stage_nodes(base_path,
-                                                                       stage,
-                                                                       color_out,
-                                                                       alpha_out)
+                        color_out, none_out = (
+                            shader.build_stage_nodes(
+                                base_path,
+                                stage,
+                                color_out,
+                                alpha_out))
                     else:
-                        color_out, alpha_out = shader.build_stage_nodes(base_path,
-                                                                        stage,
-                                                                        color_out,
-                                                                        alpha_out)
+                        color_out, alpha_out = (
+                            shader.build_stage_nodes(
+                                base_path,
+                                stage,
+                                color_out,
+                                alpha_out))
 
                 shader.current_x_location += 300
                 shader.current_y_location -= 600
@@ -1179,7 +1214,8 @@ class quake_shader:
 
         shader.mat.use_backface_culling = True
         if "cull" in shader.attributes:
-            if shader.attributes["cull"][0] == "twosided" or shader.attributes["cull"][0] == "none":
+            if (shader.attributes["cull"][0] == "twosided" or
+               shader.attributes["cull"][0] == "none"):
                 shader.mat.use_backface_culling = False
         shader.mat.shadow_method = 'CLIP'
 
@@ -1264,7 +1300,8 @@ class quake_shader:
             node_BSDF.inputs["Alpha"].default_value = float(
                 shader.attributes["qer_trans"][0])
 
-        if import_settings.preset == 'RENDERING' or import_settings.preset == "BRUSHES":
+        if (import_settings.preset == 'RENDERING' or
+           import_settings.preset == "BRUSHES"):
             transparent = False
 
             if "skyparms" in shader.attributes:
@@ -1305,7 +1342,8 @@ class quake_shader:
     def finish_shader(shader, base_path, import_settings):
         if shader.is_brush:
             shader.finish_brush_shader(base_path, import_settings)
-        elif import_settings.preset != 'RENDERING':
+        elif (import_settings.preset != 'RENDERING' and
+              import_settings.preset != 'BRUSHES'):
             shader.finish_preview_shader(base_path, import_settings)
         else:
             shader.finish_rendering_shader(base_path, import_settings)
@@ -1321,22 +1359,25 @@ def init_shader_system(bsp):
     color_normalize_node.use_fake_user = True
 
 
-def build_quake_shaders(import_settings, object_list):
+def get_shader_image_sizes(VFS, import_settings, material_list):
+    return ID3Shader.get_shader_image_sizes(
+        VFS,
+        import_settings,
+        material_list)
+
+
+def build_quake_shaders(VFS, import_settings, object_list):
     base_path = import_settings.base_paths[0]
     shaders = {}
     shader_list = []
     found_shader_dir = False
 
     for shader_path in import_settings.shader_dirs:
-        try:
-            shader_files = os.listdir(base_path + shader_path)
-            shader_list = [base_path + shader_path + file_path
-                           for file_path in shader_files
-                           if file_path.lower().endswith('.shader')]
+        reg = "^" + shader_path + r"(.*?).shader$"
+        shader_list = VFS.search(reg)
+        if len(shader_list) > 0:
             found_shader_dir = True
             break
-        except Exception:
-            continue
 
     if not found_shader_dir:
         return
@@ -1355,6 +1396,16 @@ def build_quake_shaders(import_settings, object_list):
             if m.material.name not in material_names:
                 material_list.append([m, force_vertex, force_grid])
                 material_names.append(m.material.name)
+
+        vg = object.vertex_groups.get("ExternalLightmap")
+        if vg is not None:
+            object.vertex_groups.remove(vg)
+        vg = object.vertex_groups.get("Decals")
+        if vg is not None:
+            object.vertex_groups.remove(vg)
+        mod = object.modifiers.get("polygonOffset")
+        if mod is not None:
+            object.modifiers.remove(mod)
 
     for m in material_list:
         index = m[0].material.name.find('.')
@@ -1375,108 +1426,75 @@ def build_quake_shaders(import_settings, object_list):
         else:
             shaders.setdefault(l_format(shader_name), []).append(qs)
 
-    for shader_file in shader_list:
-        with open(shader_file, encoding="latin-1") as lines:
-            current_shaders = []
-            dict_key = ""
-            stage = {}
-            is_open = 0
-            for line in lines:
-                # skip empty lines or comments
-                if (l_empty(line) or l_comment(line)):
-                    continue
+    shader_info = ID3Shader.get_material_dicts(VFS,
+                                               import_settings,
+                                               shaders.keys())
 
-                # trim line
-                line = l_format(line)
+    for shader in shaders:
+        current_shaders = shaders[shader]
+        if shader == "textures/common/skyportal":
+            for portal_shader in current_shaders:
+                portal_shader.is_system_shader = True
 
-                # content
-                if (not l_open(line) and not l_close(line)):
-                    # shader names
-                    if is_open == 0:
-                        if line in shaders and not current_shaders:
-                            current_shaders = shaders[line]
-                            dict_key = line
-                            if line == "textures/common/skyportal":
-                                for portal_shader in current_shaders:
-                                    portal_shader.is_system_shader = True
+        if shader not in shader_info:
+            continue
 
-                    # shader attributes
-                    elif is_open == 1 and current_shaders:
-                        key, value = parse(line)
+        attributes, stages = shader_info[shader]
+        if ("surfaceparm" in attributes and
+           "nodraw" in attributes["surfaceparm"]):
+            for current_shader in current_shaders:
+                current_shader.is_system_shader = True
 
-                        # ugly hack
-                        if key == "surfaceparm" and value == "nodraw":
-                            for current_shader in current_shaders:
-                                current_shader.is_system_shader = True
+        for current_shader in current_shaders:
+            current_shader.attributes = attributes
 
-                        for current_shader in current_shaders:
-                            if key in current_shader.attributes:
-                                current_shader.attributes[key].append(value)
-                            else:
-                                current_shader.attributes[key] = [value]
+        for stage in stages:
+            for current_shader in current_shaders:
+                current_shader.add_stage(stage)
 
-                    # stage info
-                    elif is_open == 2 and current_shaders:
-                        key, value = parse(line)
-                        stage[key] = value
+        for current_shader in current_shaders:
+            current_shader.finish_shader(base_path, import_settings)
+            has_external_lm = False
+            for shader_stage in current_shader.stages:
+                if (shader_stage.tcGen == TCGEN_LM and
+                   shader_stage.diffuse.startswith("maps/")):
+                    has_external_lm = True
+            # polygon offset to vertex group
+            if "polygonoffset" in attributes or has_external_lm:
+                for obj in object_list:
+                    for index, m in enumerate(obj.material_slots):
+                        if m.name == current_shader.name:
+                            verts = [v for f in obj.data.polygons
+                                     if f.material_index == index
+                                     for v in f.vertices]
+                            if len(verts):
+                                if "polygonoffset" in attributes:
+                                    vg = obj.vertex_groups.get(
+                                        "Decals")
+                                    if vg is None:
+                                        vg = obj.vertex_groups.new(
+                                            name="Decals")
+                                    vg.add(verts, 1.0, 'ADD')
+                                if has_external_lm:
+                                    vg = obj.vertex_groups.get(
+                                        "ExternalLightmap")
+                                    if vg is None:
+                                        vg = obj.vertex_groups.new(
+                                            name="ExternalLightmap")
+                                    vg.add(verts, 1.0, 'ADD')
+                            break
+    for shader in shaders:
+        if shader in shader_info:
+            continue
+        for current_shader in shaders[shader]:
+            current_shader.finish_shader(base_path, import_settings)
 
-                # marker open
-                elif l_open(line):
-                    is_open = is_open + 1
-
-                # marker close
-                elif l_close(line):
-                    # close stage
-                    if is_open == 2 and current_shaders:
-                        for current_shader in current_shaders:
-                            current_shader.add_stage(stage)
-                        stage = {}
-
-                    # close material
-                    elif is_open == 1 and current_shaders:
-                        # finish the shaders and delete them from the list
-                        # so we dont double parse them by accident
-                        for shader in shaders[dict_key]:
-                            shader.finish_shader(base_path, import_settings)
-
-                            has_external_lm = False
-                            for shader_stage in shader.stages:
-                                if shader_stage.tcGen == TCGEN_LM and shader_stage.diffuse.startswith("maps/"):
-                                    has_external_lm = True
-
-                            # polygon offset to vertex group
-                            if "polygonoffset" in shader.attributes or has_external_lm:
-                                for obj in object_list:
-                                    for index, m in enumerate(obj.material_slots):
-                                        if m.name == shader.name:
-                                            verts = [v for f in obj.data.polygons
-                                                     if f.material_index == index for v in f.vertices]
-                                            if len(verts):
-                                                if "polygonoffset" in shader.attributes:
-                                                    vg = obj.vertex_groups.get(
-                                                        "Decals")
-                                                    if vg is None:
-                                                        vg = obj.vertex_groups.new(
-                                                            name="Decals")
-                                                    vg.add(verts, 1.0, 'ADD')
-                                                if has_external_lm:
-                                                    vg = obj.vertex_groups.get(
-                                                        "ExternalLightmap")
-                                                    if vg is None:
-                                                        vg = obj.vertex_groups.new(
-                                                            name="ExternalLightmap")
-                                                    vg.add(verts, 1.0, 'ADD')
-                                            break
-
-                        del shaders[dict_key]
-                        dict_key = ""
-                        current_shaders = []
-
-                    is_open -= 1
-
-    # finish remaining none explicit shaders
-    for shader_group in shaders:
-        for shader in shaders[shader_group]:
-            shader.finish_shader(base_path, import_settings)
+    for object in object_list:
+        vg = object.vertex_groups.get("Decals")
+        if vg is not None:
+            modifier = object.modifiers.new("polygonOffset", type="DISPLACE")
+            modifier.vertex_group = "Decals"
+            modifier.strength = 0.1
+            modifier.name = "polygonOffset"
 
     return

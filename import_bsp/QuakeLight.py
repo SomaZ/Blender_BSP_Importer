@@ -275,14 +275,14 @@ def create_lightgrid():
     lightgrid_size.append(bsp_group.nodes["GridSize"].inputs[1].default_value)
     lightgrid_size.append(bsp_group.nodes["GridSize"].inputs[2].default_value)
 
-    lightgrid_dimensions = []
-    lightgrid_dimensions.append(
-        bsp_group.nodes["GridDimensions"].inputs[0].default_value)
-    lightgrid_dimensions.append(
-        bsp_group.nodes["GridDimensions"].inputs[1].default_value)
-    lightgrid_dimensions.append(
-        bsp_group.nodes["GridDimensions"].inputs[2].default_value)
-    lightgrid_dimensions[1] /= lightgrid_dimensions[2]
+    lightgrid_dimensions = [
+        int(bsp_group.nodes["GridDimensions"].inputs[0].default_value),
+        int(bsp_group.nodes["GridDimensions"].inputs[1].default_value),
+        int(bsp_group.nodes["GridDimensions"].inputs[2].default_value)
+    ]
+    lightgrid_dimensions[1] = int(
+        lightgrid_dimensions[1]/lightgrid_dimensions[2]
+    )
 
     lightgrid_inverse_dim = [1.0 / lightgrid_dimensions[0],
                              1.0 /

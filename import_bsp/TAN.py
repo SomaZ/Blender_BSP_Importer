@@ -17,7 +17,7 @@ else:
 if "os" not in locals():
     import os
 
-from .Parsing import guess_model_name, fillName, parse
+from .IDTech3Lib.Parsing import guess_model_name, fillName, parse
 
 from math import pi, sin, cos, atan2, acos, sqrt
 from mathutils import Matrix
