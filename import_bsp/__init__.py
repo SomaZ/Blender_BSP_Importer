@@ -18,7 +18,7 @@
 
 #  Imports
 #  Python
-import imp
+import importlib
 
 bl_info = {
     "name": "Import id Tech 3 BSP",
@@ -34,7 +34,7 @@ bl_info = {
 if "bpy" not in locals():
     import bpy
 if "UI" in locals():
-    imp.reload(UI)
+    importlib.reload(UI)
 else:
     from . import UI
 
