@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import imp
+import importlib
 import os
 
 import cProfile
@@ -24,21 +24,37 @@ import cProfile
 if "bpy" not in locals():
     import bpy
 
-from .IDTech3Lib.BSP import BSP_READER as BSP
-from .IDTech3Lib import MAP
-from .IDTech3Lib.ID3VFS import Q3VFS
-from . import BspHelper
-from math import floor
+from .idtech3lib.BSP import BSP_READER as BSP
+from .idtech3lib import MAP
+from .idtech3lib.ID3VFS import Q3VFS
+from .idtech3lib import GamePacks
+from math import floor, atan, radians
+from numpy import dot, sqrt
 
 if "Entities" in locals():
-    imp.reload(Entities)
+    importlib.reload(Entities)
 else:
     from . import Entities
 
 if "QuakeShader" in locals():
-    imp.reload(QuakeShader)
+    importlib.reload(QuakeShader)
 else:
     from . import QuakeShader
+
+if "MD3" in locals():
+    importlib.reload(MD3)
+else:
+    from . import MD3
+
+if "TAN" in locals():
+    importlib.reload(TAN)
+else:
+    from . import TAN
+
+if "QuakeLight" in locals():
+    importlib.reload(QuakeLight)
+else:
+    from . import QuakeLight
 
 
 def create_meshes_from_models(models):
@@ -125,22 +141,164 @@ def create_meshes_from_models(models):
     return return_meshes
 
 
-def create_bsp_objects(objects, meshes):
+def load_mesh(VFS, mesh_name, zoffset):
+    blender_mesh = None
+    if mesh_name.endswith(".md3"):
+        blender_mesh = MD3.ImportMD3(
+            VFS,
+            mesh_name,
+            zoffset)[0]
+    elif mesh_name.endswith(".tik"):
+        blender_mesh = TAN.ImportTIK(
+            VFS,
+            mesh_name,
+            zoffset)[0]
+
+    return blender_mesh
+
+
+def set_custom_properties(import_settings, blender_obj, bsp_obj):
+    # needed for custom descriptions and data types
+    rna_ui = blender_obj.get('_RNA_UI')
+    if rna_ui is None:
+        blender_obj['_RNA_UI'] = {}
+        rna_ui = blender_obj['_RNA_UI']
+
+    class_dict_keys = {}
+    classname = bsp_obj.custom_parameters.get("classname")
+    if classname in import_settings.entity_dict:
+        class_dict_keys = import_settings.entity_dict[classname]["Keys"]
+
+    for property in bsp_obj.custom_parameters:
+        blender_obj[property] = bsp_obj.custom_parameters[property]
+
+        if property not in class_dict_keys:
+            continue
+        property_dict = class_dict_keys[property]
+        descr_dict = {}
+        if "Description" in property_dict:
+            descr_dict["description"] = property_dict["Description"]
+        if "Type" in property_dict:
+            key_type = property_dict["Type"]
+            if key_type in GamePacks.TYPE_MATCHING:
+                descr_dict["subtype"] = GamePacks.TYPE_MATCHING[key_type]
+        rna_ui[property] = descr_dict
+
+    spawnflag = bsp_obj.spawnflags
+    if spawnflag % 2 == 1:
+        blender_obj.q3_dynamic_props.b1 = True
+    if spawnflag & 2 > 1:
+        blender_obj.q3_dynamic_props.b2 = True
+    if spawnflag & 4 > 1:
+        blender_obj.q3_dynamic_props.b4 = True
+    if spawnflag & 8 > 1:
+        blender_obj.q3_dynamic_props.b8 = True
+    if spawnflag & 16 > 1:
+        blender_obj.q3_dynamic_props.b16 = True
+    if spawnflag & 32 > 1:
+        blender_obj.q3_dynamic_props.b32 = True
+    if spawnflag & 64 > 1:
+        blender_obj.q3_dynamic_props.b64 = True
+    if spawnflag & 128 > 1:
+        blender_obj.q3_dynamic_props.b128 = True
+    if spawnflag & 256 > 1:
+        blender_obj.q3_dynamic_props.b256 = True
+    if spawnflag & 512 > 1:
+        blender_obj.q3_dynamic_props.b512 = True
+
+    # TODO: really needed? need to check that
+    blender_obj.q3_dynamic_props.model = bsp_obj.mesh_name
+    blender_obj.q3_dynamic_props.model2 = bsp_obj.model2
+
+
+def create_blender_light(import_settings, bsp_object, objects):
+    intensity = 300.0
+    color = [1.0, 1.0, 1.0]
+    vector = [0.0, 0.0, -1.0]
+    angle = 3.141592/2.0
+    properties = bsp_object.custom_parameters
+    if "light" in properties:
+        intensity = float(properties["light"])
+    if "_color" in properties:
+        color_str = properties["_color"].split()
+        color = [float(color_str[0]), float(
+            color_str[1]), float(color_str[2])]
+    if "target" in properties:
+        if properties["target"] in objects:
+            target_origin = objects[properties["target"]].position
+            vector = bsp_object.position - target_origin
+            sqr_length = dot(vector, vector)
+            radius = 64.0
+            if "radius" in properties:
+                radius = float(properties["radius"])
+            angle = 2*(atan(radius/sqrt(sqr_length)))
+        if "_sun" in properties and properties["_sun"] == 1:
+            light = QuakeLight.add_light(
+                bsp_object.name,
+                "SUN",
+                intensity,
+                color,
+                vector,
+                radians(1.5))
+        else:
+            light = QuakeLight.add_light(
+                bsp_object.name,
+                "SPOT",
+                intensity,
+                color,
+                vector,
+                angle)
+    else:
+        light = QuakeLight.add_light(
+            bsp_object.name,
+            "POINT",
+            intensity,
+            color,
+            vector,
+            angle)
+    light.location = bsp_object.position
+
+
+def create_blender_objects(VFS, import_settings, objects, meshes):
     if len(objects) <= 0:
         return None
     object_list = []
     for obj_name in objects:
         obj = objects[obj_name]
         if obj.mesh_name is None:
-            print("Didnt add object: " + str(obj.name))
-            continue
-        if obj.mesh_name not in meshes:
+            classname = obj.custom_parameters.get("classname")
+            if (classname is not None and
+               classname == "light"):
+                create_blender_light(import_settings, obj, objects)
+                continue
+            else:
+                class_dict = {}
+                if classname in import_settings.entity_dict:
+                    class_dict = import_settings.entity_dict[classname]
+                if "Model" not in class_dict:
+                    print("Didnt add object: " + str(obj.name))
+                    continue
+                obj.mesh_name = class_dict["Model"]
+
+        mesh_z_name = obj.mesh_name
+        if obj.zoffset != 0:
+            mesh_z_name = mesh_z_name + ".{}".format(obj.zoffset)
+
+        if mesh_z_name not in meshes:
+            blender_mesh = load_mesh(VFS, obj.mesh_name, obj.zoffset)
+            if blender_mesh is not None:
+                blender_mesh.name = mesh_z_name
+                meshes[mesh_z_name] = blender_mesh
+        else:
+            blender_mesh = meshes[mesh_z_name]
+
+        if blender_mesh is None:
             print("Didnt find mesh in meshes: " +
                   str(obj.mesh_name) +
                   " in object " +
                   str(obj.name))
             continue
-        blender_mesh = meshes[obj.mesh_name]
+
         blender_obj = bpy.data.objects.new(obj.name, blender_mesh)
         blender_obj.location = obj.position
 
@@ -150,7 +308,13 @@ def create_bsp_objects(objects, meshes):
 
         bpy.context.collection.objects.link(blender_obj)
         object_list.append(blender_obj)
+
+        set_custom_properties(import_settings, blender_obj, obj)
     return object_list
+
+
+def get_bsp_file(VFS, import_settings):
+    return BSP(VFS, import_settings)
 
 
 def import_bsp_file(import_settings):
@@ -191,8 +355,12 @@ def import_bsp_file(import_settings):
             blender_objects.append(ob)
             bpy.context.collection.objects.link(ob)
     else:
-        bsp_objects = Entities.ImportEntities(VFS, bsp_file, import_settings)
-        blender_objects = create_bsp_objects(bsp_objects, blender_meshes)
+        bsp_objects = Entities.ImportEntities(VFS, import_settings, bsp_file)
+        blender_objects = create_blender_objects(
+            VFS,
+            import_settings,
+            bsp_objects,
+            blender_meshes)
 
     # get clip data and gridsize
     clip_end = 40000
@@ -288,6 +456,9 @@ def import_bsp_file(import_settings):
             height=bsp_file.lightmap_size[1])
         new_image.pixels = atlas_pixels
         new_image.alpha_mode = 'CHANNEL_PACKED'
+
+    # bpy.context.scene.id_tech_3_lightmaps_per_row = num_rows
+    # bpy.context.scene.id_tech_3_lightmaps_per_column = num_columns
 
     QuakeShader.init_shader_system(bsp_file)
     QuakeShader.build_quake_shaders(VFS, import_settings, blender_objects)

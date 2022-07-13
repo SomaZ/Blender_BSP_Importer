@@ -1,24 +1,6 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
 from math import floor, ceil, pi, sin, cos
 from .ID3Brushes import Plane, parse_brush
-from .BspImportSettings import SURFACE_TYPE
+from .ImportSettings import Surface_Type
 
 
 def clamp_shift_tc(tc, min_tc, max_tc, u_shift, v_shift):
@@ -419,21 +401,21 @@ class ID3Model:
         bsp_model = bsp.lumps["models"][model_id]
         first_face = bsp_model.face
         bsp_surface_types = (
-            SURFACE_TYPE.PLANAR,
-            SURFACE_TYPE.TRISOUP,
-            SURFACE_TYPE.FAKK_TERRAIN
+            Surface_Type.PLANAR,
+            Surface_Type.TRISOUP,
+            Surface_Type.FAKK_TERRAIN
         )
         for i in range(bsp_model.n_faces):
             face_id = first_face + i
             face = bsp.lumps["surfaces"][face_id]
 
-            surface_type = SURFACE_TYPE.bsp_value(face.type)
+            surface_type = Surface_Type.bsp_value(face.type)
             if not bool(surface_type & import_settings.surface_types):
                 continue
 
             if surface_type in bsp_surface_types:
                 self.add_bsp_surface(bsp, face, import_settings)
-            elif surface_type == SURFACE_TYPE.PATCH:
+            elif surface_type == Surface_Type.PATCH:
                 self.add_bsp_patch(bsp, face, import_settings)
 
         if import_settings.preset == "SHADOW_BRUSHES":
@@ -447,7 +429,7 @@ class ID3Model:
             return
         if model_id < 0:
             return
-        if not bool(import_settings.surface_types & SURFACE_TYPE.BRUSH):
+        if not bool(import_settings.surface_types & Surface_Type.BRUSH):
             return
 
         self.init_bsp_brush_data(bsp)

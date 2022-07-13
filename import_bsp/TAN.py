@@ -1,23 +1,13 @@
-# ----------------------------------------------------------------------------#
-# TODO:  refactor loading bsp files and tan files, right now its a mess o.O
-# ----------------------------------------------------------------------------#
-import imp
-
 if "struct" not in locals():
     import struct
 
 if "bpy" not in locals():
     import bpy
 
-if "Image" in locals():
-    imp.reload(Image)
-else:
-    from . import Image
-
 if "os" not in locals():
     import os
 
-from .IDTech3Lib.Parsing import guess_model_name, fillName, parse
+from .idtech3lib.Parsing import guess_model_name, fillName, parse
 
 from math import pi, sin, cos, atan2, acos, sqrt
 from mathutils import Matrix

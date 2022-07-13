@@ -1,21 +1,3 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
 from ctypes import LittleEndianStructure, c_char, c_int, sizeof
 from .RBSP import BSP_INFO as RBSP
 from .IBSP import BSP_INFO as IBSP
@@ -90,7 +72,7 @@ LIGHTMAP_FORMATS = (".tga", ".png", ".jpg", ".hdr")
 
 class BSP_READER:
 
-    magic_mapping = {
+    MAGIC_MAPPING = {
         b'RBSP': RBSP,
         b'IBSP': IBSP,
         b'EF2!': EF2BSP,
@@ -112,12 +94,13 @@ class BSP_READER:
             raise Exception(
                 "Could not open BSP file: " + import_settings.file)
 
-        self.header = BSP_HEADER.from_buffer_copy(byte_array, 0)
-        if self.header.magic_nr not in self.magic_mapping:
+        header = BSP_HEADER.from_buffer_copy(byte_array, 0)
+        if header.magic_nr not in self.MAGIC_MAPPING:
             raise Exception(
                 'BSP format not supported')
 
-        bsp_info = self.magic_mapping[self.header.magic_nr]
+        bsp_info = self.MAGIC_MAPPING[header.magic_nr]
+        self.header = bsp_info.header.from_buffer_copy(byte_array, 0)
         offset = bsp_info.header_size
         for lump in bsp_info.lumps:
             lump_header = BSP_LUMP_HEADER.from_buffer_copy(byte_array, offset)
@@ -138,6 +121,37 @@ class BSP_READER:
         self.lerp_vertices = bsp_info.lerp_vertices
         self.lightmap_lumps = bsp_info.lightmap_lumps
         self.compute_lightmap_info(VFS)
+
+    def set_entity_lump(self, entity_text):
+        bsp_info = self.MAGIC_MAPPING[self.header.magic_nr]
+        self.lumps["entities"] = [bsp_info.lumps["entities"]
+                                  (char=[bytes(c, "ascii")])
+                                  for c in entity_text]
+
+    def to_bytes(self):
+        byte_array = bytearray()
+        byte_array += bytes(self.header)
+
+        lumps = {}
+        for lump in self.lumps:
+            print("Converting " + lump + " to bytes")
+            lumps[lump] = bytearray()
+            for entry in lumps[lump]:
+                lumps[lump] += bytes(entry)
+
+        offset = sizeof(self.header)
+        offset += sizeof(BSP_LUMP_HEADER) * len(lumps)
+        for lump in lumps:
+            l_header = BSP_LUMP_HEADER(
+                offset=offset,
+                size=sizeof(lumps[lump])
+            )
+            byte_array += bytes(l_header)
+            offset += sizeof(lumps[lump])
+        for lump in lumps:
+            byte_array += lumps[lump]
+
+        return byte_array
 
     def compute_lightmap_info(self, VFS):
         # get external lightmap data

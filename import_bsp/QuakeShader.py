@@ -10,41 +10,33 @@
 # reflection vector is not correct
 # ----------------------------------------------------------------------------#
 
-import imp
+import importlib
 
 if "bpy" not in locals():
     import bpy
 
-if "os" not in locals():
-    import os
-
 if "ShaderNodes" in locals():
-    imp.reload(ShaderNodes)
+    importlib.reload(ShaderNodes)
 else:
     from . import ShaderNodes
 
 if "QuakeSky" in locals():
-    imp.reload(QuakeSky)
+    importlib.reload(QuakeSky)
 else:
     from . import QuakeSky
 
 if "Image" in locals():
-    imp.reload(Image)
+    importlib.reload(Image)
 else:
     from . import Image
 
-if "Parsing" in locals():
-    imp.reload(Parsing)
-else:
-    from .IDTech3Lib.Parsing import *
-
-if "QuakeLight" in locals():
-    imp.reload(QuakeLight)
+if "SRGBToLinear" in locals():
+    importlib.reload(SRGBToLinear)
 else:
     from .QuakeLight import SRGBToLinear
 
-from math import radians
-from .IDTech3Lib import ID3Shader
+from .idtech3lib import ID3Shader
+from .idtech3lib.Parsing import *
 
 LIGHTING_IDENTITY = 0
 LIGHTING_VERTEX = 1

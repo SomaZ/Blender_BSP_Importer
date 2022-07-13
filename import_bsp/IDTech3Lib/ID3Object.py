@@ -1,35 +1,19 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-from math import floor, ceil, pi, sin, cos, radians
+from numpy import array, deg2rad
 
 
 class ID3Object:
 
     def __init__(self, name="EmptyObject", mesh_name=None):
         self.name = name
-        self.position = (0.0, 0.0, 0.0)
-        self.rotation = (0.0, 0.0, 0.0)
-        self.scale = (1.0, 1.0, 1.0)
+        self.position = array((0.0, 0.0, 0.0))
+        self.rotation = array((0.0, 0.0, 0.0))
+        self.scale = array((1.0, 1.0, 1.0))
         self.mesh_name = mesh_name
+        self.model2 = ""
         self.parent_object_name = ""
         self.custom_parameters = {}
         self.spawnflags = 0
+        self.zoffset = 0
 
     @classmethod
     def from_entity_dict(self, ent_dict, name="EmptyObject", mesh_name=None):
@@ -39,33 +23,39 @@ class ID3Object:
         return new_object
 
     def set_angle(self, angle):
-        self.rotation = (0.0, 0.0, radians(angle))
+        self.rotation = array((0.0, 0.0, deg2rad(angle)))
 
     def set_angles(self, angles):
-        self.rotation = (radians(angles[2]),
-                         radians(angles[0]),
-                         radians(angles[1]))
+        self.rotation = array((deg2rad(angles[2]),
+                               deg2rad(angles[0]),
+                               deg2rad(angles[1])))
 
     def set_scale(self, scale):
-        self.scale = (scale, scale, scale)
+        self.scale = array((scale, scale, scale))
 
     def set_scale_vec(self, scale_vec):
-        self.scale = (scale_vec[0],
-                      scale_vec[1],
-                      scale_vec[2])
+        self.scale = array((scale_vec[0],
+                            scale_vec[1],
+                            scale_vec[2]))
 
     def set_origin(self, origin):
-        self.position = tuple(origin)
+        self.position = array(origin)
 
     def set_spawnflags(self, spawnflags):
-        self.spawnflags = spawnflags
+        self.spawnflags = int(spawnflags)
 
     def set_mesh_name(self, mesh_name):
         if not self.name == "worldspawn":
-            self.mesh_name = mesh_name
+            self.mesh_name = str(mesh_name)
+
+    def set_model2(self, mesh_name):
+        self.set_model2 = str(mesh_name)
 
     def set_name(self, target_name):
-        self.name = target_name
+        self.name = str(target_name)
+
+    def set_zoffset(self, zoffset):
+        self.zoffset = int(zoffset)
 
     def parse_entity_def(self, key, value):
         key_loopup = {
@@ -76,7 +66,9 @@ class ID3Object:
             "modelscale": self.set_scale,
             "spawnflags": self.set_spawnflags,
             "model": self.set_mesh_name,
-            "target_name": self.set_mesh_name
+            "model2": self.set_model2,
+            "target_name": self.set_name,
+            "zoffset": self.set_zoffset,
         }
         if key not in key_loopup:
             self.custom_parameters[key] = value

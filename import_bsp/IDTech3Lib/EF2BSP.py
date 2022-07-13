@@ -1,25 +1,7 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
 from ctypes import (LittleEndianStructure,
                     c_char, c_float, c_int, c_ubyte, sizeof)
-# replace with numpy array
-from mathutils import Vector
+from numpy import array
+from .Helpers import normalize
 
 
 class BSP_HEADER(LittleEndianStructure):
@@ -228,6 +210,7 @@ class BSP_INFO:
              "bspinfo":          BSP_ENTITY,
              }
 
+    header = BSP_HEADER
     header_size = sizeof(BSP_HEADER)
 
     lightmap_lumps = ("lightmaps",
@@ -250,8 +233,7 @@ class BSP_INFO:
             vertex1: BSP_VERTEX,
             vertex2: BSP_VERTEX
             ) -> BSP_VERTEX:
-        vec = Vector(vertex1.normal) + Vector(vertex2.normal)
-        vec.normalize()
+        vec = normalize(array(vertex1.normal) + array(vertex2.normal))
 
         lerped_vert = BSP_VERTEX()
         lerped_vert.normal[0] = vec[0]

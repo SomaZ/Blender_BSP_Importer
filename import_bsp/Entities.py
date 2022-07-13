@@ -1,68 +1,24 @@
 import bpy
-import imp
-import json
-from enum import Enum
+import importlib
 from math import radians, pow, sqrt, atan, degrees
 from mathutils import Vector
 
-from .IDTech3Lib.Parsing import *
+from .idtech3lib.Parsing import *
 
 if "MD3" in locals():
-    imp.reload(MD3)
+    importlib.reload(MD3)
 else:
     from . import MD3
 
 if "TAN" in locals():
-    imp.reload(TAN)
+    importlib.reload(TAN)
 else:
     from . import TAN
 
-if "QuakeLight" in locals():
-    imp.reload(QuakeLight)
-else:
-    from . import QuakeLight
-
-from .IDTech3Lib.ID3Object import ID3Object
+from .idtech3lib.ID3Object import ID3Object
 
 
-def is_float(value):
-    try:
-        float(value)
-        return True
-    except Exception:
-        return False
-
-
-def get_gamepack(name):
-    file_path = bpy.utils.script_paths(
-        subdir="addons/import_bsp/gamepacks/")[0]
-    if file_path is not None:
-        with open(file_path + name) as file:
-            return json.load(file)
-    return None
-
-
-def save_gamepack(dict, name):
-    file_path = bpy.utils.script_paths(
-        subdir="addons/import_bsp/gamepacks/")[0]
-    if file_path is not None:
-        with open(file_path + name, 'w') as file:
-            json.dump(dict, file, indent=4,)
-
-
-Dict = get_gamepack("JKA_SP.json")
-
-misc_model_md3s = ["misc_model_static", "misc_model_breakable", "script_model"]
-
-type_matching = {"STRING": "NONE",
-                 "COLOR": "COLOR_GAMMA",
-                 "COLOR255": "COLOR_GAMMA",
-                 "INT": "NONE",
-                 "FLOAT": "NONE",
-                 }
-
-
-def ImportEntities(VFS, bsp, import_settings):
+def ImportEntities(VFS, import_settings, bsp):
     lump = bsp.lumps["entities"]
     stringdata = []
     for i in lump:
@@ -77,7 +33,6 @@ def ImportEntitiesText(VFS,
                        import_settings,
                        bsp=None,
                        only_lights=False):
-    clip_end = 12000
     ent = {}
     entities = []
     n_ent = 0
@@ -154,7 +109,10 @@ def ImportEntitiesText(VFS,
 
         name = ent["classname"] + "_" + str(n_ent).zfill(4)
         new_object = ID3Object.from_entity_dict(ent, name)
-        obj_dict[name] = new_object
+        if "targetname" in ent:
+            obj_dict[ent["targetname"]] = new_object
+        else:
+            obj_dict[name] = new_object
 
     return obj_dict
 
@@ -437,39 +395,6 @@ def ImportEntitiesText(VFS,
                 ob.name = "Entity " + (str(n_ent).zfill(4))
                 bpy.context.collection.objects.link(ob)
 
-            if "spawnflags" in ent:
-                spawnflag = int(ent["spawnflags"])
-                if spawnflag % 2 == 1:
-                    ob.q3_dynamic_props.b1 = True
-                if spawnflag & 2 > 1:
-                    ob.q3_dynamic_props.b2 = True
-                if spawnflag & 4 > 1:
-                    ob.q3_dynamic_props.b4 = True
-                if spawnflag & 8 > 1:
-                    ob.q3_dynamic_props.b8 = True
-                if spawnflag & 16 > 1:
-                    ob.q3_dynamic_props.b16 = True
-                if spawnflag & 32 > 1:
-                    ob.q3_dynamic_props.b32 = True
-                if spawnflag & 64 > 1:
-                    ob.q3_dynamic_props.b64 = True
-                if spawnflag & 128 > 1:
-                    ob.q3_dynamic_props.b128 = True
-                if spawnflag & 256 > 1:
-                    ob.q3_dynamic_props.b256 = True
-                if spawnflag & 512 > 1:
-                    ob.q3_dynamic_props.b512 = True
-            if "model" in ent:
-                ob.q3_dynamic_props.model = ent["model"]
-            if "model2" in ent:
-                ob.q3_dynamic_props.model2 = ent["model2"]
-
-            # needed for custom descriptions and data types
-            rna_ui = ob.get('_RNA_UI')
-            if rna_ui is None:
-                ob['_RNA_UI'] = {}
-                rna_ui = ob['_RNA_UI']
-
             for key in ent:
                 descr_dict = {}
                 if ent["classname"].lower() in Dict:
@@ -515,17 +440,6 @@ def ImportEntitiesText(VFS,
                 model2_ob.hide_select = True
         ob = None
 
-    # set clip data
-    for a in bpy.context.screen.areas:
-        if a.type == 'VIEW_3D':
-            for s in a.spaces:
-                if s.type == 'VIEW_3D':
-                    if import_settings.preset == "EDITING":
-                        s.clip_start = 4
-                        s.clip_end = 40000
-                    else:
-                        s.clip_start = 4
-                        s.clip_end = clip_end
     return obj_list
 
 
@@ -537,17 +451,19 @@ def GetEntityStringFromScene():
         if obj.type == 'MESH' and "classname" in obj:
             zero_origin = Vector([0.0, 0.0, 0.0])
             if obj.location != zero_origin:
-                if (obj.location[0].is_integer()) and (
-                        obj.location[1].is_integer()) and (
-                        obj.location[2].is_integer()):
-                    obj["origin"] = [int(obj.location[0]), int(
-                        obj.location[1]), int(obj.location[2])]
+                if (obj.location[0].is_integer() and
+                   obj.location[1].is_integer() and
+                   obj.location[2].is_integer()):
+                    obj["origin"] = [int(obj.location[0]),
+                                     int(obj.location[1]),
+                                     int(obj.location[2])]
                 else:
                     obj["origin"] = [obj.location[0],
-                                     obj.location[1], obj.location[2]]
+                                     obj.location[1],
+                                     obj.location[2]]
 
-            if (degrees(obj.rotation_euler[0]) == 0.0) and (
-                    degrees(obj.rotation_euler[1]) == 0.0):
+            if (degrees(obj.rotation_euler[0]) == 0.0 and
+               degrees(obj.rotation_euler[1]) == 0.0):
                 if degrees(obj.rotation_euler[2]) != 0.0:
                     obj["angle"] = degrees(obj.rotation_euler[2])
                     obj["angles"] = ""
@@ -559,9 +475,9 @@ def GetEntityStringFromScene():
                     obj.rotation_euler[0]), degrees(obj.rotation_euler[1]))
                 obj["angle"] = ""
 
-            if (obj.scale[0] != 1.0) or (
-                obj.scale[1] != 1.0) or (
-                    obj.scale[2] != 1.0):
+            if (obj.scale[0] != 1.0 or
+               obj.scale[1] != 1.0 or
+               obj.scale[2] != 1.0):
                 if obj.scale[0] == obj.scale[1] == obj.scale[2]:
                     obj["modelscale"] = obj.scale[0]
                     obj["modelscale_vec"] = ""

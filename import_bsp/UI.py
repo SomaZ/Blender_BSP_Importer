@@ -5,7 +5,7 @@
 #       material names with new zoffset
 # ----------------------------------------------------------------------------#
 
-import imp
+import importlib
 
 if "bpy" not in locals():
     import bpy
@@ -16,32 +16,32 @@ if "ExportHelper" not in locals():
     from bpy_extras.io_utils import ExportHelper
 
 if "BspHelper" in locals():
-    imp.reload(BspHelper)
+    importlib.reload(Helpers)
 else:
-    from . import BspHelper
+    from .idtech3lib import Helpers
 
 if "Entities" in locals():
-    imp.reload(Entities)
+    importlib.reload(Entities)
 else:
     from . import Entities
 
 if "MD3" in locals():
-    imp.reload(MD3)
+    importlib.reload(MD3)
 else:
     from . import MD3
 
 if "TAN" in locals():
-    imp.reload(TAN)
+    importlib.reload(TAN)
 else:
     from . import TAN
 
 if "QuakeShader" in locals():
-    imp.reload(QuakeShader)
+    importlib.reload(QuakeShader)
 else:
     from . import QuakeShader
 
 if "QuakeLight" in locals():
-    imp.reload(QuakeLight)
+    importlib.reload(QuakeLight)
 else:
     from . import QuakeLight
 
@@ -60,27 +60,46 @@ if "IntProperty" not in locals():
 if "PropertyGroup" not in locals():
     from bpy.types import PropertyGroup
 
-from .IDTech3Lib.ID3VFS import Q3VFS
+if "Q3VFS" in locals():
+    importlib.reload(Q3VFS)
+else:
+    from .idtech3lib.ID3VFS import Q3VFS
 
 if "os" not in locals():
     import os
 
 if "BlenderBSP" in locals():
-    imp.reload(BlenderBSP)
+    importlib.reload(BlenderBSP)
 else:
     from . import BlenderBSP
 
-if "Import_Settings" not in locals():
-    from .IDTech3Lib.BspImportSettings import Import_Settings
+if "Import_Settings" in locals():
+    importlib.reload(Import_Settings)
+else:
+    from .idtech3lib.ImportSettings import Import_Settings
 
-if "Preset" not in locals():
-    from .IDTech3Lib.BspImportSettings import Preset
+if "Preset" in locals():
+    importlib.reload(Preset)
+else:
+    from .idtech3lib.ImportSettings import Preset
 
-if "SURFACE_TYPES" not in locals():
-    from .IDTech3Lib.BspImportSettings import SURFACE_TYPE
+if "Parsing" in locals():
+    importlib.reload(Parsing)
+else:
+    from .idtech3lib import Parsing
 
-from .IDTech3Lib.ID3Brushes import parse_brush
-from .IDTech3Lib import MAP
+if "Surface_Type" in locals():
+    importlib.reload(Surface_Type)
+else:
+    from .idtech3lib.ImportSettings import Surface_Type
+
+if "GamePacks" in locals():
+    importlib.reload(GamePacks)
+else:
+    from .idtech3lib import GamePacks
+
+from .idtech3lib.ID3Brushes import parse_brush
+from .idtech3lib import MAP
 
 
 class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
@@ -141,14 +160,18 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
             Preset.BRUSHES.value,
             Preset.SHADOW_BRUSHES.value
         )
-        surface_types = SURFACE_TYPE.BAD
+        surface_types = Surface_Type.BAD
         if self.preset in brush_imports:
-            surface_types = SURFACE_TYPE.BRUSH | SURFACE_TYPE.PATCH
+            surface_types = Surface_Type.BRUSH | Surface_Type.PATCH
         else:
-            surface_types = (SURFACE_TYPE.PLANAR |
-                             SURFACE_TYPE.PATCH |
-                             SURFACE_TYPE.TRISOUP |
-                             SURFACE_TYPE.FAKK_TERRAIN)
+            surface_types = (Surface_Type.PLANAR |
+                             Surface_Type.PATCH |
+                             Surface_Type.TRISOUP |
+                             Surface_Type.FAKK_TERRAIN)
+
+        dict_path = bpy.utils.script_paths(
+            subdir="addons/import_bsp/gamepacks/")[0]
+        entity_dict = GamePacks.get_gamepack(dict_path, "JKA_SP.json")
 
         # trace some things like paths and lightmap size
         import_settings = Import_Settings(
@@ -161,7 +184,8 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
             base_paths=[fixed_base_path],
             preset=self.properties.preset,
             front_culling=False,
-            surface_types=surface_types
+            surface_types=surface_types,
+            entity_dict=entity_dict
         )
         import_settings.log.append("----import_scene.ja_bsp----")
 
@@ -534,7 +558,11 @@ class Add_property(bpy.types.Operator):
             ob["classname"] = ""
             return {'FINISHED'}
 
-        Dict = Entities.Dict
+        dict_path = bpy.utils.script_paths(
+            subdir="addons/import_bsp/gamepacks/")[0]
+        entity_dict = GamePacks.get_gamepack(dict_path, "JKA_SP.json")
+
+        Dict = entity_dict
         if self.name not in ob:
             default = ""
 
@@ -580,9 +608,13 @@ class Add_entity_definition(bpy.types.Operator):
                      "Keys": {},
                      }
 
-        Entities.Dict[self.name] = new_entry
-        Entities.save_gamepack(
-            Entities.Dict, context.scene.id_tech_3_settings.gamepack)
+        dict_path = bpy.utils.script_paths(
+            subdir="addons/import_bsp/gamepacks/")[0]
+        entity_dict = GamePacks.get_gamepack(dict_path, "JKA_SP.json")
+
+        entity_dict[self.name] = new_entry
+        GamePacks.save_gamepack(
+            entity_dict, context.scene.id_tech_3_settings.gamepack)
         return {'FINISHED'}
 
 
@@ -605,15 +637,19 @@ class Add_key_definition(bpy.types.Operator):
                 print("Couldn't find new property name :(\n")
                 return
 
+        dict_path = bpy.utils.script_paths(
+            subdir="addons/import_bsp/gamepacks/")[0]
+        entity_dict = GamePacks.get_gamepack(dict_path, "JKA_SP.json")
+
         if "classname" in obj:
             classname = obj["classname"]
-            if classname.lower() in Entities.Dict:
-                if key not in Entities.Dict[classname.lower()]["Keys"]:
-                    Entities.Dict[classname.lower()]["Keys"][key] = {
+            if classname.lower() in entity_dict:
+                if key not in entity_dict[classname.lower()]["Keys"]:
+                    entity_dict[classname.lower()]["Keys"][key] = {
                         "Type": "STRING",
                         "Description": "NOT DOCUMENTED YET"}
-                    Entities.save_gamepack(
-                        Entities.Dict,
+                    GamePacks.save_gamepack(
+                        entity_dict,
                         context.scene.id_tech_3_settings.gamepack)
         return {'FINISHED'}
 
@@ -638,8 +674,12 @@ class Update_entity_definition(bpy.types.Operator):
             obj['_RNA_UI'] = {}
             rna_ui = obj['_RNA_UI']
 
-        if self.name in Entities.Dict:
-            ent = Entities.Dict[self.name]
+        dict_path = bpy.utils.script_paths(
+            subdir="addons/import_bsp/gamepacks/")[0]
+        entity_dict = GamePacks.get_gamepack(dict_path, "JKA_SP.json")
+
+        if self.name in entity_dict:
+            ent = entity_dict[self.name]
             for key in rna_ui.to_dict():
                 if key in ent["Keys"] and key in rna_ui:
                     if "description" in rna_ui[key]:
@@ -649,8 +689,8 @@ class Update_entity_definition(bpy.types.Operator):
                         ent["Keys"][key]["Type"] = (
                             type_save_matching[rna_ui[key]["subtype"]])
 
-            Entities.save_gamepack(
-                Entities.Dict, context.scene.id_tech_3_settings.gamepack)
+            GamePacks.save_gamepack(
+                entity_dict, context.scene.id_tech_3_settings.gamepack)
 
         return {'FINISHED'}
 
@@ -755,7 +795,7 @@ def update_model(self, context):
         model_name = model_name[:-len(".md3")]
 
     if not model_name.startswith("*"):
-        mesh_name = guess_model_name(model_name)
+        mesh_name = Parsing.guess_model_name(model_name)
     else:
         mesh_name = model_name
         obj["model"] = model_name
@@ -771,10 +811,11 @@ def update_model(self, context):
         addon_name = __name__.split('.')[0]
         prefs = context.preferences.addons[addon_name].preferences
 
-        import_settings = ImportSettings()
-        import_settings.base_path = prefs.base_path
-        if not import_settings.base_path.endswith('/'):
-            import_settings.base_path = import_settings.base_path + '/'
+        base_path = prefs.base_path.replace("\\", "/")
+        if not base_path.endswith('/'):
+            base_path = import_settings.base_path + '/'
+        import_settings = Import_Settings()
+        import_settings.base_paths.append(base_path)
         import_settings.shader_dirs = "shaders/", "scripts/"
         import_settings.preset = 'PREVIEW'
 
@@ -813,7 +854,7 @@ def update_model2(self, context):
     if model_name.endswith(".md3"):
         model_name = model_name[:-len(".md3")]
 
-    mesh_name = guess_model_name(model_name)
+    mesh_name = Parsing.guess_model_name(model_name)
 
     children = getChildren(obj)
     if mesh_name.strip(" \t\r\n") == "" and len(children) > 0:
@@ -840,10 +881,11 @@ def update_model2(self, context):
         addon_name = __name__.split('.')[0]
         prefs = context.preferences.addons[addon_name].preferences
 
-        import_settings = ImportSettings()
-        import_settings.base_path = prefs.base_path
-        if not import_settings.base_path.endswith('/'):
-            import_settings.base_path = import_settings.base_path + '/'
+        import_settings = Import_Settings()
+        base_path = prefs.base_path.replace("\\", "/")
+        if not base_path.endswith('/'):
+            base_path = import_settings.base_path + '/'
+        import_settings.base_paths.append(base_path)
         import_settings.shader_dirs = "shaders/", "scripts/"
         import_settings.preset = 'PREVIEW'
 
@@ -1046,10 +1088,14 @@ class Q3_PT_PropertiesEntityPanel(bpy.types.Panel):
         filtered_keys = ["classname", "spawnflags",
                          "origin", "angles", "angle"]
 
+        dict_path = bpy.utils.script_paths(
+            subdir="addons/import_bsp/gamepacks/")[0]
+        entity_dict = GamePacks.get_gamepack(dict_path, "JKA_SP.json")
+
         if "classname" in obj:
             classname = obj["classname"].lower()
-            if classname in Entities.Dict:
-                ent = Entities.Dict[classname]
+            if classname in entity_dict:
+                ent = entity_dict[classname]
 
                 box = None
                 # check all the flags
@@ -1132,10 +1178,14 @@ class Q3_PT_DescribtionEntityPanel(bpy.types.Panel):
         if obj is None:
             return
 
+        dict_path = bpy.utils.script_paths(
+            subdir="addons/import_bsp/gamepacks/")[0]
+        entity_dict = GamePacks.get_gamepack(dict_path, "JKA_SP.json")
+
         if "classname" in obj:
             classname = obj["classname"].lower()
-            if classname in Entities.Dict:
-                ent = Entities.Dict[classname]
+            if classname in entity_dict:
+                ent = entity_dict[classname]
                 for line in ent["Describtion"]:
                     layout.label(text=line)
             else:
@@ -1164,17 +1214,21 @@ class Q3_PT_EditEntityPanel(bpy.types.Panel):
         filtered_keys = ["classname", "spawnflags",
                          "origin", "angles", "angle"]
 
+        dict_path = bpy.utils.script_paths(
+            subdir="addons/import_bsp/gamepacks/")[0]
+        entity_dict = GamePacks.get_gamepack(dict_path, "JKA_SP.json")
+
         if "classname" in obj:
             classname = obj["classname"].lower()
             # classname in dictionary?
-            if classname not in Entities.Dict:
+            if classname not in entity_dict:
                 layout.operator(
                     "q3.add_entity_definition",
                     text="Add " + obj["classname"].lower() +
                          " to current Gamepack"
                          ).name = obj["classname"].lower()
             else:
-                ent = Entities.Dict[classname]
+                ent = entity_dict[classname]
                 keys = ent["Keys"]
                 for prop in obj.keys():
                     if prop.lower() not in filtered_keys and (
@@ -1238,12 +1292,14 @@ class PatchBspEntities(bpy.types.Operator, ExportHelper):
 
     def execute(self, context):
 
-        bsp = BspClasses.BSP(self.filepath)
+        import_settings = Import_Settings(
+            file=self.filepath.replace("\\", "/")
+        )
+        bsp = BlenderBSP.get_bsp_file(None, import_settings)
 
         # swap entity lump
         entities = Entities.GetEntityStringFromScene()
-        bsp.lumps["entities"].data = [BspClasses.entity(
-            [bytes(c, "ascii")]) for c in entities]
+        bsp.set_entity_lump(entities)
 
         # write bsp
         bsp_bytes = bsp.to_bytes()
@@ -1332,7 +1388,10 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
         light_settings.compensate = self.compensate
         light_settings.hdr = self.patch_hdr
 
-        bsp = BspClasses.BSP(self.filepath)
+        import_settings = Import_Settings(
+            file=self.filepath.replace("\\", "/")
+        )
+        bsp = BlenderBSP.import_bsp_file(None, import_settings)
 
         if self.only_selected:
             objs = [
@@ -1342,17 +1401,23 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
             ]
         else:
             if bpy.app.version >= (2, 91, 0):
-                objs = [obj for obj in context.scene.objects if obj.type ==
-                        "MESH" and obj.data.attributes.get("BSP_VERT_INDEX") is not None]
+                objs = [obj for obj in context.scene.objects
+                        if obj.type == "MESH" and
+                        obj.data.attributes.get("BSP_VERT_INDEX") is not None]
             else:
-                objs = [obj for obj in context.scene.objects if obj.type ==
-                        "MESH" and obj.data.vertex_layers_int.get("BSP_VERT_INDEX") is not None]
+                objs = [obj for obj in context.scene.objects
+                        if obj.type == "MESH" and
+                        obj.data.vertex_layers_int.get("BSP_VERT_INDEX")
+                        is not None]
 
         meshes = [obj.to_mesh() for obj in objs]
         for mesh in meshes:
             mesh.calc_normals_split()
 
-        if self.patch_colors or self.patch_normals or self.patch_lm_tcs or self.patch_tcs:
+        if (self.patch_colors or
+           self.patch_normals or
+           self.patch_lm_tcs or
+           self.patch_tcs):
             self.report({"INFO"}, "Storing Vertex Data...")
             # stores bsp vertex indices
             patched_vertices = {id: False for id in range(
@@ -1389,13 +1454,14 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
 
                     # patch all vertices of this mesh
                     for poly in mesh.polygons:
-                        for vertex, loop in zip(poly.vertices, poly.loop_indices):
+                        for vertex, loop in zip(
+                             poly.vertices, poly.loop_indices):
                             # get the vertex position in the bsp file
                             bsp_vert_index = bsp_indices.data[vertex].value
                             if bsp_vert_index < 0:
                                 continue
                             patched_vertices[bsp_vert_index] = True
-                            bsp_vert = bsp.lumps["drawverts"].data[bsp_vert_index]
+                            bsp_vert = bsp.lumps["drawverts"][bsp_vert_index]
                             if self.patch_tcs:
                                 bsp_vert.texcoord = mesh.uv_layers["UVMap"].data[loop].uv
                             if self.patch_lm_tcs:
@@ -1421,21 +1487,22 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                     bsp_vert.lm4coord[1] = min(
                                         1.0, max(0.0, bsp_vert.lm4coord[1]))
                             if self.patch_normals:
-                                bsp_vert.normal = mesh.vertices[vertex].normal.copy(
-                                )
+                                bsp_vert.normal = (
+                                    mesh.vertices[vertex].normal.copy())
                                 if mesh.has_custom_normals:
-                                    bsp_vert.normal = mesh.loops[loop].normal.copy(
-                                    )
+                                    bsp_vert.normal = (
+                                        mesh.loops[loop].normal.copy())
                             if self.patch_colors:
-                                bsp_vert.color1 = mesh.vertex_colors["Color"].data[loop].color
-                                bsp_vert.color1[3] = mesh.vertex_colors["Alpha"].data[loop].color[0]
+                                vert_colors = mesh.vertex_colors
+                                bsp_vert.color1 = vert_colors["Color"].data[loop].color
+                                bsp_vert.color1[3] = vert_colors["Alpha"].data[loop].color[0]
                                 if bsp.lightmaps == 4:
-                                    bsp_vert.color2 = mesh.vertex_colors["Color2"].data[loop].color
-                                    bsp_vert.color2[3] = mesh.vertex_colors["Alpha"].data[loop].color[1]
-                                    bsp_vert.color3 = mesh.vertex_colors["Color3"].data[loop].color
-                                    bsp_vert.color3[3] = mesh.vertex_colors["Alpha"].data[loop].color[2]
-                                    bsp_vert.color4 = mesh.vertex_colors["Color4"].data[loop].color
-                                    bsp_vert.color4[3] = mesh.vertex_colors["Alpha"].data[loop].color[3]
+                                    bsp_vert.color2 = vert_colors["Color2"].data[loop].color
+                                    bsp_vert.color2[3] = vert_colors["Alpha"].data[loop].color[1]
+                                    bsp_vert.color3 = vert_colors["Color3"].data[loop].color
+                                    bsp_vert.color3[3] = vert_colors["Alpha"].data[loop].color[2]
+                                    bsp_vert.color4 = vert_colors["Color4"].data[loop].color
+                                    bsp_vert.color4[3] = vert_colors["Alpha"].data[loop].color[3]
                 else:
                     self.report({"ERROR"}, "Not a valid mesh for patching")
                     return {'CANCELLED'}
@@ -1460,8 +1527,9 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                 if bsp_surf.type == 2:
                     width = int(bsp_surf.patch_width-1)
                     height = int(bsp_surf.patch_height-1)
-                    ctrlPoints = [[0 for x in range(bsp_surf.patch_width)] for y in range(
-                        bsp_surf.patch_height)]
+                    ctrlPoints = [
+                        [0 for x in range(bsp_surf.patch_width)]
+                        for y in range(bsp_surf.patch_height)]
                     for i in range(bsp_surf.patch_width):
                         for j in range(bsp_surf.patch_height):
                             ctrlPoints[j][i] = (
@@ -1473,52 +1541,92 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                         for j in range(1, height, 2):
                             if self.patch_lm_tcs:
                                 ctrlPoints[j][i].lm1coord[0] = (
-                                    4.0 * ctrlPoints[j][i].lm1coord[0] - ctrlPoints[j+1][i].lm1coord[0] - ctrlPoints[j-1][i].lm1coord[0]) * 0.5
+                                    4.0 * ctrlPoints[j][i].lm1coord[0]
+                                    - ctrlPoints[j+1][i].lm1coord[0]
+                                    - ctrlPoints[j-1][i].lm1coord[0]) * 0.5
                                 ctrlPoints[j][i].lm1coord[1] = (
-                                    4.0 * ctrlPoints[j][i].lm1coord[1] - ctrlPoints[j+1][i].lm1coord[1] - ctrlPoints[j-1][i].lm1coord[1]) * 0.5
+                                    4.0 * ctrlPoints[j][i].lm1coord[1]
+                                    - ctrlPoints[j+1][i].lm1coord[1]
+                                    - ctrlPoints[j-1][i].lm1coord[1]) * 0.5
                                 if bsp.lightmaps == 4:
                                     ctrlPoints[j][i].lm2coord[0] = (
-                                        4.0 * ctrlPoints[j][i].lm2coord[0] - ctrlPoints[j+1][i].lm2coord[0] - ctrlPoints[j-1][i].lm2coord[0]) * 0.5
+                                        4.0 * ctrlPoints[j][i].lm2coord[0]
+                                        - ctrlPoints[j+1][i].lm2coord[0]
+                                        - ctrlPoints[j-1][i].lm2coord[0]) * 0.5
                                     ctrlPoints[j][i].lm2coord[1] = (
-                                        4.0 * ctrlPoints[j][i].lm2coord[1] - ctrlPoints[j+1][i].lm2coord[1] - ctrlPoints[j-1][i].lm2coord[1]) * 0.5
+                                        4.0 * ctrlPoints[j][i].lm2coord[1]
+                                        - ctrlPoints[j+1][i].lm2coord[1]
+                                        - ctrlPoints[j-1][i].lm2coord[1]) * 0.5
                                     ctrlPoints[j][i].lm3coord[0] = (
-                                        4.0 * ctrlPoints[j][i].lm3coord[0] - ctrlPoints[j+1][i].lm3coord[0] - ctrlPoints[j-1][i].lm3coord[0]) * 0.5
+                                        4.0 * ctrlPoints[j][i].lm3coord[0]
+                                        - ctrlPoints[j+1][i].lm3coord[0]
+                                        - ctrlPoints[j-1][i].lm3coord[0]) * 0.5
                                     ctrlPoints[j][i].lm3coord[1] = (
-                                        4.0 * ctrlPoints[j][i].lm3coord[1] - ctrlPoints[j+1][i].lm3coord[1] - ctrlPoints[j-1][i].lm3coord[1]) * 0.5
+                                        4.0 * ctrlPoints[j][i].lm3coord[1]
+                                        - ctrlPoints[j+1][i].lm3coord[1]
+                                        - ctrlPoints[j-1][i].lm3coord[1]) * 0.5
                                     ctrlPoints[j][i].lm4coord[0] = (
-                                        4.0 * ctrlPoints[j][i].lm4coord[0] - ctrlPoints[j+1][i].lm4coord[0] - ctrlPoints[j-1][i].lm4coord[0]) * 0.5
+                                        4.0 * ctrlPoints[j][i].lm4coord[0]
+                                        - ctrlPoints[j+1][i].lm4coord[0]
+                                        - ctrlPoints[j-1][i].lm4coord[0]) * 0.5
                                     ctrlPoints[j][i].lm4coord[1] = (
-                                        4.0 * ctrlPoints[j][i].lm4coord[1] - ctrlPoints[j+1][i].lm4coord[1] - ctrlPoints[j-1][i].lm4coord[1]) * 0.5
+                                        4.0 * ctrlPoints[j][i].lm4coord[1]
+                                        - ctrlPoints[j+1][i].lm4coord[1]
+                                        - ctrlPoints[j-1][i].lm4coord[1]) * 0.5
                             if self.patch_tcs:
                                 ctrlPoints[j][i].texcoord[0] = (
-                                    4.0 * ctrlPoints[j][i].texcoord[0] - ctrlPoints[j+1][i].texcoord[0] - ctrlPoints[j-1][i].texcoord[0]) * 0.5
+                                    4.0 * ctrlPoints[j][i].texcoord[0]
+                                    - ctrlPoints[j+1][i].texcoord[0]
+                                    - ctrlPoints[j-1][i].texcoord[0]) * 0.5
                                 ctrlPoints[j][i].texcoord[1] = (
-                                    4.0 * ctrlPoints[j][i].texcoord[1] - ctrlPoints[j+1][i].texcoord[1] - ctrlPoints[j-1][i].texcoord[1]) * 0.5
+                                    4.0 * ctrlPoints[j][i].texcoord[1]
+                                    - ctrlPoints[j+1][i].texcoord[1]
+                                    - ctrlPoints[j-1][i].texcoord[1]) * 0.5
                     for j in range(height+1):
                         for i in range(1, width, 2):
                             if self.patch_lm_tcs:
                                 ctrlPoints[j][i].lm1coord[0] = (
-                                    4.0 * ctrlPoints[j][i].lm1coord[0] - ctrlPoints[j][i+1].lm1coord[0] - ctrlPoints[j][i-1].lm1coord[0]) * 0.5
+                                    4.0 * ctrlPoints[j][i].lm1coord[0]
+                                    - ctrlPoints[j][i+1].lm1coord[0]
+                                    - ctrlPoints[j][i-1].lm1coord[0]) * 0.5
                                 ctrlPoints[j][i].lm1coord[1] = (
-                                    4.0 * ctrlPoints[j][i].lm1coord[1] - ctrlPoints[j][i+1].lm1coord[1] - ctrlPoints[j][i-1].lm1coord[1]) * 0.5
+                                    4.0 * ctrlPoints[j][i].lm1coord[1]
+                                    - ctrlPoints[j][i+1].lm1coord[1]
+                                    - ctrlPoints[j][i-1].lm1coord[1]) * 0.5
                                 if bsp.lightmaps == 4:
                                     ctrlPoints[j][i].lm2coord[0] = (
-                                        4.0 * ctrlPoints[j][i].lm2coord[0] - ctrlPoints[j][i+1].lm2coord[0] - ctrlPoints[j][i-1].lm2coord[0]) * 0.5
+                                        4.0 * ctrlPoints[j][i].lm2coord[0]
+                                        - ctrlPoints[j][i+1].lm2coord[0]
+                                        - ctrlPoints[j][i-1].lm2coord[0]) * 0.5
                                     ctrlPoints[j][i].lm2coord[1] = (
-                                        4.0 * ctrlPoints[j][i].lm2coord[1] - ctrlPoints[j][i+1].lm2coord[1] - ctrlPoints[j][i-1].lm2coord[1]) * 0.5
+                                        4.0 * ctrlPoints[j][i].lm2coord[1]
+                                        - ctrlPoints[j][i+1].lm2coord[1]
+                                        - ctrlPoints[j][i-1].lm2coord[1]) * 0.5
                                     ctrlPoints[j][i].lm3coord[0] = (
-                                        4.0 * ctrlPoints[j][i].lm3coord[0] - ctrlPoints[j][i+1].lm3coord[0] - ctrlPoints[j][i-1].lm3coord[0]) * 0.5
+                                        4.0 * ctrlPoints[j][i].lm3coord[0]
+                                        - ctrlPoints[j][i+1].lm3coord[0]
+                                        - ctrlPoints[j][i-1].lm3coord[0]) * 0.5
                                     ctrlPoints[j][i].lm3coord[1] = (
-                                        4.0 * ctrlPoints[j][i].lm3coord[1] - ctrlPoints[j][i+1].lm3coord[1] - ctrlPoints[j][i-1].lm3coord[1]) * 0.5
+                                        4.0 * ctrlPoints[j][i].lm3coord[1]
+                                        - ctrlPoints[j][i+1].lm3coord[1]
+                                        - ctrlPoints[j][i-1].lm3coord[1]) * 0.5
                                     ctrlPoints[j][i].lm4coord[0] = (
-                                        4.0 * ctrlPoints[j][i].lm4coord[0] - ctrlPoints[j][i+1].lm4coord[0] - ctrlPoints[j][i-1].lm4coord[0]) * 0.5
+                                        4.0 * ctrlPoints[j][i].lm4coord[0]
+                                        - ctrlPoints[j][i+1].lm4coord[0]
+                                        - ctrlPoints[j][i-1].lm4coord[0]) * 0.5
                                     ctrlPoints[j][i].lm4coord[1] = (
-                                        4.0 * ctrlPoints[j][i].lm4coord[1] - ctrlPoints[j][i+1].lm4coord[1] - ctrlPoints[j][i-1].lm4coord[1]) * 0.5
+                                        4.0 * ctrlPoints[j][i].lm4coord[1]
+                                        - ctrlPoints[j][i+1].lm4coord[1]
+                                        - ctrlPoints[j][i-1].lm4coord[1]) * 0.5
                             if self.patch_tcs:
                                 ctrlPoints[j][i].texcoord[0] = (
-                                    4.0 * ctrlPoints[j][i].texcoord[0] - ctrlPoints[j][i+1].texcoord[0] - ctrlPoints[j][i-1].texcoord[0]) * 0.5
+                                    4.0 * ctrlPoints[j][i].texcoord[0]
+                                    - ctrlPoints[j][i+1].texcoord[0]
+                                    - ctrlPoints[j][i-1].texcoord[0]) * 0.5
                                 ctrlPoints[j][i].texcoord[1] = (
-                                    4.0 * ctrlPoints[j][i].texcoord[1] - ctrlPoints[j][i+1].texcoord[1] - ctrlPoints[j][i-1].texcoord[1]) * 0.5
+                                    4.0 * ctrlPoints[j][i].texcoord[1]
+                                    - ctrlPoints[j][i+1].texcoord[1]
+                                    - ctrlPoints[j][i-1].texcoord[1]) * 0.5
 
                 if self.patch_lm_tcs:
                     # set new lightmap ids
@@ -1529,32 +1637,35 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                     lightmap_id4 = []
                     if bsp_surf.type != 2:
                         for i in range(int(bsp_surf.n_indexes)):
-                            bsp_vert_index = bsp_surf.vertex + \
-                                bsp.lumps["drawindexes"].data[bsp_surf.index + i].offset
+                            bsp_vert_index = (
+                                bsp_surf.vertex +
+                                bsp.lumps["drawindexes"]
+                                [bsp_surf.index + i].offset)
                             # only alter selected vertices
                             if patched_vertices[bsp_vert_index]:
                                 vertices.add(bsp_vert_index)
                                 bsp_vert = (
-                                    bsp.lumps["drawverts"].data[bsp_vert_index])
-                                if lightmapped_vertices[bsp_vert_index] and patch_lighting_type:
+                                    bsp.lumps["drawverts"][bsp_vert_index])
+                                if (lightmapped_vertices[bsp_vert_index] and
+                                   patch_lighting_type):
                                     lightmap_id.append(
-                                        BspHelper.get_lm_id(
+                                        Helpers.get_lm_id(
                                             bsp_vert.lm1coord,
                                             lightmap_size,
                                             packed_lightmap_size))
                                     if bsp.lightmaps == 4:
                                         lightmap_id2.append(
-                                            BspHelper.get_lm_id(
+                                            Helpers.get_lm_id(
                                                 bsp_vert.lm2coord,
                                                 lightmap_size,
                                                 packed_lightmap_size))
                                         lightmap_id3.append(
-                                            BspHelper.get_lm_id(
+                                            Helpers.get_lm_id(
                                                 bsp_vert.lm3coord,
                                                 lightmap_size,
                                                 packed_lightmap_size))
                                         lightmap_id4.append(
-                                            BspHelper.get_lm_id(
+                                            Helpers.get_lm_id(
                                                 bsp_vert.lm4coord,
                                                 lightmap_size,
                                                 packed_lightmap_size))
@@ -1565,26 +1676,28 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                     bsp_surf.vertex+j*bsp_surf.patch_width+i)
                                 if patched_vertices[bsp_vert_index]:
                                     vertices.add(bsp_vert_index)
-                                    bsp_vert = bsp.lumps["drawverts"].data[bsp_vert_index]
-                                    if lightmapped_vertices[bsp_vert_index] and patch_lighting_type:
+                                    bsp_vert = (
+                                        bsp.lumps["drawverts"][bsp_vert_index])
+                                    if (lightmapped_vertices[bsp_vert_index]
+                                       and patch_lighting_type):
                                         lightmap_id.append(
-                                            BspHelper.get_lm_id(
+                                            Helpers.get_lm_id(
                                                 bsp_vert.lm1coord,
                                                 lightmap_size,
                                                 packed_lightmap_size))
                                         if bsp.lightmaps == 4:
                                             lightmap_id2.append(
-                                                BspHelper.get_lm_id(
+                                                Helpers.get_lm_id(
                                                     bsp_vert.lm2coord,
                                                     lightmap_size,
                                                     packed_lightmap_size))
                                             lightmap_id3.append(
-                                                BspHelper.get_lm_id(
+                                                Helpers.get_lm_id(
                                                     bsp_vert.lm3coord,
                                                     lightmap_size,
                                                     packed_lightmap_size))
                                             lightmap_id4.append(
-                                                BspHelper.get_lm_id(
+                                                Helpers.get_lm_id(
                                                     bsp_vert.lm4coord,
                                                     lightmap_size,
                                                     packed_lightmap_size))
@@ -1631,20 +1744,20 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                         # unpack lightmap tcs
                         for i in vertices:
                             bsp_vert = bsp.lumps["drawverts"].data[i]
-                            BspHelper.unpack_lm_tc(
+                            Helpers.unpack_lm_tc(
                                 bsp_vert.lm1coord,
                                 lightmap_size,
                                 packed_lightmap_size)
                             if bsp.lightmaps == 4:
-                                BspHelper.unpack_lm_tc(
+                                Helpers.unpack_lm_tc(
                                     bsp_vert.lm2coord,
                                     lightmap_size,
                                     packed_lightmap_size)
-                                BspHelper.unpack_lm_tc(
+                                Helpers.unpack_lm_tc(
                                     bsp_vert.lm3coord,
                                     lightmap_size,
                                     packed_lightmap_size)
-                                BspHelper.unpack_lm_tc(
+                                Helpers.unpack_lm_tc(
                                     bsp_vert.lm4coord,
                                     lightmap_size,
                                     packed_lightmap_size)

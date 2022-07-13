@@ -1,7 +1,6 @@
-from enum import Enum
 from dataclasses import dataclass, field
 from .Parsing import guess_map_name
-from enum import IntFlag
+from enum import Enum, IntFlag
 
 
 class Preset(Enum):
@@ -12,7 +11,7 @@ class Preset(Enum):
     SHADOW_BRUSHES = "SHADOW_BRUSHES"
 
 
-class SURFACE_TYPE(IntFlag):
+class Surface_Type(IntFlag):
     BAD = 0
     PLANAR = 1
     PATCH = 2
@@ -49,7 +48,8 @@ class Import_Settings:
     subdivisions: int = 2
     log: list[str] = field(default_factory=list)
     front_culling: bool = True
-    surface_types: SURFACE_TYPE = SURFACE_TYPE.BAD
+    surface_types: Surface_Type = Surface_Type.BAD
+    entity_dict: dict = field(default_factory=dict)
 
     def __post_init__(self):
         self.bsp_name = guess_map_name(self.file)

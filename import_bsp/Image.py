@@ -3,7 +3,7 @@
 if "bpy" not in locals():
     import bpy
 
-from .IDTech3Lib.ID3Image import loadFtx_from_bytearray
+from .idtech3lib.ID3Image import loadFtx_from_bytearray
 
 # move file extension from first array to second one
 # when the format is supported
@@ -27,6 +27,8 @@ def load_file(file_path):
                 file_path_without_ext + extension, check_existing=True)
         except Exception:
             continue
+
+    # try loading image from vfs instead
 
     # image = loadFtx(file_path_without_ext + ".ftx")
     # if image is None:

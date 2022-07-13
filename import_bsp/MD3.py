@@ -1,7 +1,4 @@
-# ----------------------------------------------------------------------------#
-# TODO:  refactor loading bsp files and md3 files, right now its a mess o.O
-# ----------------------------------------------------------------------------#
-import imp
+import importlib
 
 if "struct" not in locals():
     import struct
@@ -10,11 +7,11 @@ if "bpy" not in locals():
     import bpy
 
 if "Image" in locals():
-    imp.reload(Image)
+    importlib.reload(Image)
 else:
     from . import Image
 
-from .IDTech3Lib.Parsing import guess_model_name, fillName
+from .idtech3lib.Parsing import guess_model_name, fillName
 
 from math import pi, sin, cos, atan2, acos, sqrt
 from mathutils import Matrix
