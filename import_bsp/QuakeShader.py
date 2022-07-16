@@ -1293,7 +1293,7 @@ class quake_shader:
                 shader.attributes["qer_trans"][0])
 
         if (import_settings.preset == 'RENDERING' or
-           import_settings.preset == "BRUSHES"):
+           import_settings.preset == "SHADOW_BRUSHES"):
             transparent = False
 
             if "skyparms" in shader.attributes:
@@ -1361,19 +1361,6 @@ def get_shader_image_sizes(VFS, import_settings, material_list):
 def build_quake_shaders(VFS, import_settings, object_list):
     base_path = import_settings.base_paths[0]
     shaders = {}
-    shader_list = []
-    found_shader_dir = False
-
-    for shader_path in import_settings.shader_dirs:
-        reg = "^" + shader_path + r"(.*?).shader$"
-        shader_list = VFS.search(reg)
-        if len(shader_list) > 0:
-            found_shader_dir = True
-            break
-
-    if not found_shader_dir:
-        return
-
     material_list = []
     material_names = []
     for object in object_list:

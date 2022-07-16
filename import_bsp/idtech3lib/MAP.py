@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from .ID3Brushes import Plane
+from .ID3Object import ID3Object
 
 
 def is_float(value):
@@ -84,11 +85,12 @@ def parse_surface_data(surface_info_lines):
 
 def read_map_file(byte_array):
     lines = byte_array.decode(encoding="latin-1").splitlines()
-    entities = []
+    entities = {}
     is_open = False
     nested_open = 0
     current_ent = {}
     obj_info = []
+    n_ent = 0
     for line in lines:
         line = line.strip().lower()
         # skip empty lines
@@ -111,10 +113,24 @@ def read_map_file(byte_array):
                 current_ent["surfaces"].append(parse_surface_data(obj_info))
                 obj_info = []
                 continue
+
+            if n_ent == 0:
+                name = "worldspawn"
+            elif "classname" in current_ent:
+                name = current_ent["classname"] + "_" + str(n_ent).zfill(4)
+            else:
+                name = "unknown_" + str(n_ent).zfill(4)
+
             # only add entities with data
             if len(current_ent) > 0:
-                entities.append(current_ent)
+                if "targetname" in current_ent:
+                    entities[current_ent["targetname"]] = (
+                        ID3Object.from_entity_dict(current_ent, name))
+                else:
+                    entities[name] = (
+                        ID3Object.from_entity_dict(current_ent, name))
                 current_ent = {}
+            n_ent += 1
             is_open = False
             nested_open = False
             continue

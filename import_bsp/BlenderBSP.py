@@ -72,19 +72,13 @@ def create_meshes_from_models(models):
                 mat = bpy.data.materials.new(name=texture_instance)
             mesh.materials.append(mat)
         mesh.polygons.foreach_set("material_index", model.material_id)
-        for poly in mesh.polygons:
-            poly.use_smooth = True
 
-        normal_array = []
-        indexed_normals = model.vertex_normals.get_indexed()
-        for i in indexed_normals:
-            normal_array.append(i[0])
-            normal_array.append(i[1])
-            normal_array.append(i[2])
+        for poly, smooth in zip(mesh.polygons, model.face_smooth):
+            poly.use_smooth = smooth
 
-        if len(indexed_normals) > 0:
-            mesh.vertices.foreach_set("normal", normal_array)
-            mesh.normals_split_custom_set_from_vertices(indexed_normals)
+        unindexed_normals = model.vertex_normals.get_unindexed()
+        if len(unindexed_normals) > 0:
+            mesh.normals_split_custom_set(unindexed_normals)
 
         for uv_layer in model.uv_layers:
             uvs = []
@@ -141,7 +135,7 @@ def create_meshes_from_models(models):
     return return_meshes
 
 
-def load_mesh(VFS, mesh_name, zoffset):
+def load_mesh(VFS, mesh_name, zoffset, bsp):
     blender_mesh = None
     if mesh_name.endswith(".md3"):
         blender_mesh = MD3.ImportMD3(
@@ -153,6 +147,26 @@ def load_mesh(VFS, mesh_name, zoffset):
             VFS,
             mesh_name,
             zoffset)[0]
+    elif mesh_name.startswith("*") and bsp is not None:
+        model_id = None
+        try:
+            model_id = int(mesh_name[1:])
+            new_blender_mesh = create_meshes_from_models([
+                bsp.get_bsp_model(model_id)])
+            blender_mesh = next(iter(new_blender_mesh.values()))
+        except Exception:
+            print("Could not get model for mesh ", mesh_name)
+            return None
+    elif mesh_name == "box":
+        blender_mesh = bpy.data.meshes.get("box")
+        if blender_mesh is None:
+            ent_object = bpy.ops.mesh.primitive_cube_add(
+                                size=8.0, location=([0, 0, 0]))
+            ent_object = bpy.context.object
+            ent_object.name = "box"
+            blender_mesh = ent_object.data
+            blender_mesh.name = "box"
+            bpy.data.objects.remove(ent_object, do_unlink=True)
 
     return blender_mesh
 
@@ -220,9 +234,7 @@ def create_blender_light(import_settings, bsp_object, objects):
     if "light" in properties:
         intensity = float(properties["light"])
     if "_color" in properties:
-        color_str = properties["_color"].split()
-        color = [float(color_str[0]), float(
-            color_str[1]), float(color_str[2])]
+        color = properties["_color"]
     if "target" in properties:
         if properties["target"] in objects:
             target_origin = objects[properties["target"]].position
@@ -259,7 +271,7 @@ def create_blender_light(import_settings, bsp_object, objects):
     light.location = bsp_object.position
 
 
-def create_blender_objects(VFS, import_settings, objects, meshes):
+def create_blender_objects(VFS, import_settings, objects, meshes, bsp):
     if len(objects) <= 0:
         return None
     object_list = []
@@ -275,17 +287,20 @@ def create_blender_objects(VFS, import_settings, objects, meshes):
                 class_dict = {}
                 if classname in import_settings.entity_dict:
                     class_dict = import_settings.entity_dict[classname]
-                if "Model" not in class_dict:
-                    print("Didnt add object: " + str(obj.name))
-                    continue
-                obj.mesh_name = class_dict["Model"]
+                obj.mesh_name = "box"
+                if "Model" in class_dict:
+                    obj.mesh_name = class_dict["Model"]
 
         mesh_z_name = obj.mesh_name
         if obj.zoffset != 0:
             mesh_z_name = mesh_z_name + ".{}".format(obj.zoffset)
 
+        if meshes is None:
+            print("Didnt add object: " + str(obj.name))
+            continue
+
         if mesh_z_name not in meshes:
-            blender_mesh = load_mesh(VFS, obj.mesh_name, obj.zoffset)
+            blender_mesh = load_mesh(VFS, obj.mesh_name, obj.zoffset, bsp)
             if blender_mesh is not None:
                 blender_mesh.name = mesh_z_name
                 meshes[mesh_z_name] = blender_mesh
@@ -333,18 +348,20 @@ def import_bsp_file(import_settings):
 
     # profiler = cProfile.Profile()
     # profiler.enable()
-    bsp_models = bsp_file.get_bsp_models()
+    # bsp_models = bsp_file.get_bsp_models()
     # profiler.disable()
     # profiler.print_stats()
 
     # convert bsp data to blender data
-    blender_meshes = create_meshes_from_models(bsp_models)
+    # blender_meshes = create_meshes_from_models(bsp_models)
 
     # create blender objects
     blender_objects = []
     bsp_objects = None
     BRUSH_IMPORTS = ["BRUSHES", "SHADOW_BRUSHES"]
     if import_settings.preset in BRUSH_IMPORTS:
+        bsp_models = bsp_file.get_bsp_models()
+        blender_meshes = create_meshes_from_models(bsp_models)
         for mesh_name in blender_meshes:
             mesh = blender_meshes[mesh_name]
             if mesh is None:
@@ -360,7 +377,8 @@ def import_bsp_file(import_settings):
             VFS,
             import_settings,
             bsp_objects,
-            blender_meshes)
+            {},  # blender_meshes,
+            bsp_file)
 
     # get clip data and gridsize
     clip_end = 40000
@@ -475,4 +493,12 @@ def import_map_file(import_settings):
     byte_array = VFS.get(import_settings.file)
 
     entities = MAP.read_map_file(byte_array)
-    objects = []
+    objects = create_blender_objects(
+        VFS,
+        import_settings,
+        entities,
+        {},
+        None)
+
+    QuakeShader.init_shader_system(None)
+    QuakeShader.build_quake_shaders(VFS, import_settings, objects)

@@ -88,6 +88,7 @@ class ID3Model:
         self.vertex_data_layers = {}
         self.material_names = []
         self.material_id = []
+        self.face_smooth = []
 
     def init_bsp_face_data(self, bsp):
         self.vertex_groups["Lightmapped"] = set()
@@ -123,7 +124,7 @@ class ID3Model:
         self.uv_layers["UVMap"] = (
             self.VertexAttribute(self.indices))
         self.current_index = 0
-        self.index_mapping = None
+        self.index_mapping = [-2 for i in range(len(bsp.lumps["drawverts"]))]
         self.num_bsp_vertices = 0
 
         self.MAX_GRID_SIZE = 65
@@ -152,39 +153,56 @@ class ID3Model:
                     drawverts_lump[index].position)
                 self.vertex_normals.add_indexed(
                     drawverts_lump[index].normal)
-                self.uv_layers["UVMap"].add_indexed(
-                    drawverts_lump[index].texcoord)
-                self.uv_layers["LightmapUV"].add_indexed(
-                    drawverts_lump[index].lm1coord)
+                if "UVMap" in self.uv_layers:
+                    self.uv_layers["UVMap"].add_indexed(
+                        drawverts_lump[index].texcoord)
+                if "LightmapUV" in self.uv_layers:
+                    self.uv_layers["LightmapUV"].add_indexed(
+                        drawverts_lump[index].lm1coord)
                 alpha = [drawverts_lump[index].color1[3],
                          drawverts_lump[index].color1[3],
                          drawverts_lump[index].color1[3],
                          drawverts_lump[index].color1[3]]
-                self.vertex_colors["Color"].add_indexed(
-                    drawverts_lump[index].color1)
-                if index < self.num_bsp_vertices:
-                    self.vertex_data_layers["BSP_VERT_INDEX"].add_indexed(
-                        index)
-                else:
-                    self.vertex_data_layers["BSP_VERT_INDEX"].add_indexed(
-                        -2)
+                if "Color" in self.vertex_colors:
+                    self.vertex_colors["Color"].add_indexed(
+                        drawverts_lump[index].color1)
+                if "BSP_VERT_INDEX" in self.vertex_data_layers:
+                    if index < self.num_bsp_vertices:
+                        self.vertex_data_layers["BSP_VERT_INDEX"].add_indexed(
+                            index)
+                    else:
+                        self.vertex_data_layers["BSP_VERT_INDEX"].add_indexed(
+                            -2)
 
                 for i in range(2, bsp.lightmaps+1):
                     if i <= 4:
                         alpha[i-1] = getattr(
                             drawverts_lump[index], "color" + str(i))[3]
-                    self.vertex_colors["Color"+str(i)].add_indexed(
-                        getattr(drawverts_lump[index], "color" + str(i)))
-                    self.uv_layers["LightmapUV"+str(i)].add_indexed(
-                        getattr(drawverts_lump[index], "lm"+str(i)+"coord"))
-                self.vertex_colors["Alpha"].add_indexed(alpha)
+                    if "Color"+str(i) in self.vertex_colors:
+                        self.vertex_colors["Color"+str(i)].add_indexed(
+                            getattr(
+                                drawverts_lump[index],
+                                "color" + str(i)))
+                    if "LightmapUV"+str(i) in self.uv_layers:
+                        self.uv_layers["LightmapUV"+str(i)].add_indexed(
+                            getattr(
+                                drawverts_lump[index],
+                                "lm"+str(i)+"coord"))
+
+                if "Alpha" in self.vertex_colors:
+                    self.vertex_colors["Alpha"].add_indexed(alpha)
 
                 # store lightmap ids for atlasing purposes
-                self.vertex_lightmap_id.add_indexed(lm_ids)
+                if "LightmapUV" in self.uv_layers:
+                    self.vertex_lightmap_id.add_indexed(lm_ids)
             model_indices.append(self.index_mapping[index])
         self.indices.append(model_indices)
 
-    def add_bsp_face_data(self, bsp, model_indices, face):
+    def add_bsp_face_data(self,
+                          bsp,
+                          model_indices,
+                          face,
+                          force_nodraw=False):
         shaders_lump = bsp.lumps["shaders"]
         material_suffix = ""
 
@@ -192,9 +210,11 @@ class ID3Model:
             bsp.lightstyles == 0
         ) else face.lm_indexes[0]
 
-        if first_lm_index < 0:
+        if force_nodraw:
+            material_suffix = ".nodraw"
+        elif first_lm_index < 0:
             material_suffix = ".vertex"
-        else:
+        elif "Lightmapped" in self.vertex_groups:
             for index in model_indices:
                 self.vertex_groups["Lightmapped"].add(index)
 
@@ -205,6 +225,7 @@ class ID3Model:
         if material_name not in self.material_names:
             self.material_names.append(material_name)
         self.material_id.append(self.material_names.index(material_name))
+        self.face_smooth.append(True)
 
     def add_bsp_surface(self, bsp, face, import_settings):
         first_index = face.index
@@ -238,6 +259,110 @@ class ID3Model:
             )
             self.add_bsp_face_data(bsp, model_indices, face)
 
+    def subdivide_patch(self,
+                        subdivisions,
+                        face_width,
+                        face_height,
+                        ctrl_points,
+                        lerp_func):
+
+        width = face_width
+        height = face_height
+        if subdivisions > 0:
+            for subd in range(subdivisions):
+                pos_w = 0
+                pos_h = 0
+                added_width = 0
+                added_height = 0
+                # add new colums
+                for i in range(width//2):
+                    if ((width + 2) > self.MAX_GRID_SIZE):
+                        break
+                    pos_w = i * 2 + added_width
+                    width += 2
+                    added_width += 2
+                    # build new vertices
+                    for j in range(height+1):
+                        prev = lerp_func(
+                            ctrl_points[j][pos_w],
+                            ctrl_points[j][pos_w+1])
+                        next = lerp_func(
+                            ctrl_points[j][pos_w+1],
+                            ctrl_points[j][pos_w+2])
+                        midl = lerp_func(
+                            prev,
+                            next)
+
+                        # replace peak
+                        for x in range(width):
+                            k = width - x
+                            if (k <= pos_w+3):
+                                break
+                            ctrl_points[j][k] = ctrl_points[j][k-2]
+
+                        ctrl_points[j][pos_w + 1] = prev
+                        ctrl_points[j][pos_w + 2] = midl
+                        ctrl_points[j][pos_w + 3] = next
+
+                # add new rows
+                for j in range(height//2):
+                    if ((height + 2) > self.MAX_GRID_SIZE):
+                        break
+                    pos_h = j * 2 + added_height
+                    height += 2
+                    added_height += 2
+                    # build new vertices
+                    for i in range(width+1):
+                        prev = lerp_func(
+                            ctrl_points[pos_h][i],
+                            ctrl_points[pos_h+1][i])
+                        next = lerp_func(
+                            ctrl_points[pos_h+1][i],
+                            ctrl_points[pos_h+2][i])
+                        midl = lerp_func(
+                            prev,
+                            next)
+
+                        # replace peak
+                        for x in range(height):
+                            k = height - x
+                            if (k <= pos_h+3):
+                                break
+                            ctrl_points[k][i] = ctrl_points[k-2][i]
+
+                        ctrl_points[pos_h + 1][i] = prev
+                        ctrl_points[pos_h + 2][i] = midl
+                        ctrl_points[pos_h + 3][i] = next
+
+        if subdivisions > -1:
+            # now smooth the rest of the points
+            for i in range(width+1):
+                for j in range(1, height, 2):
+                    prev = lerp_func(
+                        ctrl_points[j][i],
+                        ctrl_points[j+1][i])
+                    next = lerp_func(
+                        ctrl_points[j][i],
+                        ctrl_points[j-1][i])
+                    midl = lerp_func(
+                        prev,
+                        next)
+                    ctrl_points[j][i] = midl
+
+            for j in range(height+1):
+                for i in range(1, width, 2):
+                    prev = lerp_func(
+                        ctrl_points[j][i],
+                        ctrl_points[j][i+1])
+                    next = lerp_func(
+                        ctrl_points[j][i],
+                        ctrl_points[j][i-1])
+                    midl = lerp_func(
+                        prev,
+                        next)
+                    ctrl_points[j][i] = midl
+        return width, height
+
     def add_bsp_patch(self, bsp, face, import_settings):
         drawverts_lump = bsp.lumps["drawverts"]
         width = int(face.patch_width-1)
@@ -252,99 +377,11 @@ class ID3Model:
                 vertex = drawverts_lump[self.bspPoints[j][i]]
                 self.ctrlPoints[j][i] = vertex
 
-        if import_settings.subdivisions > 0:
-            for subd in range(import_settings.subdivisions):
-                pos_w = 0
-                pos_h = 0
-                added_width = 0
-                added_height = 0
-                # add new colums
-                for i in range(width//2):
-                    if ((width + 2) > self.MAX_GRID_SIZE):
-                        break
-                    pos_w = i * 2 + added_width
-                    width += 2
-                    added_width += 2
-                    # build new vertices
-                    for j in range(height+1):
-                        prev = bsp.lerp_vertices(
-                            self.ctrlPoints[j][pos_w],
-                            self.ctrlPoints[j][pos_w+1])
-                        next = bsp.lerp_vertices(
-                            self.ctrlPoints[j][pos_w+1],
-                            self.ctrlPoints[j][pos_w+2])
-                        midl = bsp.lerp_vertices(
-                            prev,
-                            next)
-
-                        # replace peak
-                        for x in range(width):
-                            k = width - x
-                            if (k <= pos_w+3):
-                                break
-                            self.ctrlPoints[j][k] = self.ctrlPoints[j][k-2]
-
-                        self.ctrlPoints[j][pos_w + 1] = prev
-                        self.ctrlPoints[j][pos_w + 2] = midl
-                        self.ctrlPoints[j][pos_w + 3] = next
-
-                # add new rows
-                for j in range(height//2):
-                    if ((height + 2) > self.MAX_GRID_SIZE):
-                        break
-                    pos_h = j * 2 + added_height
-                    height += 2
-                    added_height += 2
-                    # build new vertices
-                    for i in range(width+1):
-                        prev = bsp.lerp_vertices(
-                            self.ctrlPoints[pos_h][i],
-                            self.ctrlPoints[pos_h+1][i])
-                        next = bsp.lerp_vertices(
-                            self.ctrlPoints[pos_h+1][i],
-                            self.ctrlPoints[pos_h+2][i])
-                        midl = bsp.lerp_vertices(
-                            prev,
-                            next)
-
-                        # replace peak
-                        for x in range(height):
-                            k = height - x
-                            if (k <= pos_h+3):
-                                break
-                            self.ctrlPoints[k][i] = self.ctrlPoints[k-2][i]
-
-                        self.ctrlPoints[pos_h + 1][i] = prev
-                        self.ctrlPoints[pos_h + 2][i] = midl
-                        self.ctrlPoints[pos_h + 3][i] = next
-
-        if import_settings.subdivisions > -1:
-            # now smooth the rest of the points
-            for i in range(width+1):
-                for j in range(1, height, 2):
-                    prev = bsp.lerp_vertices(
-                        self.ctrlPoints[j][i],
-                        self.ctrlPoints[j+1][i])
-                    next = bsp.lerp_vertices(
-                        self.ctrlPoints[j][i],
-                        self.ctrlPoints[j-1][i])
-                    midl = bsp.lerp_vertices(
-                        prev,
-                        next)
-                    self.ctrlPoints[j][i] = midl
-
-            for j in range(height+1):
-                for i in range(1, width, 2):
-                    prev = bsp.lerp_vertices(
-                        self.ctrlPoints[j][i],
-                        self.ctrlPoints[j][i+1])
-                    next = bsp.lerp_vertices(
-                        self.ctrlPoints[j][i],
-                        self.ctrlPoints[j][i-1])
-                    midl = bsp.lerp_vertices(
-                        prev,
-                        next)
-                    self.ctrlPoints[j][i] = midl
+        width, height = self.subdivide_patch(import_settings.subdivisions,
+                                             width,
+                                             height,
+                                             self.ctrlPoints,
+                                             bsp.lerp_vertices)
 
         # get the bsp indices aligned with the subdivided patch mesh
         fixed_bsp_indices = [
@@ -370,6 +407,11 @@ class ID3Model:
                             bsp, self.ctrlPoints[j][i]))
                 bsp_index_list.append(fixed_bsp_indices[j][i])
 
+        force_nodraw = False
+        if import_settings.preset not in ["BRUSHES", "SHADOWBRUSHES"]:
+            shaders_lump = bsp.lumps["shaders"]
+            force_nodraw = shaders_lump[face.texture].flags == 0x00200000
+
         for patch_face_index in range(width*height + height - 1):
             # end of row?
             if ((patch_face_index+1) % (width+1) == 0):
@@ -388,7 +430,10 @@ class ID3Model:
                 self.index_mapping[bsp_indices[2]],
                 self.index_mapping[bsp_indices[3]]
             )
-            self.add_bsp_face_data(bsp, model_indices, face)
+            self.add_bsp_face_data(bsp,
+                                   model_indices,
+                                   face,
+                                   force_nodraw)
 
     def add_bsp_model(self, bsp, model_id, import_settings):
 
@@ -418,11 +463,6 @@ class ID3Model:
             elif surface_type == Surface_Type.PATCH:
                 self.add_bsp_patch(bsp, face, import_settings)
 
-        if import_settings.preset == "SHADOW_BRUSHES":
-            for mat_id in range(len(self.material_names)):
-                self.material_names[mat_id] = (self.material_names[mat_id] +
-                                               ".brush")
-
     def add_bsp_model_brushes(self, bsp, model_id, import_settings):
 
         if bsp is None:
@@ -435,44 +475,83 @@ class ID3Model:
         self.init_bsp_brush_data(bsp)
         bsp_model = bsp.lumps["models"][model_id]
         first_brush = bsp_model.brush
+        first_face = bsp_model.face
+
+        for i in range(bsp_model.n_faces):
+            face_id = first_face + i
+            face = bsp.lumps["surfaces"][face_id]
+
+            surface_type = Surface_Type.bsp_value(face.type)
+            if surface_type == Surface_Type.PATCH:
+                self.add_bsp_patch(bsp, face, import_settings)
+
+        self.uv_layers["UVMap"].make_unindexed_list()
+        self.vertex_normals.make_unindexed_list()
 
         for i in range(bsp_model.n_brushes):
             brush_id = first_brush + i
             bsp_brush = bsp.lumps["brushes"][brush_id]
+            brush_shader = ""
             planes = []
+
+            if import_settings.preset == "SHADOW_BRUSHES":
+                brush_shader = (
+                    bsp.lumps["shaders"]
+                    [bsp_brush.texture].name.decode("latin-1"))
+                if brush_shader.startswith("noshader"):
+                    continue
+                if brush_shader.startswith("models/"):
+                    continue
+                if brush_shader.startswith("textures/system/"):
+                    continue
+
             for side in range(bsp_brush.n_brushsides):
                 brushside = bsp.lumps["brushsides"][
                     bsp_brush.brushside + side]
                 bsp_plane = bsp.lumps["planes"][brushside.plane]
-                shader = bsp.lumps["shaders"][brushside.texture].name.decode(
-                    "latin-1")
 
                 if import_settings.preset == "SHADOW_BRUSHES":
-                    shader = shader + ".brush"
+                    shader = brush_shader
+                else:
+                    shader = (
+                        bsp.lumps["shaders"]
+                        [brushside.texture].name.decode("latin-1"))
 
                 planes.append(Plane(
                     tuple(bsp_plane.normal),
                     bsp_plane.distance,
                     shader))
 
-            final_points, uvs, faces, mats = parse_brush(planes)
+            points, uvs, faces, mats = parse_brush(planes)
 
-            index_mapping = [-2] * len(final_points)
-            for index, (point, uv) in enumerate(zip(final_points, uvs)):
-                index_mapping[index] = self.current_index
+            indices = []
+            for i in range(len(points)):
+                indices.append(len(self.index_mapping))
+                self.index_mapping.append(-2)
+
+            for index, (point, uv) in zip(indices, (zip(points, uvs))):
+                self.index_mapping[index] = self.current_index
                 self.current_index += 1
                 self.positions.add_indexed(point)
+                self.vertex_normals.add_unindexed((0.0, 0.0, 0.0))
                 self.uv_layers["UVMap"].add_unindexed(uv)
 
             for face, material in zip(faces, mats):
                 # add vertices to model
-                self.indices.append([index_mapping[index] for index in face])
+                self.indices.append(
+                    [self.index_mapping[indices[index]] for index in face])
 
                 if material not in self.material_names:
                     self.material_names.append(material)
 
+                self.face_smooth.append(False)
                 self.material_id.append(
                     self.material_names.index(material))
+
+        special_imports = ["SHADOW_BRUSHES", "EDITING"]
+        if import_settings.preset in special_imports:
+            for index in range(len(self.material_names)):
+                self.material_names[index] += ".brush"
 
     def pack_lightmap_uvs(self, bsp):
         layer_name = "LightmapUV"

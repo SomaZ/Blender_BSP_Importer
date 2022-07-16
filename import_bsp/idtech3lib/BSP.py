@@ -226,25 +226,31 @@ class BSP_READER:
             packed_lightmap_size[1] = packed_lightmap_size[1] // 2
         return packed_lightmap_size
 
-    def get_bsp_models(self) -> list[MODEL]:
+    def get_bsp_model(self, model_id) -> MODEL:
         pack_lightmap_uvs = (
             self.lightmap_size[0] != self.internal_lightmap_size[0] or
             self.lightmap_size[1] != self.internal_lightmap_size[1]
         )
-
-        models = []
-        for i in range(len(self.lumps["models"])):
-            model = MODEL("*"+str(i))
-            model.add_bsp_model(self, i, self.import_settings)
+        model = MODEL("*"+str(model_id))
+        model.add_bsp_model(self, model_id, self.import_settings)
+        if model.current_index > 0:
             if pack_lightmap_uvs:
                 model.pack_lightmap_uvs(self)
-            if model.current_index > 0:
+            return model
+
+        model = MODEL("*"+str(model_id))
+        model.add_bsp_model_brushes(self, model_id, self.import_settings)
+        if model.current_index > 0:
+            return model
+        return None
+
+    def get_bsp_models(self) -> list[MODEL]:
+        models = []
+        for i in range(len(self.lumps["models"])):
+            model = self.get_bsp_model(i)
+            if model is not None:
                 models.append(model)
 
-            model = MODEL("*"+str(i)+".BRUSHES")
-            model.add_bsp_model_brushes(self, i, self.import_settings)
-            if model.current_index > 0:
-                models.append(model)
         return models
 
     def pack_lightmap(

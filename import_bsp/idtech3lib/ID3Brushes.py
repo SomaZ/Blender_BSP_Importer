@@ -203,7 +203,7 @@ def parse_brush(planes, material_sizes=None):
         face_indices = []
         for point_angle in sorted_points:
             point = point_angle[0]
-            final_points.append(tuple(point))
+            final_points.append(point)
 
             uv = [0.0, 0.0]
             if "vecs" in uv_data[1]:

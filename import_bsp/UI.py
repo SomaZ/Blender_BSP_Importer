@@ -162,7 +162,13 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
         )
         surface_types = Surface_Type.BAD
         if self.preset in brush_imports:
-            surface_types = Surface_Type.BRUSH | Surface_Type.PATCH
+            surface_types = Surface_Type.BRUSH
+        elif self.preset == Preset.EDITING.value:
+            surface_types = (Surface_Type.BRUSH |
+                             Surface_Type.PLANAR |
+                             Surface_Type.PATCH |
+                             Surface_Type.TRISOUP |
+                             Surface_Type.FAKK_TERRAIN)
         else:
             surface_types = (Surface_Type.PLANAR |
                              Surface_Type.PATCH |
@@ -187,7 +193,6 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
             surface_types=surface_types,
             entity_dict=entity_dict
         )
-        import_settings.log.append("----import_scene.ja_bsp----")
 
         # scene information
         context.scene.id_tech_3_importer_preset = self.preset
@@ -200,9 +205,6 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
         background = context.scene.world.node_tree.nodes.get("Background")
         if background is not None:
             background.inputs[0].default_value = 0, 0, 0, 1
-        else:
-            import_settings.log.append(
-                "WARNING: Could not set world color to black.")
 
         if self.properties.preset == "BRUSHES":
             context.scene.cycles.transparent_max_bounces = 32
@@ -213,6 +215,87 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
 
         for line in import_settings.log:
             print(line)
+
+        return {'FINISHED'}
+
+
+class Import_MAP(bpy.types.Operator, ImportHelper):
+    bl_idname = "import_scene.id_map"
+    bl_label = "Import MAP file (.map)"
+    filename_ext = ".map"
+    filter_glob: StringProperty(default="*.map", options={'HIDDEN'})
+
+    filepath: StringProperty(
+        name="File Path",
+        description="File path used for importing the MAP file",
+        maxlen=1024,
+        default="")
+    preset: EnumProperty(
+        name="Import preset",
+        description="You can select wether you want to import a map for "
+        "editing, rendering, or previewing.",
+        default=Preset.PREVIEW.value,
+        items=[
+            (Preset.PREVIEW.value, "Preview",
+             "Builds eevee shaders, imports all misc_model_statics "
+             "when available", 0),
+            (Preset.EDITIING.value, "Entity Editing",
+             "Builds eevee shaders, imports all entitys, enables "
+             "entitiy modding", 1),
+            (Preset.RENDERING.value, "Rendering",
+             "Builds cycles shaders, only imports visable enities", 2),
+            (Preset.BRUSHES.value, "Brushes",
+             "Imports all Brushes", 3),
+            (Preset.SHADOW_BRUSHES.value, "Shadow Brushes", "Imports "
+             "Brushes as shadow casters", 4),
+        ])
+    subdivisions: IntProperty(
+        name="Patch subdivisions",
+        description="How often a patch is subdivided at import",
+        default=2)
+
+    def execute(self, context):
+        addon_name = __name__.split('.')[0]
+        self.prefs = context.preferences.addons[addon_name].preferences
+
+        fixed_base_path = self.prefs.base_path.replace("\\", "/")
+        if not fixed_base_path.endswith('/'):
+            fixed_base_path = fixed_base_path + '/'
+
+        brush_imports = (
+            Preset.BRUSHES.value,
+            Preset.SHADOW_BRUSHES.value
+        )
+        surface_types = Surface_Type.BAD
+        if self.preset in brush_imports:
+            surface_types = Surface_Type.BRUSH | Surface_Type.PATCH
+        else:
+            surface_types = (Surface_Type.PLANAR |
+                             Surface_Type.PATCH |
+                             Surface_Type.TRISOUP |
+                             Surface_Type.FAKK_TERRAIN)
+
+        dict_path = bpy.utils.script_paths(
+            subdir="addons/import_bsp/gamepacks/")[0]
+        entity_dict = GamePacks.get_gamepack(dict_path, "JKA_SP.json")
+
+        # trace some things like paths and lightmap size
+        import_settings = Import_Settings(
+            file=self.filepath.replace("\\", "/"),
+            subdivisions=self.properties.subdivisions,
+            base_paths=[fixed_base_path],
+            preset=self.properties.preset,
+            front_culling=False,
+            surface_types=surface_types,
+            entity_dict=entity_dict
+        )
+
+        # scene information
+        context.scene.id_tech_3_importer_preset = self.preset
+        if self.preset != "BRUSHES":
+            context.scene.id_tech_3_bsp_path = self.filepath
+
+        BlenderBSP.import_map_file(import_settings)
 
         return {'FINISHED'}
 
@@ -482,6 +565,10 @@ class Export_ID3_TIK(bpy.types.Operator, ExportHelper):
 
 def menu_func_bsp_import(self, context):
     self.layout.operator(Import_ID3_BSP.bl_idname, text="ID3 BSP (.bsp)")
+
+
+def menu_func_map_import(self, context):
+    self.layout.operator(Import_MAP.bl_idname, text="id Software MAP (.map)")
 
 
 def menu_func_md3_import(self, context):
@@ -1463,25 +1550,33 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                             patched_vertices[bsp_vert_index] = True
                             bsp_vert = bsp.lumps["drawverts"][bsp_vert_index]
                             if self.patch_tcs:
-                                bsp_vert.texcoord = mesh.uv_layers["UVMap"].data[loop].uv
+                                bsp_vert.texcoord = (
+                                    mesh.uv_layers["UVMap"].data[loop].uv)
                             if self.patch_lm_tcs:
-                                bsp_vert.lm1coord = mesh.uv_layers["LightmapUV"].data[loop].uv
+                                bsp_vert.lm1coord = (
+                                    mesh.uv_layers["LightmapUV"].data[loop].uv)
                                 bsp_vert.lm1coord[0] = min(
                                     1.0, max(0.0, bsp_vert.lm1coord[0]))
                                 bsp_vert.lm1coord[1] = min(
                                     1.0, max(0.0, bsp_vert.lm1coord[1]))
                                 if bsp.lightmaps == 4:
-                                    bsp_vert.lm2coord = mesh.uv_layers["LightmapUV2"].data[loop].uv
+                                    bsp_vert.lm2coord = (
+                                        mesh.uv_layers[
+                                            "LightmapUV2"].data[loop].uv)
                                     bsp_vert.lm2coord[0] = min(
                                         1.0, max(0.0, bsp_vert.lm2coord[0]))
                                     bsp_vert.lm2coord[1] = min(
                                         1.0, max(0.0, bsp_vert.lm2coord[1]))
-                                    bsp_vert.lm3coord = mesh.uv_layers["LightmapUV3"].data[loop].uv
+                                    bsp_vert.lm3coord = (
+                                        mesh.uv_layers[
+                                            "LightmapUV3"].data[loop].uv)
                                     bsp_vert.lm3coord[0] = min(
                                         1.0, max(0.0, bsp_vert.lm3coord[0]))
                                     bsp_vert.lm3coord[1] = min(
                                         1.0, max(0.0, bsp_vert.lm3coord[1]))
-                                    bsp_vert.lm4coord = mesh.uv_layers["LightmapUV4"].data[loop].uv
+                                    bsp_vert.lm4coord = (
+                                        mesh.uv_layers[
+                                            "LightmapUV4"].data[loop].uv)
                                     bsp_vert.lm4coord[0] = min(
                                         1.0, max(0.0, bsp_vert.lm4coord[0]))
                                     bsp_vert.lm4coord[1] = min(
@@ -1494,15 +1589,26 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                         mesh.loops[loop].normal.copy())
                             if self.patch_colors:
                                 vert_colors = mesh.vertex_colors
-                                bsp_vert.color1 = vert_colors["Color"].data[loop].color
-                                bsp_vert.color1[3] = vert_colors["Alpha"].data[loop].color[0]
+                                bsp_vert.color1 = (
+                                    vert_colors["Color"].data[loop].color)
+                                bsp_vert.color1[3] = (
+                                    vert_colors["Alpha"].data[loop].color[0])
                                 if bsp.lightmaps == 4:
-                                    bsp_vert.color2 = vert_colors["Color2"].data[loop].color
-                                    bsp_vert.color2[3] = vert_colors["Alpha"].data[loop].color[1]
-                                    bsp_vert.color3 = vert_colors["Color3"].data[loop].color
-                                    bsp_vert.color3[3] = vert_colors["Alpha"].data[loop].color[2]
-                                    bsp_vert.color4 = vert_colors["Color4"].data[loop].color
-                                    bsp_vert.color4[3] = vert_colors["Alpha"].data[loop].color[3]
+                                    bsp_vert.color2 = (
+                                        vert_colors["Color2"].data[loop].color)
+                                    bsp_vert.color2[3] = (
+                                        vert_colors[
+                                            "Alpha"].data[loop].color[1])
+                                    bsp_vert.color3 = (
+                                        vert_colors["Color3"].data[loop].color)
+                                    bsp_vert.color3[3] = (
+                                        vert_colors[
+                                            "Alpha"].data[loop].color[2])
+                                    bsp_vert.color4 = (
+                                        vert_colors["Color4"].data[loop].color)
+                                    bsp_vert.color4[3] = (
+                                        vert_colors[
+                                            "Alpha"].data[loop].color[3])
                 else:
                     self.report({"ERROR"}, "Not a valid mesh for patching")
                     return {'CANCELLED'}

@@ -61,7 +61,8 @@ def ImportEntitiesText(VFS,
                            "angles",
                            "gridsize",
                            "origin",
-                           "modelangles")
+                           "modelangles",
+                           "_color")
             if key in vector_keys:
                 value = value.strip(" \"\t\n\r")
                 value = value.split(" ")

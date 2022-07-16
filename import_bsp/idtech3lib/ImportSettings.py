@@ -5,7 +5,7 @@ from enum import Enum, IntFlag
 
 class Preset(Enum):
     PREVIEW = "PREVIEW"
-    EDITIING = "EDITIING"
+    EDITING = "EDITING"
     RENDERING = "RENDERING"
     BRUSHES = "BRUSHES"
     SHADOW_BRUSHES = "SHADOW_BRUSHES"
