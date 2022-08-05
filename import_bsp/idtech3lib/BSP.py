@@ -125,30 +125,35 @@ class BSP_READER:
     def set_entity_lump(self, entity_text):
         bsp_info = self.MAGIC_MAPPING[self.header.magic_nr]
         self.lumps["entities"] = [bsp_info.lumps["entities"]
-                                  (char=[bytes(c, "ascii")])
+                                  (char=bytes(c, "ascii"))
                                   for c in entity_text]
 
     def to_bytes(self):
         byte_array = bytearray()
+        offset = 0
+
         byte_array += bytes(self.header)
+        offset += sizeof(self.header)
 
         lumps = {}
+        lump_sizes = {}
         for lump in self.lumps:
-            print("Converting " + lump + " to bytes")
             lumps[lump] = bytearray()
-            for entry in lumps[lump]:
+            lump_sizes[lump] = 0
+            for entry in self.lumps[lump]:
                 lumps[lump] += bytes(entry)
+                lump_sizes[lump] += sizeof(entry)
 
-        offset = sizeof(self.header)
-        offset += sizeof(BSP_LUMP_HEADER) * len(lumps)
-        for lump in lumps:
+        offset += sizeof(BSP_LUMP_HEADER) * len(self.lumps)
+        for lump in self.lumps:
             l_header = BSP_LUMP_HEADER(
                 offset=offset,
-                size=sizeof(lumps[lump])
+                size=lump_sizes[lump]
             )
             byte_array += bytes(l_header)
-            offset += sizeof(lumps[lump])
-        for lump in lumps:
+            offset += lump_sizes[lump]
+
+        for lump in self.lumps:
             byte_array += lumps[lump]
 
         return byte_array

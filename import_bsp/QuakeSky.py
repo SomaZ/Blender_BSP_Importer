@@ -64,8 +64,12 @@ fragment_shader = '''
 
     void main()
     {
-        vec2 thetaphi = ((tc * 2.0) - vec2(1.0)) * vec2(PI, PI / 2.0) - vec2(PI / 2.0, 0.0);
-        vec3 rayDirection = vec3(cos(thetaphi.y) * cos(thetaphi.x), sin(thetaphi.y), cos(thetaphi.y) * sin(thetaphi.x));
+        vec3 pi_hpi_z = vec3(PI, PI / 2.0, 0.0);
+        vec2 thetaphi = ((tc * 2.0) - vec2(1.0)) * pi_hpi_z.xy - pi_hpi_z.yz;
+        vec3 rayDirection = vec3(
+            cos(thetaphi.y) * cos(thetaphi.x),
+            sin(thetaphi.y),
+            cos(thetaphi.y) * sin(thetaphi.x));
         vec3 absDirection = abs(rayDirection);
         int read_texture = 0;
         vec2 read_tc = vec2(0.0);
@@ -84,7 +88,8 @@ fragment_shader = '''
             }
             read_tc = vec2(rayDirection.x, rayDirection.z) * 0.5 + 0.5;
         }
-        else if (absDirection.x > absDirection.y && absDirection.x > absDirection.z)
+        else if (absDirection.x > absDirection.y &&
+                 absDirection.x > absDirection.z)
         {
             if (absDirection.x > 0.0)
             {

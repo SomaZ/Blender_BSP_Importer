@@ -122,7 +122,7 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
             (Preset.PREVIEW.value, "Preview",
              "Builds eevee shaders, imports all misc_model_statics "
              "when available", 0),
-            (Preset.EDITIING.value, "Entity Editing",
+            (Preset.EDITING.value, "Entity Editing",
              "Builds eevee shaders, imports all entitys, enables "
              "entitiy modding", 1),
             (Preset.RENDERING.value, "Rendering",
@@ -239,7 +239,7 @@ class Import_MAP(bpy.types.Operator, ImportHelper):
             (Preset.PREVIEW.value, "Preview",
              "Builds eevee shaders, imports all misc_model_statics "
              "when available", 0),
-            (Preset.EDITIING.value, "Entity Editing",
+            (Preset.EDITING.value, "Entity Editing",
              "Builds eevee shaders, imports all entitys, enables "
              "entitiy modding", 1),
             (Preset.RENDERING.value, "Rendering",
@@ -1378,12 +1378,25 @@ class PatchBspEntities(bpy.types.Operator, ExportHelper):
         default=True)
 
     def execute(self, context):
+        addon_name = __name__.split('.')[0]
+        self.prefs = context.preferences.addons[addon_name].preferences
+
+        fixed_base_path = self.prefs.base_path.replace("\\", "/")
+        if not fixed_base_path.endswith('/'):
+            fixed_base_path = fixed_base_path + '/'
 
         import_settings = Import_Settings(
-            file=self.filepath.replace("\\", "/")
+            file=self.filepath.replace("\\", "/"),
+            base_paths=[fixed_base_path]
         )
-        bsp = BlenderBSP.get_bsp_file(None, import_settings)
 
+        VFS = Q3VFS()
+        for base_path in import_settings.base_paths:
+            VFS.add_base(base_path)
+        VFS.build_index()
+
+        bsp = BlenderBSP.get_bsp_file(VFS, import_settings)
+   
         # swap entity lump
         entities = Entities.GetEntityStringFromScene()
         bsp.set_entity_lump(entities)
@@ -1475,9 +1488,23 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
         light_settings.compensate = self.compensate
         light_settings.hdr = self.patch_hdr
 
+        addon_name = __name__.split('.')[0]
+        self.prefs = context.preferences.addons[addon_name].preferences
+
+        fixed_base_path = self.prefs.base_path.replace("\\", "/")
+        if not fixed_base_path.endswith('/'):
+            fixed_base_path = fixed_base_path + '/'
+
         import_settings = Import_Settings(
-            file=self.filepath.replace("\\", "/")
+            file=self.filepath.replace("\\", "/"),
+            base_paths=[fixed_base_path]
         )
+
+        VFS = Q3VFS()
+        for base_path in import_settings.base_paths:
+            VFS.add_base(base_path)
+        VFS.build_index()
+
         bsp = BlenderBSP.import_bsp_file(None, import_settings)
 
         if self.only_selected:
