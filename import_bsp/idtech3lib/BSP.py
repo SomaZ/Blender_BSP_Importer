@@ -3,6 +3,7 @@ from .RBSP import BSP_INFO as RBSP
 from .IBSP import BSP_INFO as IBSP
 from .EF2BSP import BSP_INFO as EF2BSP
 from .FAKK import BSP_INFO as FAKK
+from .FBSP import BSP_INFO as FBSP
 from .ID3Model import ID3Model as MODEL
 from .ID3Image import ID3Image as IMAGE
 from math import floor, ceil
@@ -77,6 +78,7 @@ class BSP_READER:
         b'IBSP': IBSP,
         b'EF2!': EF2BSP,
         b'FAKK': FAKK,
+        b'FBSP': FBSP,
     }
 
     def __init__(self, VFS, import_settings):
