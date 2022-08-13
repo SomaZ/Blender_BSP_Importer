@@ -20,35 +20,22 @@ class ID3Image():
         self.bppc = 0
         self.num_components = 0
         self.data = []
-        self.data_type = "byte"  # replace with enum
-
-    def get_rgb(self):
-        pixels = []
-        for p in self.data:
-            pixels.append(byte_to_float(p[0]))
-            pixels.append(byte_to_float(p[1]))
-            pixels.append(byte_to_float(p[2]))
-        return pixels
 
     def get_rgba(self):
         if (self.num_components != 3) and (
             self.num_components != 4
            ):
             raise Exception("Invalid Image components")
-        pixels = []
+
         if self.num_components == 4:
-            for p in range(self.width * self.height):
-                pixels.append(byte_to_float(self.data[p*4]))
-                pixels.append(byte_to_float(self.data[p*4+1]))
-                pixels.append(byte_to_float(self.data[p*4+2]))
-                pixels.append(byte_to_float(self.data[p*4+3]))
+            return [byte_to_float(data) for data in self.data]
         else:
+            pixels = [1.0] * (self.width * self.height * 4)
             for p in range(self.width * self.height):
-                pixels.append(byte_to_float(self.data[p*3]))
-                pixels.append(byte_to_float(self.data[p*3+1]))
-                pixels.append(byte_to_float(self.data[p*3+2]))
-                pixels.append(1.0)
-        return pixels
+                pixels[p*4+0] = byte_to_float(self.data[p*3+0])
+                pixels[p*4+1] = byte_to_float(self.data[p*3+1])
+                pixels[p*4+2] = byte_to_float(self.data[p*3+2])
+            return pixels
 
 
 def loadFtx_from_bytearray(name, byte_array):

@@ -214,6 +214,8 @@ class BSP_READER:
                                 self.internal_lightmap_size[1]]
         max_lightmaps = 1
         n_lightmaps = self.num_internal_lm_ids + 1
+        if self.deluxemapping:
+            n_lightmaps += 1
         # grow lightmap atlas if needed
         for i in range(6):
             if (n_lightmaps > int(max_lightmaps)):
@@ -266,48 +268,43 @@ class BSP_READER:
             internal=True,
             color_components=3
             ):
-        num_columns = self.lightmap_size[0] / \
-            self.internal_lightmap_size[0]
-        n_lightmaps = len(lightmap_lump)
+        num_columns = self.lightmap_size[0] / self.internal_lightmap_size[0]
 
         numPixels = self.lightmap_size[0] * \
             self.lightmap_size[1] * color_components
-        pixels = [0]*numPixels
-        for pixel in range(
-                self.lightmap_size[0] * self.lightmap_size[1]):
-            # pixel position in packed texture
-            row = pixel % self.lightmap_size[0]
-            colum = floor(pixel/self.lightmap_size[1])
+        pixels = [0.0]*numPixels
 
-            # lightmap quadrant
-            quadrant_x = floor(row/self.internal_lightmap_size[0])
-            quadrant_y = floor(colum/self.internal_lightmap_size[1])
-            lightmap_id = floor(
-                quadrant_x + (num_columns * quadrant_y))
+        lm_width = self.internal_lightmap_size[0]
+        lm_height = self.internal_lightmap_size[1]
 
+        for current_id, lightmap in enumerate(lightmap_lump):
+            lm_id = current_id
             if deluxemapped:
-                lightmap_id = lightmap_id * 2
-                if deluxe:
-                    lightmap_id += 1
+                if deluxe and lm_id % 2 == 0:
+                    continue
+                if not deluxe and lm_id % 2 == 1:
+                    continue
+                lm_id = int(current_id / 2)
 
-            if (lightmap_id > n_lightmaps-1) or (lightmap_id < 0):
-                continue
-            else:
-                # pixel id in lightmap
-                lm_x = row % self.internal_lightmap_size[0]
-                lm_y = colum % self.internal_lightmap_size[1]
-                pixel_id = floor(
-                    lm_x + (lm_y * self.internal_lightmap_size[0]))
-                pixel_id *= color_components
-                if internal:
-                    lightmap = lightmap_lump[lightmap_id].map
-                else:
-                    lightmap = lightmap_lump[lightmap_id]
-                pixels[color_components*pixel] = lightmap[pixel_id]
-                pixels[color_components*pixel+1] = lightmap[pixel_id+1]
-                pixels[color_components*pixel+2] = lightmap[pixel_id+2]
+            target_xy = (lm_id % num_columns) * lm_width
+            target_xy += ((lm_id // num_columns)
+                          * lm_width * lm_height
+                          * num_columns)
+            lightmap_data = lightmap.map if internal else lightmap
+            for lm_pixel in range(int(len(lightmap_data) / color_components)):
+                pixel_target = target_xy
+                pixel_target += lm_pixel % lm_width
+                pixel_target += (lm_pixel // lm_width) * lm_width * num_columns
+                pixel_target = int(pixel_target)
+                pixels[pixel_target*color_components] = (
+                    lightmap_data[lm_pixel*color_components])
+                pixels[pixel_target*color_components+1] = (
+                    lightmap_data[lm_pixel*color_components+1])
+                pixels[pixel_target*color_components+2] = (
+                    lightmap_data[lm_pixel*color_components+2])
                 if color_components == 4:
-                    pixels[color_components*pixel+3] = 1.0
+                    pixels[pixel_target*color_components+3] = 1.0
+
         return pixels
 
     def get_bsp_images(self):
@@ -347,7 +344,6 @@ class BSP_READER:
                     image.height = self.internal_lightmap_size[1]
                     image.num_components = 3
                     image.bppc = 8
-                    image.data_type = "bytes"
                     image.data = bsp_image.map
                     images.append(image)
             else:
@@ -367,7 +363,6 @@ class BSP_READER:
                 image.height = self.lightmap_size[1]
                 image.num_components = 3
                 image.bppc = 8
-                image.data_type = "bytes"
                 image.data = pixels
                 images.append(image)
 
@@ -382,7 +377,6 @@ class BSP_READER:
                     image.height = self.lightmap_size[1]
                     image.num_components = 3
                     image.bppc = 8
-                    image.data_type = "bytes"
                     image.data = pixels
                     images.append(image)
 
@@ -403,11 +397,11 @@ class BSP_READER:
         self.lightgrid_origin = lightgrid_origin
 
         maxs = [self.lightgrid_size[0] *
-                floor(world_maxs[0] / self.lightgrid_size[0]),
+                int(world_maxs[0] / self.lightgrid_size[0]),
                 self.lightgrid_size[1] *
-                floor(world_maxs[1] / self.lightgrid_size[1]),
+                int(world_maxs[1] / self.lightgrid_size[1]),
                 self.lightgrid_size[2] *
-                floor(world_maxs[2] / self.lightgrid_size[2])]
+                int(world_maxs[2] / self.lightgrid_size[2])]
 
         lightgrid_dimensions = [(maxs[0] - lightgrid_origin[0]) /
                                 self.lightgrid_size[0] + 1,

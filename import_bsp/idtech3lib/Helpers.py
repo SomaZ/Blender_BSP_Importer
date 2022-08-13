@@ -29,11 +29,11 @@ def clamp_shift_tc(tc, min_tc, max_tc, u_shift, v_shift, flip_v):
 
 
 def unwrap_vert_map(vert_id, vertmap_size, current_id):
-    id = int(floor(current_id/3.0))
+    id = int(current_id/3.0)
     even = id % 2 == 0
-    id += floor(id / 2)
+    id += int(id / 2)
     current_x = id % (vertmap_size[0] - 1)
-    current_y = 2 * floor(id / (vertmap_size[0] - 1))
+    current_y = 2 * int(id / (vertmap_size[0] - 1))
 
     eps_u = 0.005
     if even:
@@ -94,7 +94,7 @@ def pack_lm_tc(tc,
                    lightmap_size[1] / packed_lm_size[1])
 
     x = (lightmap_id % num_columns) * scale_value[0]
-    y = floor(lightmap_id/num_columns) * scale_value[1]
+    y = int(lightmap_id/num_columns) * scale_value[1]
 
     packed_tc = (tc[0]*scale_value[0] + x, tc[1]*scale_value[1]+y)
     return packed_tc
@@ -103,22 +103,22 @@ def pack_lm_tc(tc,
 def get_lm_id(tc, lightmap_size, packed_lm_size):
     row = tc[0]*packed_lm_size[0]
     column = tc[1]*packed_lm_size[1]
-    quadrant_x = floor(row/lightmap_size[0])
-    quadrant_y = floor(column/lightmap_size[1])
+    quadrant_x = int(row/lightmap_size[0])
+    quadrant_y = int(column/lightmap_size[1])
 
     scale = packed_lm_size[0] / lightmap_size[0]
-    return floor(quadrant_x + (scale * quadrant_y))
+    return int(quadrant_x + (scale * quadrant_y))
 
 
 def unpack_lm_tc(tc, lightmap_size, packed_lm_size):
     row = tc[0]*packed_lm_size[0]
     column = tc[1]*packed_lm_size[1]
-    quadrant_x = floor(row/lightmap_size[0])
-    quadrant_y = floor(column/lightmap_size[1])
+    quadrant_x = int(row/lightmap_size[0])
+    quadrant_y = int(column/lightmap_size[1])
 
     scale = (packed_lm_size[0] / lightmap_size[0],
              packed_lm_size[1] / lightmap_size[1])
-    lightmap_id = floor(quadrant_x + (scale[0] * quadrant_y))
+    lightmap_id = int(quadrant_x + (scale[0] * quadrant_y))
 
     quadrant_scale = [lightmap_size[0] / packed_lm_size[0],
                       lightmap_size[1] / packed_lm_size[1]]
