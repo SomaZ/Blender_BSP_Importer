@@ -437,27 +437,13 @@ def import_bsp_file(import_settings):
                 print("External lightmaps all need to be the same size")
                 break
 
-            working_pixels = list(tmp_image.pixels[:])
-            pixels = []
-            for y in range(tmp_image.size[1]):
-                for x in range(tmp_image.size[0]):
-                    id = floor(
-                        x + (tmp_image.size[0] * (tmp_image.size[1]-1)) - (
-                            tmp_image.size[0] * y))
-                    pixels.append(working_pixels[id * 4 + 0])
-                    pixels.append(working_pixels[id * 4 + 1])
-                    pixels.append(working_pixels[id * 4 + 2])
-                    pixels.append(working_pixels[id * 4 + 3])
-
-            external_lm_lump.append(pixels)
+            external_lm_lump.append(list(tmp_image.pixels[:]))
 
         # compute new sized atlas
         num_colums = (bsp_file.lightmap_size[0] //
                       bsp_file.internal_lightmap_size[0])
         num_rows = (bsp_file.lightmap_size[1] //
                     bsp_file.internal_lightmap_size[1])
-        num_colums = 2
-        num_rows = 2
         bsp_file.internal_lightmap_size = (width, height)
         bsp_file.lightmap_size = (width * num_colums, height * num_rows)
 
