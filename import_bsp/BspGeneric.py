@@ -32,9 +32,16 @@ def create_new_image(name, width, height, float_buffer=False):
         old_image.name = name + "_previous.000"
         
     if float_buffer:
-        image = bpy.data.images.new(name, width=width, height=height, float_buffer=True)
+        image = bpy.data.images.new(
+            name, 
+            width=int(width), 
+            height=int(height), 
+            float_buffer=True)
     else:
-        image = bpy.data.images.new(name, width=width, height=height)
+        image = bpy.data.images.new(
+            name, 
+            width=int(width), 
+            height=int(height))
         
     image.use_fake_user=True
     return image
@@ -133,17 +140,17 @@ def pack_lightmaps(bsp, lightmap_lump_name, import_settings):
         force_vertex_lighting = True
         lightmap_size = [128, 128]
     
-    num_columns = import_settings.packed_lightmap_size[0] / lightmap_size[0]
-    num_rows = import_settings.packed_lightmap_size[1] / lightmap_size[1]
+    num_columns = int(import_settings.packed_lightmap_size[0] / lightmap_size[0])
+    num_rows = int(import_settings.packed_lightmap_size[1] / lightmap_size[1])
     max_lightmaps = num_columns * num_rows
     
     #grow lightmap atlas if needed
     for i in range(6):
-        if (n_lightmaps > int(max_lightmaps)):
+        if (n_lightmaps > max_lightmaps):
             import_settings.packed_lightmap_size[0] *= 2
             import_settings.packed_lightmap_size[1] *= 2
-            num_columns = import_settings.packed_lightmap_size[0] / lightmap_size[0]
-            num_rows = import_settings.packed_lightmap_size[1] / lightmap_size[1]
+            num_columns = int(import_settings.packed_lightmap_size[0] / lightmap_size[0])
+            num_rows = int(import_settings.packed_lightmap_size[1] / lightmap_size[1])
             max_lightmaps = num_columns * num_rows
         else:
             import_settings.log.append("found best packed lightmap size: " + str(import_settings.packed_lightmap_size))
@@ -900,11 +907,16 @@ class blender_model_data:
                 bpy.context.scene.collection.children.link(collection)
             
             obj = bpy.data.objects.new("Brush " + str(brush_id).zfill(4), me)
-            obj.cycles_visibility.camera = False
-            #obj.cycles_visibility.diffuse = False
-            obj.cycles_visibility.glossy = False
-            obj.cycles_visibility.transmission = False
-            obj.cycles_visibility.scatter = False
+            if bpy.app.version >= (3, 0, 0):
+                obj.visible_camera = False
+                obj.visible_glossy = False
+                obj.visible_transmission = False
+                obj.visible_volume_scatter = False
+            else:
+                obj.cycles_visibility.camera = False
+                obj.cycles_visibility.glossy = False
+                obj.cycles_visibility.transmission = False
+                obj.cycles_visibility.scatter = False
             bpy.data.collections["Brushes"].objects.link(obj)
             return
         

@@ -244,28 +244,31 @@ def create_lightgrid():
     obj = GridIcoSphere.createGridIcoSphere()
     
     obj.location = lightgrid_origin
-    obj.cycles_visibility.shadow = False
+    if bpy.app.version >= (3, 0, 0):
+        obj.visible_shadow = False
+    else:
+        obj.cycles_visibility.shadow = False
     
     #create the lightgrid points via arrays
     obj.modifiers.new("X_Array", type='ARRAY')
     obj.modifiers['X_Array'].use_constant_offset = True
     obj.modifiers['X_Array'].constant_offset_displace[0] = lightgrid_size[0]
     obj.modifiers['X_Array'].use_relative_offset = False
-    obj.modifiers['X_Array'].count = lightgrid_dimensions[0]
+    obj.modifiers['X_Array'].count = int(lightgrid_dimensions[0])
     obj.modifiers['X_Array'].offset_u = lightgrid_inverse_dim[0]
     
     obj.modifiers.new("Y_Array", type='ARRAY')
     obj.modifiers['Y_Array'].use_constant_offset = True
     obj.modifiers['Y_Array'].constant_offset_displace[1] = lightgrid_size[1]
     obj.modifiers['Y_Array'].use_relative_offset = False
-    obj.modifiers['Y_Array'].count = lightgrid_dimensions[1]
+    obj.modifiers['Y_Array'].count = int(lightgrid_dimensions[1])
     obj.modifiers['Y_Array'].offset_v = lightgrid_inverse_dim[1]
     
     obj.modifiers.new("Z_Array", type='ARRAY')
     obj.modifiers['Z_Array'].use_constant_offset = True
     obj.modifiers['Z_Array'].constant_offset_displace[2] = lightgrid_size[2]
     obj.modifiers['Z_Array'].use_relative_offset = False
-    obj.modifiers['Z_Array'].count = lightgrid_dimensions[2]
+    obj.modifiers['Z_Array'].count = int(lightgrid_dimensions[2])
     obj.modifiers['Z_Array'].offset_v = lightgrid_inverse_dim[2]
     
     #scale the uv coordinates so it fits the lightgrid textures
@@ -284,8 +287,8 @@ def create_lightgrid():
         image = bpy.data.images.get("$"+mat.name)
         if image == None:
             image = bpy.data.images.new("$"+mat.name, 
-                                            width=lightgrid_dimensions[0], 
-                                            height=lightgrid_dimensions[1]*lightgrid_dimensions[2],
+                                            width=int(lightgrid_dimensions[0]), 
+                                            height=int(lightgrid_dimensions[1]*lightgrid_dimensions[2]),
                                             float_buffer=True)
             image.use_fake_user = True
         node_image.image = image
@@ -684,7 +687,7 @@ def storeLightgrid(bsp, light_settings):
         try:
             f.write(hdr_bytes)
         except:
-            print("Failed writing: " + name)
+            print("Failed writing: lightgrid.raw")
         f.close()
     
     if bsp.use_lightgridarray:

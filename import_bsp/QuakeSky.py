@@ -60,6 +60,8 @@ fragment_shader = '''
     #define LF 4
     #define RT 5
 
+    out vec4 FragColor;
+
     void main()
     {
         vec2 thetaphi = ((tc * 2.0) - vec2(1.0)) * vec2(PI, PI / 2.0) - vec2(PI / 2.0, 0.0); 
@@ -146,7 +148,7 @@ fragment_shader = '''
                 break;  
         }
         // TODO: Check color space?
-        gl_FragColor = color;
+        FragColor = color;
     }
 '''
 
