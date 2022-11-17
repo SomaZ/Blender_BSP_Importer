@@ -308,10 +308,10 @@ def ImportEntitiesText(entities_string, import_settings, bsp = None, only_lights
                             node.inputs["Alpha"].default_value = 0.0
                         ob = bpy.data.objects.new(name="something", object_data=mesh.copy())
                         ob.data.materials.append(mat)
-                    ob.name = "Entity " + (str(n_ent).zfill(4))
+                    ob.name = ent["classname"] + "_" + str(n_ent).zfill(4)
                     bpy.context.collection.objects.link(ob)
             else:
-                ob.name = "Entity " + (str(n_ent).zfill(4))
+                ob.name = ent["classname"] + "_" + str(n_ent).zfill(4)
                 bpy.context.collection.objects.link(ob)
             
             if "spawnflags" in ent:
