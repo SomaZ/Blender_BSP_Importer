@@ -253,19 +253,25 @@ def create_lightgrid():
     obj.modifiers.new("X_Array", type='ARRAY')
     obj.modifiers['X_Array'].use_constant_offset = True
     obj.modifiers['X_Array'].constant_offset_displace[0] = lightgrid_size[0]
+    obj.modifiers['X_Array'].constant_offset_displace[1] = 0.0
+    obj.modifiers['X_Array'].constant_offset_displace[2] = 0.0
     obj.modifiers['X_Array'].use_relative_offset = False
     obj.modifiers['X_Array'].count = int(lightgrid_dimensions[0])
     obj.modifiers['X_Array'].offset_u = lightgrid_inverse_dim[0]
     
     obj.modifiers.new("Y_Array", type='ARRAY')
     obj.modifiers['Y_Array'].use_constant_offset = True
+    obj.modifiers['Y_Array'].constant_offset_displace[0] = 0.0
     obj.modifiers['Y_Array'].constant_offset_displace[1] = lightgrid_size[1]
+    obj.modifiers['Y_Array'].constant_offset_displace[2] = 0.0
     obj.modifiers['Y_Array'].use_relative_offset = False
     obj.modifiers['Y_Array'].count = int(lightgrid_dimensions[1])
     obj.modifiers['Y_Array'].offset_v = lightgrid_inverse_dim[1]
     
     obj.modifiers.new("Z_Array", type='ARRAY')
     obj.modifiers['Z_Array'].use_constant_offset = True
+    obj.modifiers['Z_Array'].constant_offset_displace[0] = 0.0
+    obj.modifiers['Z_Array'].constant_offset_displace[1] = 0.0
     obj.modifiers['Z_Array'].constant_offset_displace[2] = lightgrid_size[2]
     obj.modifiers['Z_Array'].use_relative_offset = False
     obj.modifiers['Z_Array'].count = int(lightgrid_dimensions[2])
