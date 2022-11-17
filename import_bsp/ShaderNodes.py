@@ -920,12 +920,14 @@ class Lightgrid_Node(Generic_Node_Group):
             node_a1_up = lightgrid_group.nodes.new(type='ShaderNodeTexImage')
             node_a1_up.image = image_a1
             node_a1_up.location = (200, 0)
+            node_a1_up.interpolation = 'Cubic'
             lightgrid_group.links.new(
                 node_upper_tc.outputs[0], node_a1_up.inputs["Vector"])
 
             node_a1_low = lightgrid_group.nodes.new(type='ShaderNodeTexImage')
             node_a1_low.image = image_a1
             node_a1_low.location = (200, -200)
+            node_a1_low.interpolation = 'Cubic'
             lightgrid_group.links.new(
                 node_lower_tc.outputs[0], node_a1_low.inputs["Vector"])
         else:
@@ -939,12 +941,14 @@ class Lightgrid_Node(Generic_Node_Group):
             node_d1_up = lightgrid_group.nodes.new(type='ShaderNodeTexImage')
             node_d1_up.image = image_d1
             node_d1_up.location = (200, -400)
+            node_d1_up.interpolation = 'Cubic'
             lightgrid_group.links.new(
                 node_upper_tc.outputs[0], node_d1_up.inputs["Vector"])
 
             node_d1_low = lightgrid_group.nodes.new(type='ShaderNodeTexImage')
             node_d1_low.image = image_d1
             node_d1_low.location = (200, -600)
+            node_d1_low.interpolation = 'Cubic'
             lightgrid_group.links.new(
                 node_lower_tc.outputs[0], node_d1_low.inputs["Vector"])
         else:
@@ -958,12 +962,14 @@ class Lightgrid_Node(Generic_Node_Group):
             node_vec_up = lightgrid_group.nodes.new(type='ShaderNodeTexImage')
             node_vec_up.image = image_vec
             node_vec_up.location = (200, -800)
+            node_vec_up.interpolation = 'Cubic'
             lightgrid_group.links.new(
                 node_upper_tc.outputs[0], node_vec_up.inputs["Vector"])
 
             node_vec_low = lightgrid_group.nodes.new(type='ShaderNodeTexImage')
             node_vec_low.image = image_vec
             node_vec_low.location = (200, -1000)
+            node_vec_low.interpolation = 'Cubic'
             lightgrid_group.links.new(
                 node_lower_tc.outputs[0], node_vec_low.inputs["Vector"])
         else:
