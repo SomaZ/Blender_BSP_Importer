@@ -713,7 +713,7 @@ def ImportTAN(model_name, material_mapping, import_tags = False, animations = No
                 tag_obj.matrix_world = matrix
                 if animations != None:
                     tag_obj.keyframe_insert('location', frame=0, group='LocRot')
-                    tag_obj.keyframe_insert('rotation_quaternion', frame=0, group='LocRot')
+                    tag_obj.keyframe_insert('rotation_euler', frame=0, group='LocRot')
                     for frame in range(1, numFrames):
                         matrix = Matrix.Identity(4)
                         matrix[0] = [*tag_data_lump.data[frame].axis_1, 0.0]
@@ -723,7 +723,7 @@ def ImportTAN(model_name, material_mapping, import_tags = False, animations = No
                         matrix.translation = tag_data_lump.data[frame].origin
                         tag_obj.matrix_world = matrix
                         tag_obj.keyframe_insert('location', frame=frame, group='LocRot')
-                        tag_obj.keyframe_insert('rotation_quaternion', frame=frame, group='LocRot')
+                        tag_obj.keyframe_insert('rotation_euler', frame=frame, group='LocRot')
             
         vertex_pos = []
         vertex_nor = []
@@ -806,6 +806,9 @@ def ImportTAN(model_name, material_mapping, import_tags = False, animations = No
                 
         if per_object_import:
             return meshes
+
+        if len(vertex_pos) == 0:
+            return [mesh]
         
         guessed_name = guess_model_name( model_name.lower() ).lower()
         if guessed_name.endswith(".tan"):

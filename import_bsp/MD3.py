@@ -654,7 +654,7 @@ def ImportMD3(model_name, zoffset, import_tags = False, animations = None, per_o
                 tag_obj.matrix_world = matrix
                 if animations != None:
                     tag_obj.keyframe_insert('location', frame=0, group='LocRot')
-                    tag_obj.keyframe_insert('rotation_quaternion', frame=0, group='LocRot')
+                    tag_obj.keyframe_insert('rotation_euler', frame=0, group='LocRot')
                     for frame in range(1, numFrames):
                         tag_id = tag + frame * numTags
                         matrix = Matrix.Identity(4)
@@ -665,7 +665,7 @@ def ImportMD3(model_name, zoffset, import_tags = False, animations = None, per_o
                         matrix.translation = tag_lump.data[tag_id].origin
                         tag_obj.matrix_world = matrix
                         tag_obj.keyframe_insert('location', frame=frame, group='LocRot')
-                        tag_obj.keyframe_insert('rotation_quaternion', frame=frame, group='LocRot')
+                        tag_obj.keyframe_insert('rotation_euler', frame=frame, group='LocRot')
             
         vertex_pos = []
         vertex_nor = []
@@ -747,6 +747,9 @@ def ImportMD3(model_name, zoffset, import_tags = False, animations = None, per_o
                 
         if per_object_import:
             return meshes
+
+        if len(vertex_pos) == 0:
+            return [mesh]
         
         guessed_name = guess_model_name( model_name.lower() ).lower()
         if guessed_name.endswith(".md3"):
