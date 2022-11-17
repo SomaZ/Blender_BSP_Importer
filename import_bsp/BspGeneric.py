@@ -238,7 +238,7 @@ def unwrap_vert_map(vert_id, vertmap_size, current_id):
             return (0.0, 0.0)
     
 def pack_lm_tc(tc, lightmap_id, lightmap_size, import_settings, v_id = 0, current_v_id = None):
-    if (lightmap_id < 0):
+    if (lightmap_id < 0 and import_settings.pacKVertMap):
         if current_v_id != None:
             return unwrap_vert_map(v_id, [2048.0,2048.0], current_v_id)
         else:

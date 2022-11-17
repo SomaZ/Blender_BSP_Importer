@@ -103,6 +103,10 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
             ('1024', "1024", "1024x1024", 3),
             ('2048', "2048", "2048x2048", 4),
         ])
+    packVertMap : BoolProperty(
+        name="Pack Vert Map", 
+        description="Pack vertex lit surfaces tightly into the lightmap uvs", 
+        default=True)
 
     def execute(self, context):
         addon_name = __name__.split('.')[0]
@@ -124,6 +128,7 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
         import_settings.log = []
         import_settings.log.append("----import_scene.ja_bsp----")
         import_settings.filepath = self.filepath.replace("\\", "/")
+        import_settings.pacKVertMap = self.packVertMap
         
         #scene information
         context.scene.id_tech_3_importer_preset = self.preset
