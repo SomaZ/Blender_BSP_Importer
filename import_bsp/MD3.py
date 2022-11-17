@@ -472,8 +472,8 @@ class MD3:
             array.append(bytes(fillName("test", 16),"ascii"))
             frame = cls(array)
             
-            frame.min_bounds = [-512, -512, -512]
-            frame.max_bounds = [512, 512, 512]
+            frame.min_bounds = [512, 512, 512]
+            frame.max_bounds = [-512, -512, -512]
             
             for obj in objects:
                 mesh = obj.data.copy()
