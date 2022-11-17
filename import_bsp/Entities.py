@@ -361,16 +361,16 @@ def ImportEntitiesText(entities_string, import_settings, bsp = None, only_lights
                 
             if "origin" in ent:
                 ob.location = ent["origin"]
+            if "angle" in ent:
+                ob.rotation_euler = (0.0,0.0,radians(float(ent["angle"])))
+            if "angles" in ent:
+                ob.rotation_euler = (radians(ent["angles"][2]),radians(ent["angles"][0]),radians(ent["angles"][1]))
             if mesh_name in md3_objects:
                 if "modelscale" in ent:
                     scale = (float(ent["modelscale"]),float(ent["modelscale"]),float(ent["modelscale"]))
                     ob.scale = scale
                 if "modelscale_vec" in ent:
                     ob.scale = ent["modelscale_vec"]
-                if "angle" in ent:
-                    ob.rotation_euler = (0.0,0.0,radians(float(ent["angle"])))
-                if "angles" in ent:
-                    ob.rotation_euler = (radians(ent["angles"][2]),radians(ent["angles"][0]),radians(ent["angles"][1]))
                     
             if model2_ob != None:
                 model2_ob.parent = ob
