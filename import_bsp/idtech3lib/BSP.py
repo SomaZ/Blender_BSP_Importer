@@ -231,7 +231,6 @@ class BSP_READER:
             else:
                 break
         if self.deluxemapping:
-            packed_lightmap_size[0] = packed_lightmap_size[0] // 2
             packed_lightmap_size[1] = packed_lightmap_size[1] // 2
         return packed_lightmap_size
 
