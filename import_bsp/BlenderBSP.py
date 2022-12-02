@@ -82,14 +82,9 @@ def create_meshes_from_models(models):
 
         for uv_layer in model.uv_layers:
             uvs = []
-            if uv_layer.startswith("Lightmap"):
-                for uv in model.uv_layers[uv_layer].get_unindexed(tuple):
-                    uvs.append(uv[0])
-                    uvs.append(uv[1])
-            else:
-                for uv in model.uv_layers[uv_layer].get_unindexed(tuple):
-                    uvs.append(uv[0])
-                    uvs.append(1.0 - uv[1])
+            for uv in model.uv_layers[uv_layer].get_unindexed(tuple):
+                uvs.append(uv[0])
+                uvs.append(uv[1])
             mesh.uv_layers.new(do_init=False, name=uv_layer)
             mesh.uv_layers[uv_layer].data.foreach_set(
                 "uv", uvs)
@@ -418,6 +413,7 @@ def import_bsp_file(import_settings):
             alpha=image.num_components == 4)
         new_image.pixels = image.get_rgba()
         new_image.alpha_mode = 'CHANNEL_PACKED'
+        new_image.use_fake_user = True
 
     # handle external lightmaps
     if bsp_file.num_internal_lm_ids >= 0 and bsp_file.external_lm_files:
@@ -445,13 +441,8 @@ def import_bsp_file(import_settings):
 
             external_lm_lump.append(list(tmp_image.pixels[:]))
 
-        # compute new sized atlas
-        num_colums = (bsp_file.lightmap_size[0] //
-                      bsp_file.internal_lightmap_size[0])
-        num_rows = (bsp_file.lightmap_size[1] //
-                    bsp_file.internal_lightmap_size[1])
         bsp_file.internal_lightmap_size = (width, height)
-        bsp_file.lightmap_size = (width * num_colums, height * num_rows)
+        bsp_file.lightmap_size = bsp_file.compute_packed_lightmap_size()
 
         atlas_pixels = bsp_file.pack_lightmap(
             external_lm_lump,
@@ -466,6 +457,21 @@ def import_bsp_file(import_settings):
             height=bsp_file.lightmap_size[1])
         new_image.pixels = atlas_pixels
         new_image.alpha_mode = 'CHANNEL_PACKED'
+
+        if bsp_file.deluxemapping:
+            atlas_pixels = bsp_file.pack_lightmap(
+                external_lm_lump,
+                bsp_file.deluxemapping,
+                True,
+                False,
+                4)
+
+            new_image = bpy.data.images.new(
+                "$deluxemap",
+                width=bsp_file.lightmap_size[0],
+                height=bsp_file.lightmap_size[1])
+            new_image.pixels = atlas_pixels
+            new_image.alpha_mode = 'CHANNEL_PACKED'
 
     # bpy.context.scene.id_tech_3_lightmaps_per_row = num_rows
     # bpy.context.scene.id_tech_3_lightmaps_per_column = num_columns

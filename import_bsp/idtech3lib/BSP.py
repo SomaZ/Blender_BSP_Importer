@@ -295,7 +295,11 @@ class BSP_READER:
             for lm_pixel in range(int(len(lightmap_data) / color_components)):
                 pixel_target = target_xy
                 pixel_target += lm_pixel % lm_width
-                pixel_target += (lm_pixel // lm_width) * lm_width * num_columns
+                # flip internal lightmaps
+                if internal:
+                    pixel_target += (lm_height - 1 - (lm_pixel // lm_width)) * lm_width * num_columns
+                else:
+                    pixel_target += (lm_pixel // lm_width) * lm_width * num_columns
                 pixel_target = int(pixel_target)
                 pixels[pixel_target*color_components] = (
                     lightmap_data[lm_pixel*color_components])

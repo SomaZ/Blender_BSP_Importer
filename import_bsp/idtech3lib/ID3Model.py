@@ -154,11 +154,11 @@ class ID3Model:
                 self.vertex_normals.add_indexed(
                     drawverts_lump[index].normal)
                 if "UVMap" in self.uv_layers:
-                    self.uv_layers["UVMap"].add_indexed(
-                        drawverts_lump[index].texcoord)
+                    uv = drawverts_lump[index].texcoord[0], 1.0 - drawverts_lump[index].texcoord[1]
+                    self.uv_layers["UVMap"].add_indexed(uv)
                 if "LightmapUV" in self.uv_layers:
-                    self.uv_layers["LightmapUV"].add_indexed(
-                        drawverts_lump[index].lm1coord)
+                    uv = drawverts_lump[index].lm1coord[0], 1.0 - drawverts_lump[index].lm1coord[1]
+                    self.uv_layers["LightmapUV"].add_indexed(uv)
                 alpha = [drawverts_lump[index].color1[3],
                          drawverts_lump[index].color1[3],
                          drawverts_lump[index].color1[3],
@@ -184,10 +184,9 @@ class ID3Model:
                                 drawverts_lump[index],
                                 "color" + str(i)))
                     if "LightmapUV"+str(i) in self.uv_layers:
-                        self.uv_layers["LightmapUV"+str(i)].add_indexed(
-                            getattr(
-                                drawverts_lump[index],
-                                "lm"+str(i)+"coord"))
+                        bsp_uv = getattr(drawverts_lump[index], "lm"+str(i)+"coord")
+                        uv = bsp_uv[0], 1.0 - bsp_uv[1]
+                        self.uv_layers["LightmapUV"+str(i)].add_indexed(uv)
 
                 if "Alpha" in self.vertex_colors:
                     self.vertex_colors["Alpha"].add_indexed(alpha)
