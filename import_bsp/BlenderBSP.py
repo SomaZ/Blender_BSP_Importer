@@ -293,7 +293,7 @@ def create_blender_objects(VFS, import_settings, objects, meshes, bsp):
 
         mesh_z_name = obj.mesh_name
         if obj.zoffset != 0:
-            mesh_z_name = mesh_z_name + ".{}".format(obj.zoffset)
+            mesh_z_name = mesh_z_name + ".z{}".format(obj.zoffset)
 
         if meshes is None:
             print("Didnt add object: " + str(obj.name))
