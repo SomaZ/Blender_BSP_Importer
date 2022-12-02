@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
 
 import struct
+from numpy import array
 
 # move file extension from first array to second one
 # when the format is supported
@@ -28,13 +29,15 @@ class ID3Image():
             raise Exception("Invalid Image components")
 
         if self.num_components == 4:
-            return [byte_to_float(data) for data in self.data]
+            pixels = array(self.data) * (1.0/255.0)
+            return pixels
         else:
             pixels = [1.0] * (self.width * self.height * 4)
+            data = array(self.data) * (1.0/255.0)
             for p in range(self.width * self.height):
-                pixels[p*4+0] = byte_to_float(self.data[p*3+0])
-                pixels[p*4+1] = byte_to_float(self.data[p*3+1])
-                pixels[p*4+2] = byte_to_float(self.data[p*3+2])
+                pixels[p*4+0] = data[p*3+0]
+                pixels[p*4+1] = data[p*3+1]
+                pixels[p*4+2] = data[p*3+2]
             return pixels
 
 
