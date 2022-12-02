@@ -332,6 +332,17 @@ def get_bsp_file(VFS, import_settings):
     return BSP(VFS, import_settings)
 
 
+def set_blender_clip_spaces(clip_start, clip_end):
+    for ws in bpy.data.workspaces:
+        for screen in ws.screens:
+            for a in screen.areas:
+                if a.type == 'VIEW_3D':
+                    for s in a.spaces:
+                        if s.type == 'VIEW_3D':
+                            s.clip_start = clip_start
+                            s.clip_end = clip_end
+
+
 def import_bsp_file(import_settings):
 
     # initialize virtual file system
@@ -396,12 +407,7 @@ def import_bsp_file(import_settings):
                                                1.0 / float(grid_size[1]),
                                                1.0 / float(grid_size[2])]
     # apply clip data
-    for a in bpy.context.screen.areas:
-        if a.type == 'VIEW_3D':
-            for s in a.spaces:
-                if s.type == 'VIEW_3D':
-                    s.clip_start = 4
-                    s.clip_end = clip_end
+    set_blender_clip_spaces(4.0, clip_end)
 
     bsp_images = bsp_file.get_bsp_images()
     for image in bsp_images:
@@ -485,6 +491,8 @@ def import_map_file(import_settings):
         entities,
         {},
         None)
+
+    set_blender_clip_spaces(4.0, 40000.0)
 
     QuakeShader.init_shader_system(None)
     QuakeShader.build_quake_shaders(VFS, import_settings, objects)
