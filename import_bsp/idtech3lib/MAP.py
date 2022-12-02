@@ -3,6 +3,17 @@ from .ID3Brushes import Plane
 from .ID3Object import ID3Object
 
 
+PROP_LEN = {
+    "origin": 3,
+    "angle": 1,
+    "angles": 3,
+    "modelscale_vec": 3,
+    "modelscale": 1,
+    "spawnflags": 1,
+    "zoffset": 1,
+}
+
+
 def is_float(value):
     try:
         float(value)
@@ -145,6 +156,7 @@ def read_map_file(byte_array):
             splitted_line = line.split("\" \"")
             # entity key value pair
             if len(splitted_line) == 2:
+                key = splitted_line[0].replace("\"", "")
                 values = splitted_line[1].replace("\"", "")
                 fixed_values = [
                     float(new) for new in values.split() if is_float(new)]
@@ -153,9 +165,17 @@ def read_map_file(byte_array):
                     print("Error parsing line: " + line)
                 if len(fixed_values):
                     values = fixed_values
-                if len(values) == 1:
-                    values = values[0]
-                current_ent[splitted_line[0].replace("\"", "")] = values
+                if key in PROP_LEN:
+                    if PROP_LEN[key] == 1:
+                        values = values[0]
+                    elif len(values) == 1 and PROP_LEN[key] == 3:
+                        values = (values[0],
+                                  values[0],
+                                  values[0])
+                else:
+                    if len(values) == 1:
+                        values = values[0]
+                current_ent[key] = values
             # brush or patch mesh info
             else:
                 obj_info.append(line)
