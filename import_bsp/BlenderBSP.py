@@ -58,8 +58,12 @@ else:
 
 
 def create_meshes_from_models(models):
+    if models is None:
+        return None
     return_meshes = {}
     for model in models:
+        if model is None:
+            continue
         name = model.name
         mesh = bpy.data.meshes.new(name)
         mesh.from_pydata(
@@ -77,7 +81,7 @@ def create_meshes_from_models(models):
             poly.use_smooth = smooth
 
         unindexed_normals = model.vertex_normals.get_unindexed()
-        if len(unindexed_normals) > 0:
+        if unindexed_normals is not None and len(unindexed_normals) > 0:
             mesh.normals_split_custom_set(unindexed_normals)
 
         for uv_layer in model.uv_layers:
@@ -127,7 +131,9 @@ def create_meshes_from_models(models):
             print("Double mesh name found! Mesh did not get added: " + name)
             continue
         return_meshes[name] = mesh
-    return return_meshes
+    if len(return_meshes) > 0:
+        return return_meshes
+    return None
 
 
 def load_mesh(VFS, mesh_name, zoffset, bsp):
@@ -166,6 +172,30 @@ def load_mesh(VFS, mesh_name, zoffset, bsp):
     return blender_mesh
 
 
+def load_entity_surfaces(VFS, obj, import_settings):
+    materials = []
+    surfaces = obj.custom_parameters.get("surfaces")
+    if surfaces is None:
+        return None
+    for surf in surfaces:
+        if surf.type == "BRUSH":
+            for plane in surf.planes:
+                mat = plane.material
+                if mat not in materials:
+                    materials.append(mat)
+    material_sizes = (
+        QuakeShader.get_shader_image_sizes(
+            VFS,
+            import_settings,
+            materials))
+    new_blender_mesh = create_meshes_from_models([
+        MAP.get_entity_brushes(obj, material_sizes, import_settings)])
+    if new_blender_mesh is None:
+        return None
+    blender_mesh = next(iter(new_blender_mesh.values()))
+    return blender_mesh
+
+
 def set_custom_properties(import_settings, blender_obj, bsp_obj):
     # needed for custom descriptions and data types
     rna_ui = blender_obj.get('_RNA_UI')
@@ -179,6 +209,8 @@ def set_custom_properties(import_settings, blender_obj, bsp_obj):
         class_dict_keys = import_settings.entity_dict[classname]["Keys"]
 
     for property in bsp_obj.custom_parameters:
+        if property == "surfaces":
+            continue
         blender_obj[property] = bsp_obj.custom_parameters[property]
 
         if property not in class_dict_keys:
@@ -295,7 +327,10 @@ def create_blender_objects(VFS, import_settings, objects, meshes, bsp):
             continue
 
         if mesh_z_name not in meshes:
-            blender_mesh = load_mesh(VFS, obj.mesh_name, obj.zoffset, bsp)
+            if bsp is None and obj.custom_parameters.get("surfaces") is not None:
+                blender_mesh = load_entity_surfaces(VFS, obj, import_settings)
+            else:
+                blender_mesh = load_mesh(VFS, obj.mesh_name, obj.zoffset, bsp)
             if blender_mesh is not None:
                 blender_mesh.name = mesh_z_name
                 meshes[mesh_z_name] = blender_mesh

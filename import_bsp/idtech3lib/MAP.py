@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from .ID3Brushes import Plane
 from .ID3Object import ID3Object
+from .ID3Model import ID3Model as MODEL
+from .ID3Model import Map_Vertex as Vertex
 
 
 PROP_LEN = {
@@ -22,20 +24,6 @@ def is_float(value):
         return False
 
 
-class Vertex:
-    position = [0.0, 0.0, 0.0]
-    tcs = [0.0, 0.0]
-
-    def __init__(self, array):
-        if len(array) < 5:
-            raise Exception("Not enough data to parse for control point")
-        self.position[0] = array[0]
-        self.position[1] = array[1]
-        self.position[2] = array[2]
-        self.tcs[0] = array[3]
-        self.tcs[1] = array[4]
-
-
 @dataclass
 class Map_surface:
     materials: list[str] = field(default_factory=list)
@@ -46,6 +34,17 @@ class Map_surface:
 
     patch_layout: tuple = (0, 0)
     ctrl_points: list[Vertex] = field(default_factory=list)
+
+
+def get_entity_brushes(entity, material_sizes, import_settings) -> MODEL:
+    modelname = entity.custom_parameters.get("classname")
+    if modelname is None:
+        return None
+    model = MODEL(modelname)
+    model.add_map_entity_brushes(entity, material_sizes, import_settings)
+    if model.current_index > 0:
+        return model
+    return None
 
 
 def parse_surface_data(surface_info_lines):
@@ -134,12 +133,13 @@ def read_map_file(byte_array):
 
             # only add entities with data
             if len(current_ent) > 0:
+                id3_obj = ID3Object.from_entity_dict(current_ent, name)
+                if ("surfaces" in current_ent and len(current_ent["surfaces"]) > 0):
+                    id3_obj.mesh_name = name
                 if "targetname" in current_ent:
-                    entities[current_ent["targetname"]] = (
-                        ID3Object.from_entity_dict(current_ent, name))
+                    entities[current_ent["targetname"]] = id3_obj
                 else:
-                    entities[name] = (
-                        ID3Object.from_entity_dict(current_ent, name))
+                    entities[name] = id3_obj
                 current_ent = {}
             n_ent += 1
             is_open = False

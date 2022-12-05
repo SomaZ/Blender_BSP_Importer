@@ -3,6 +3,31 @@ from .ID3Brushes import Plane, parse_brush
 from .ImportSettings import Surface_Type
 
 
+class Map_Vertex:
+    def __init__(self, array):
+        if len(array) < 5:
+            raise Exception("Not enough data to parse for control point")
+        self.position = [array[0], array[1], array[2]]
+        self.tcs = [array[3], array[4]]
+
+
+def map_lerp_vertices(
+    vertex1: Map_Vertex,
+    vertex2: Map_Vertex
+    ):
+
+    lerped_vert = Map_Vertex([0.0, 0.0, 0.0, 0.0, 0.0])
+
+    def lerp_vec(vec1, vec2, vec_out):
+        for i in range(len(vec1)):
+            vec_out[i] = (vec1[i] + vec2[i]) / 2.0
+    
+    lerp_vec(vertex1.position, vertex2.position, lerped_vert.position)
+    lerp_vec(vertex1.tcs, vertex2.tcs, lerped_vert.tcs)
+    
+    return lerped_vert
+
+
 def clamp_shift_tc(tc, min_tc, max_tc, u_shift, v_shift):
     u = min(max(tc[0], min_tc), max_tc) + u_shift
     v = min(max(tc[1], min_tc), max_tc) + v_shift
@@ -63,7 +88,7 @@ class ID3Model:
         def get_unindexed(self, cast=None):
             if self.indices is None:
                 return None
-            if self.unindexed is None:
+            if self.unindexed is None and len(self.indexed) > 0:
                 self.make_unindexed_list()
             if cast is None:
                 return self.unindexed
@@ -125,6 +150,17 @@ class ID3Model:
             self.VertexAttribute(self.indices))
         self.current_index = 0
         self.index_mapping = [-2 for i in range(len(bsp.lumps["drawverts"]))]
+        self.num_bsp_vertices = 0
+
+        self.MAX_GRID_SIZE = 65
+        self.ctrlPoints = [[0 for x in range(self.MAX_GRID_SIZE)]
+                           for y in range(self.MAX_GRID_SIZE)]
+
+    def init_map_brush_data(self):
+        self.uv_layers["UVMap"] = (
+            self.VertexAttribute(self.indices))
+        self.current_index = 0
+        self.index_mapping = []
         self.num_bsp_vertices = 0
 
         self.MAX_GRID_SIZE = 65
@@ -551,6 +587,95 @@ class ID3Model:
         if import_settings.preset in special_imports:
             for index in range(len(self.material_names)):
                 self.material_names[index] += ".brush"
+
+    def add_map_patch(self, map_patch_surface, import_settings):
+        
+        patch_width, patch_height = map_patch_surface.patch_layout
+        width = int(patch_width-1)
+        height = int(patch_height-1)
+        for i in range(patch_width):
+            for j in range(patch_height):
+                self.ctrlPoints[j][i] = map_patch_surface.ctrl_points[i*patch_height + j]
+
+        width, height = self.subdivide_patch(import_settings.subdivisions,
+                                             width,
+                                             height,
+                                             self.ctrlPoints,
+                                             map_lerp_vertices)
+
+        indices = []
+        for i in range((width+1)*(height+1)):
+            indices.append(len(self.index_mapping))
+            self.index_mapping.append(self.current_index)
+            self.current_index += 1
+
+        for j in range(height+1):
+            for i in range(width+1):
+                self.positions.add_indexed(self.ctrlPoints[j][i].position)
+                self.uv_layers["UVMap"].add_indexed(self.ctrlPoints[j][i].tcs)
+
+        mat_name = "textures/{}".format(map_patch_surface.materials[0])
+        if mat_name not in self.material_names:
+            self.material_names.append(mat_name)
+                        
+        for patch_face_index in range(width*height + height - 1):
+            # end of row?
+            if ((patch_face_index+1) % (width+1) == 0):
+                continue
+            face = [
+                patch_face_index + 1,
+                patch_face_index + width + 2,
+                patch_face_index + width + 1,
+                patch_face_index]
+            self.indices.append(
+                [self.index_mapping[indices[index]] for index in face])
+            self.face_smooth.append(True)
+            self.material_id.append(
+                self.material_names.index(mat_name))
+
+    def add_map_entity_brushes(self, entity, material_sizes, import_settings):
+        if entity is None:
+            return
+
+        surfaces = entity.custom_parameters.get("surfaces")
+
+        if surfaces is None:
+            return
+
+        self.init_map_brush_data()
+
+        for surf in surfaces:
+            if surf.type == "PATCH":
+                self.add_map_patch(surf, import_settings)
+
+        self.uv_layers["UVMap"].make_unindexed_list()
+
+        for surf in surfaces:
+            if surf.type == "BRUSH":
+                points, uvs, faces, mats = parse_brush(surf.planes, material_sizes)
+
+                indices = []
+                for i in range(len(points)):
+                    indices.append(len(self.index_mapping))
+                    self.index_mapping.append(-2)
+
+                for index, (point, uv) in zip(indices, (zip(points, uvs))):
+                    self.index_mapping[index] = self.current_index
+                    self.current_index += 1
+                    self.positions.add_indexed(point)
+                    self.uv_layers["UVMap"].add_unindexed(uv)
+
+                for face, material in zip(faces, mats):
+                    # add vertices to model
+                    self.indices.append(
+                        [self.index_mapping[indices[index]] for index in face])
+
+                    if material not in self.material_names:
+                        self.material_names.append(material)
+
+                    self.face_smooth.append(False)
+                    self.material_id.append(
+                        self.material_names.index(material))
 
     def pack_lightmap_uvs(self, bsp):
         layer_name = "LightmapUV"
