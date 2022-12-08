@@ -77,10 +77,11 @@ def ImportEntitiesText(VFS,
                 "classname",
                 "model",
                 "modelscale",
-                "angle"
+                "angle",
+                "spawnflags"
             )
             if key in parsing_keys:
-                value = value.strip(" \"\t\n\r").replace("\\", "/")
+                value = value.strip(" \'\"\t\n\r").replace("\\", "/")
 
             # oh man.... Problem in hoth2
             if (key == "modelscale"):
@@ -94,6 +95,12 @@ def ImportEntitiesText(VFS,
                     value = float(value)
                 except Exception:
                     value = float(value.split(" ")[0])
+
+            if (key == "spawnflags"):
+                try:
+                    value = int(value)
+                except Exception:
+                    value = int(float(value.split(" ")[0]))
 
             ent[key] = value
 

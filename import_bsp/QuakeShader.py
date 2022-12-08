@@ -451,7 +451,7 @@ class quake_shader:
                 print("unsupported tcMod: ", tcMod, " ", arguments)
         return out_node
 
-    def build_stage_nodes(shader, base_path, stage, color_out, alpha_out):
+    def build_stage_nodes(shader, VFS, stage, color_out, alpha_out):
         loc_x = shader.current_x_location
         loc_y = shader.current_y_location
         new_color_out = color_out
@@ -460,7 +460,7 @@ class quake_shader:
         if stage.valid:
             img = bpy.data.images.get(stage.diffuse)
             if img is None:
-                img = Image.load_file(base_path + "/" + stage.diffuse)
+                img = Image.load_file(stage.diffuse, VFS)
 
             if img is not None:
                 node_color = shader.nodes.new(type='ShaderNodeTexImage')
@@ -582,7 +582,7 @@ class quake_shader:
             shader.stages.append(stage)
             shader.is_explicit = True
 
-    def finish_rendering_shader(shader, base_path, import_settings):
+    def finish_rendering_shader(shader, VFS, import_settings):
         out_Color = None
         out_Alpha = None
         out_Glow = None
@@ -605,7 +605,7 @@ class quake_shader:
                 image = bpy.data.images.get(skyname)
                 if image is None:
                     image = QuakeSky.make_equirectangular_from_sky(
-                        base_path, skyname)
+                        VFS, skyname)
 
                 bg_node = bpy.context.scene.world.node_tree.nodes.get(
                     "Background")
@@ -752,12 +752,12 @@ class quake_shader:
                         stage.blend = "gl_one gl_zero"
 
                 if stage.glow or stage.blend == "gl_one gl_one":
-                    out_Glow, out_None = shader.build_stage_nodes(base_path,
+                    out_Glow, out_None = shader.build_stage_nodes(VFS,
                                                                   stage,
                                                                   out_Glow,
                                                                   out_Alpha)
                 else:
-                    out_Color, out_Alpha = shader.build_stage_nodes(base_path,
+                    out_Color, out_Alpha = shader.build_stage_nodes(VFS,
                                                                     stage,
                                                                     out_Color,
                                                                     out_Alpha)
@@ -766,7 +766,7 @@ class quake_shader:
             node_light = None
             if "q3map_lightimage" in shader.attributes:
                 img = Image.load_file(
-                    base_path + "/" + shader.attributes["q3map_lightimage"][0])
+                    shader.attributes["q3map_lightimage"][0], VFS)
                 if img is not None:
                     node_light = shader.nodes.new(type='ShaderNodeTexImage')
                     node_light.image = img
@@ -840,7 +840,7 @@ class quake_shader:
                     node_BSDF.outputs[0], shader.nodes["Output"].inputs[0])
 
         else:
-            img = Image.load_file(base_path + "/" + shader.texture)
+            img = Image.load_file(shader.texture, VFS)
             if img is not None:
                 img.alpha_mode = "CHANNEL_PACKED"
                 node_texture = shader.nodes.new(type='ShaderNodeTexImage')
@@ -954,7 +954,7 @@ class quake_shader:
         node_lm.select = True
         shader.nodes.active = node_lm
 
-    def finish_preview_shader(shader, base_path, import_settings):
+    def finish_preview_shader(shader, VFS, import_settings):
 
         color_out = None
         alpha_out = None
@@ -992,7 +992,7 @@ class quake_shader:
             image = bpy.data.images.get(skyname)
             if image is None:
                 image = QuakeSky.make_equirectangular_from_sky(
-                    base_path, skyname)
+                    VFS, skyname)
             node_image.image = image
 
             node_geometry = shader.nodes.new(type="ShaderNodeNewGeometry")
@@ -1119,14 +1119,14 @@ class quake_shader:
                     if stage.skip_alpha:
                         color_out, none_out = (
                             shader.build_stage_nodes(
-                                base_path,
+                                VFS,
                                 stage,
                                 color_out,
                                 alpha_out))
                     else:
                         color_out, alpha_out = (
                             shader.build_stage_nodes(
-                                base_path,
+                                VFS,
                                 stage,
                                 color_out,
                                 alpha_out))
@@ -1139,7 +1139,7 @@ class quake_shader:
                 print(shader.name + " shader is not supported right now")
 
         else:
-            img = Image.load_file(base_path + "/" + shader.texture)
+            img = Image.load_file(shader.texture, VFS)
             if img is not None:
                 img.alpha_mode = "CHANNEL_PACKED"
                 if shader.is_vertex_lit:
@@ -1268,7 +1268,7 @@ class quake_shader:
 
         shader.links.new(shader_out, shader.nodes["Output"].inputs[0])
 
-    def finish_brush_shader(shader, base_path, import_settings):
+    def finish_brush_shader(shader, VFS, import_settings):
         node_BSDF = shader.nodes.new(type="ShaderNodeBsdfPrincipled")
         node_BSDF.location = (3000, 0)
         node_BSDF.name = "Out_BSDF"
@@ -1277,9 +1277,9 @@ class quake_shader:
         is_sky = False
         if "qer_editorimage" in shader.attributes:
             image = Image.load_file(
-                base_path + "/" + shader.attributes["qer_editorimage"][0])
+                shader.attributes["qer_editorimage"][0], VFS)
         else:
-            image = Image.load_file(base_path + "/" + shader.texture)
+            image = Image.load_file(shader.texture, VFS)
 
         if image is not None:
             node_img = shader.nodes.new(type='ShaderNodeTexImage')
@@ -1331,14 +1331,14 @@ class quake_shader:
             shader.mat.shadow_method = 'NONE'
             shader.mat.blend_method = "BLEND"
 
-    def finish_shader(shader, base_path, import_settings):
+    def finish_shader(shader, VFS, import_settings):
         if shader.is_brush:
-            shader.finish_brush_shader(base_path, import_settings)
+            shader.finish_brush_shader(VFS, import_settings)
         elif (import_settings.preset != 'RENDERING' and
               import_settings.preset != 'BRUSHES'):
-            shader.finish_preview_shader(base_path, import_settings)
+            shader.finish_preview_shader(VFS, import_settings)
         else:
-            shader.finish_rendering_shader(base_path, import_settings)
+            shader.finish_rendering_shader(VFS, import_settings)
 
 # TODO: overwrite existing Bsp Node instead of making a new one?
 
@@ -1359,7 +1359,6 @@ def get_shader_image_sizes(VFS, import_settings, material_list):
 
 
 def build_quake_shaders(VFS, import_settings, object_list):
-    base_path = import_settings.base_paths[0]
     shaders = {}
     material_list = []
     material_names = []
@@ -1432,7 +1431,7 @@ def build_quake_shaders(VFS, import_settings, object_list):
                 current_shader.add_stage(stage)
 
         for current_shader in current_shaders:
-            current_shader.finish_shader(base_path, import_settings)
+            current_shader.finish_shader(VFS, import_settings)
             has_external_lm = False
             for shader_stage in current_shader.stages:
                 if (shader_stage.tcGen == TCGEN_LM and
@@ -1466,7 +1465,7 @@ def build_quake_shaders(VFS, import_settings, object_list):
         if shader in shader_info:
             continue
         for current_shader in shaders[shader]:
-            current_shader.finish_shader(base_path, import_settings)
+            current_shader.finish_shader(VFS, import_settings)
 
     for object in object_list:
         vg = object.vertex_groups.get("Decals")

@@ -161,7 +161,7 @@ shader = gpu.types.GPUShader(vertex_shader, fragment_shader)
 batch = batch_for_shader(shader, 'TRIS', {"vertex_id": (0, 1, 2)})
 
 
-def make_equirectangular_from_sky(base_path, sky_name):
+def make_equirectangular_from_sky(VFS, sky_name):
     textures = [sky_name + "_up",
                 sky_name + "_dn",
                 sky_name + "_ft",
@@ -174,7 +174,7 @@ def make_equirectangular_from_sky(base_path, sky_name):
     biggest_w = 1
 
     for index, tex in enumerate(textures):
-        image = Image.load_file(base_path + "/" + tex)
+        image = Image.load_file(tex, VFS)
 
         if image is not None:
             cube[index] = image

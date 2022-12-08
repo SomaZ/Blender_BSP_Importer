@@ -1118,48 +1118,48 @@ def ExportTAN(file_path,
     return [True, "Everything is fine"]
 
 
-def TIK_TO_DICT(file_path):
+def TIK_TO_DICT(VFS, file_path):
     dict = {}
-    with open(file_path, encoding="latin-1") as lines:
-        dict_key = ""
-        is_open = 0
-        for line in lines:
-            line = line.lower().strip(" \t\r\n").replace("\t", " ")
-            # comments
-            if line.startswith("//"):
-                continue
-            if line.startswith("{"):
-                is_open += 1
-                continue
-            if line.startswith("}"):
-                is_open -= 1
-                continue
-            if is_open == 0:
-                dict[line] = {}
-                dict_key = line
-            elif is_open == 1:
-                key, value = parse(line)
-                if dict_key == "setup" and key == "path":
-                    if not value.endswith("/"):
-                        value = value + "/"
-                if dict_key == "setup" and key == "surface":
-                    arguments = value.split()
-                    if "material_mapping" not in dict[dict_key]:
-                        dict[dict_key]["material_mapping"] = {}
-                    shader_name = arguments[2].lower()
+    tik_bytearray = VFS.get(file_path)
+    lines = tik_bytearray.decode(encoding="latin-1").splitlines()
+    dict_key = ""
+    is_open = 0
+    for line in lines:
+        line = line.lower().strip(" \t\r\n").replace("\t", " ")
+        # comments
+        if line.startswith("//"):
+            continue
+        if line.startswith("{"):
+            is_open += 1
+            continue
+        if line.startswith("}"):
+            is_open -= 1
+            continue
+        if is_open == 0:
+            dict[line] = {}
+            dict_key = line
+        elif is_open == 1:
+            key, value = parse(line)
+            if dict_key == "setup" and key == "path":
+                if not value.endswith("/"):
+                    value = value + "/"
+            if dict_key == "setup" and key == "surface":
+                arguments = value.split()
+                if "material_mapping" not in dict[dict_key]:
+                    dict[dict_key]["material_mapping"] = {}
+                shader_name = arguments[2].lower()
+                base_path = ""
+                if "path" in dict["setup"]:
+                    base_path = dict["setup"]["path"]
+                if shader_name.startswith(base_path):
                     base_path = ""
-                    if "path" in dict["setup"]:
-                        base_path = dict["setup"]["path"]
-                    if shader_name.startswith(base_path):
-                        base_path = ""
-
-                    if not shader_name.endswith(".tga"):
-                        dict[dict_key]["material_mapping"][arguments[0].lower()
-                                                           ] = shader_name
-                    else:
-                        dict[dict_key]["material_mapping"][arguments[0].lower(
-                        )] = base_path + shader_name
-                dict[dict_key][key] = value
+                if not shader_name.endswith(".tga"):
+                    dict[dict_key]["material_mapping"][arguments[0].lower()
+                                                       ] = shader_name
+                else:
+                    dict[dict_key]["material_mapping"][arguments[0].lower(
+                    )] = base_path + shader_name
+            dict[dict_key][key] = value
     return dict
 
 # TODO: parse scale and other fields
@@ -1171,7 +1171,8 @@ def ImportTIK(VFS,
               import_tags=False,
               animations=None,
               per_object_import=False):
-    dict = TIK_TO_DICT(file_path)
+    
+    dict = TIK_TO_DICT(VFS, file_path)
     material_mapping = None
     current_path = ""
     model_to_load = ""
@@ -1207,7 +1208,7 @@ def ImportTIKObject(VFS,
                     file_path,
                     import_tags,
                     per_object_import=False):
-    dict = TIK_TO_DICT(file_path)
+    dict = TIK_TO_DICT(VFS, file_path)
     material_mapping = None
     current_path = ""
     model_to_load = ""

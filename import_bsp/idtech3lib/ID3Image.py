@@ -48,7 +48,7 @@ def loadFtx_from_bytearray(name, byte_array):
     image.name = name
     image.width = width
     image.height = height
-    image.num_components = 3 if has_alpha == 0 else 4
+    image.num_components = 4
 
     pixels = [0.0 for i in range(width*height*4)]
     for row in range(height):
@@ -129,8 +129,8 @@ def get_image_dimensions_from_bytearray(byte_array):
         width = int(w)
         height = int(h)
     else:
-        raise Exception(
-            "Sorry, don't know how to get information from this file."
-        )
+        width = 128
+        height = 128
+        print("Could not read image size. Assuming default 128x128")
 
     return float(width), float(height)
