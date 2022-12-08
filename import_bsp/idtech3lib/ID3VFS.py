@@ -41,17 +41,18 @@ class Q3VFS:
                     [f for f in os.listdir(base) if f.endswith('.pk3')]):
                 pk3h = zipfile.ZipFile(os.path.join(base, pk3_file), mode='r')
                 for pk3f in [f for f in pk3h.infolist() if not f.is_dir()]:
-                    self.index[pk3f.filename] = self.PK3FileRetriever(
+                    self.index[pk3f.filename.lower()] = self.PK3FileRetriever(
                         pk3h, pk3f)
             for root, dirs, files in os.walk(base):
                 for f in files:
                     abspath = os.path.join(root, f)
                     relpath = str(abspath[len(base):]).replace("\\", "/")
-                    self.index[relpath] = self.LooseFileRetriever(abspath)
+                    self.index[relpath.lower()] = self.LooseFileRetriever(abspath)
 
     def get(self, path):
-        if path in self.index:
-            return self.index[path].get()
+        path_low = path.lower()
+        if path_low in self.index:
+            return self.index[path_low].get()
         else:
             try:
                 fh = open(path, 'rb')
