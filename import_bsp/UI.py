@@ -1058,7 +1058,8 @@ class DynamicProperties(PropertyGroup):
 class SceneProperties(PropertyGroup):
 
     def gamepack_list_cb(self, context):
-        file_path = bpy.utils.script_paths("addons/import_bsp/gamepacks/")[0]
+        file_path = bpy.utils.script_paths(
+            subdir="addons/import_bsp/gamepacks/")[0]
         gamepack_files = []
 
         try:
