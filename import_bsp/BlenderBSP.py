@@ -256,8 +256,84 @@ def set_custom_properties(import_settings, blender_obj, bsp_obj):
         blender_obj.q3_dynamic_props.b512 = True
 
     # TODO: really needed? need to check that
-    blender_obj.q3_dynamic_props.model = bsp_obj.mesh_name
-    blender_obj.q3_dynamic_props.model2 = bsp_obj.model2
+    if bsp_obj.mesh_name:
+        blender_obj.q3_dynamic_props.model = bsp_obj.mesh_name
+    if bsp_obj.model2:
+        blender_obj.q3_dynamic_props.model2 = bsp_obj.model2
+
+
+def add_light_drivers(light):
+
+    light_data = light.data
+    light_value = light.get("light")
+    scale_value = light.get("scale")
+    color_value = light.get("_color")
+
+    if light_value is None and color_value is None:
+        return
+
+    if light_value is not None:
+        driver = light.data.driver_add('energy')
+
+        new_var = driver.driver.variables.get("light")
+        if new_var is None:
+            new_var = driver.driver.variables.new()
+            new_var.name = "light"
+        new_var.type = 'SINGLE_PROP'
+        new_var.targets[0].id = light
+        new_var.targets[0].data_path = '["light"]'
+        if scale_value != None:
+            new_var = driver.driver.variables.get("scale")
+            if new_var is None:
+                new_var = driver.driver.variables.new()
+                new_var.name = "scale"
+            new_var.type = 'SINGLE_PROP'
+            new_var.targets[0].id = light
+            new_var.targets[0].data_path = '["scale"]'
+
+        light_type_scale = {
+            "SUN" : 0.1,
+            "SPOT" : 750.0,
+            "POINT" : 750.0,
+            "AREA" : 0.1 # should not be used by the addon
+        }
+
+        if scale_value != None:
+            expression = "light * scale * {}"
+        else:
+            expression = "light * {}"
+
+        driver.driver.expression = expression.format(light_type_scale[light_data.type])
+
+    if color_value is not None:
+        driver = light.data.driver_add('color')
+
+        new_var = driver[0].driver.variables.get("color")
+        if new_var is None:
+            new_var = driver[0].driver.variables.new()
+            new_var.name = "color"
+        new_var.type = 'SINGLE_PROP'
+        new_var.targets[0].id = light
+        new_var.targets[0].data_path = '["_color"]'
+        driver[0].driver.expression = "color[0]"
+
+        new_var = driver[1].driver.variables.get("color")
+        if new_var is None:
+            new_var = driver[1].driver.variables.new()
+            new_var.name = "color"
+        new_var.type = 'SINGLE_PROP'
+        new_var.targets[0].id = light
+        new_var.targets[0].data_path = '["_color"]'
+        driver[1].driver.expression = "color[1]"
+
+        new_var = driver[2].driver.variables.get("color")
+        if new_var is None:
+            new_var = driver[2].driver.variables.new()
+            new_var.name = "color"
+        new_var.type = 'SINGLE_PROP'
+        new_var.targets[0].id = light
+        new_var.targets[0].data_path = '["_color"]'
+        driver[2].driver.expression = "color[2]"
 
 
 def create_blender_light(import_settings, bsp_object, objects):
@@ -268,6 +344,8 @@ def create_blender_light(import_settings, bsp_object, objects):
     properties = bsp_object.custom_parameters
     if "light" in properties:
         intensity = float(properties["light"])
+    if "scale" in properties:
+        intensity *= float(properties["scale"])
     if "_color" in properties:
         color = properties["_color"]
     if "target" in properties:
@@ -304,6 +382,10 @@ def create_blender_light(import_settings, bsp_object, objects):
             vector,
             angle)
     light.location = bsp_object.position
+
+    set_custom_properties(import_settings, light, bsp_object)
+    # Add driver for the blender light intensity based on the entity data
+    add_light_drivers(light)
 
 
 def create_blender_objects(VFS, import_settings, objects, meshes, bsp):

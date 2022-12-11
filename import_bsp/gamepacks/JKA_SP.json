@@ -3577,7 +3577,7 @@
 			"lights pointed at a target will be spotlights. ",
 			"'radius' - overrides the default 64 unit radius of a spotlight at the target point. ",
 			"'scale' - multiplier for the light intensity - does not affect size default 1 , greater than 1 is brighter, between 0 and 1 is dimmer. ",
-			"'color' - sets the light's color ",
+			"'_color' - sets the light's color ",
 			"'targetname' - to indicate a switchable light - note that all lights with the same targetname will be grouped together and act as one light ie: don't mix colors, styles or start_off flag ",
 			"'style' - to specify a specify light style, even for switchable lights! ",
 			"'style_off' - light style to use when switched off only for switchable lights ",
@@ -3600,12 +3600,12 @@
 			"LINEAR":
 			{
 				"Bit": 1,
-				"Description": "NOT DOCUMENTED YET"
+				"Description": "gives linear falloff instead of inverse square"
 			},
 			"NOINCIDENCE":
 			{
 				"Bit": 2,
-				"Description": "NOT DOCUMENTED YET"
+				"Description": "makes lighting smoother"
 			},
 			"START_OFF":
 			{
@@ -3620,16 +3620,6 @@
 				"Type": "STRING",
 				"Description": "overrides the default 300 intensity. - affects size"
 			},
-			"'linear'":
-			{
-				"Type": "STRING",
-				"Description": "checkbox gives linear falloff instead of inverse square"
-			},
-			"'noincidence'":
-			{
-				"Type": "STRING",
-				"Description": "checkbox makes lighting smoother"
-			},
 			"radius":
 			{
 				"Type": "STRING",
@@ -3640,9 +3630,9 @@
 				"Type": "STRING",
 				"Description": "multiplier for the light intensity - does not affect size default 1 , greater than 1 is brighter, between 0 and 1 is dimmer."
 			},
-			"color":
+			"_color":
 			{
-				"Type": "STRING",
+				"Type": "COLOR255",
 				"Description": "sets the light's color"
 			},
 			"targetname":
