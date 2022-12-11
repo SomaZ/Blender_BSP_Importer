@@ -5,6 +5,7 @@ from .EF2BSP import BSP_INFO as EF2BSP
 from .FAKK import BSP_INFO as FAKK
 from .FBSP import BSP_INFO as FBSP
 from .ID3Model import ID3Model as MODEL
+from .ID3Object import ID3Object as OBJECT
 from .ID3Image import ID3Image as IMAGE
 from math import floor, ceil
 from numpy import array, dot, sin, cos, sqrt, pi
@@ -233,6 +234,9 @@ class BSP_READER:
         if self.deluxemapping:
             packed_lightmap_size[1] = packed_lightmap_size[1] // 2
         return packed_lightmap_size
+
+    def get_bsp_entity_objects(self) -> list[OBJECT]:
+        return OBJECT.get_entity_objects_from_bsp(self)
 
     def get_bsp_model(self, model_id) -> MODEL:
         pack_lightmap_uvs = (

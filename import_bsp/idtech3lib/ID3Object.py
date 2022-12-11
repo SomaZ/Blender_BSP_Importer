@@ -1,5 +1,90 @@
 from numpy import array, deg2rad
+from .Parsing import *
 
+def ImportEntitiesText(entities_string):
+    ent = {}
+    entities = []
+    n_ent = 0
+    obj_dict = {}
+    targets = {}
+
+    for line in entities_string.splitlines():
+        if l_open(line):
+            ent = {}
+        elif l_close(line):
+            entities.append(ent)
+            if "targetname" in ent:
+                targets[ent["targetname"]] = entities.index(ent)
+        elif line != " ":
+            key, value = parse(line)
+            key = key.strip(" \"\t\n\r").lower()
+            value = value.replace("\"", "")
+            vector_keys = ("modelscale_vec",
+                           "angles",
+                           "gridsize",
+                           "origin",
+                           "modelangles",
+                           "_color")
+            if key in vector_keys:
+                value = value.strip(" \"\t\n\r")
+                value = value.split(" ")
+                # oh man.... Problem in t1_rail
+                try:
+                    value[0] = float(value[0])
+                    value[1] = float(value[1])
+                    value[2] = float(value[2])
+                except Exception:
+                    value = [float(value[0]), float(value[0]), float(value[0])]
+            parsing_keys = (
+                "classname",
+                "model",
+                "modelscale",
+                "angle",
+                "spawnflags"
+            )
+            if key in parsing_keys:
+                value = value.strip(" \'\"\t\n\r").replace("\\", "/")
+
+            # oh man.... Problem in hoth2
+            if (key == "modelscale"):
+                try:
+                    value = float(value)
+                except Exception:
+                    value = float(value.split(" ")[0])
+
+            if (key == "angle"):
+                try:
+                    value = float(value)
+                except Exception:
+                    value = float(value.split(" ")[0])
+
+            if (key == "spawnflags"):
+                try:
+                    value = int(value)
+                except Exception:
+                    value = int(float(value.split(" ")[0]))
+
+            ent[key] = value
+
+    for n_ent, ent in enumerate(entities):
+
+        if "classname" not in ent:
+            print("Entity not parsed: " + str(ent))
+            continue
+
+        if n_ent == 0:
+            new_object = ID3Object.from_entity_dict(ent, "worldspawn", "*0")
+            obj_dict["worldspawn"] = new_object
+            continue
+
+        name = ent["classname"] + "_" + str(n_ent).zfill(4)
+        new_object = ID3Object.from_entity_dict(ent, name)
+        if "targetname" in ent:
+            obj_dict[ent["targetname"]] = new_object
+        else:
+            obj_dict[name] = new_object
+
+    return obj_dict
 
 class ID3Object:
 
@@ -75,3 +160,13 @@ class ID3Object:
             return
 
         key_loopup[key](value)
+
+    @staticmethod
+    def get_entity_objects_from_bsp(bsp):
+        lump = bsp.lumps["entities"]
+        stringdata = []
+        for i in lump:
+            stringdata.append(i.char.decode("ascii"))
+
+        entities_string = "".join(stringdata)
+        return ImportEntitiesText(entities_string)

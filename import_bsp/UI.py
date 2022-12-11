@@ -21,9 +21,9 @@ else:
     from .idtech3lib import Helpers
 
 if "Entities" in locals():
-    importlib.reload(Entities)
+    importlib.reload(BlenderEntities)
 else:
-    from . import Entities
+    from . import BlenderEntities
 
 if "MD3" in locals():
     importlib.reload(MD3)
@@ -1349,7 +1349,7 @@ class ExportEnt(bpy.types.Operator, ExportHelper):
         default="")
 
     def execute(self, context):
-        entities = Entities.GetEntityStringFromScene()
+        entities = BlenderEntities.GetEntityStringFromScene()
 
         f = open(self.filepath, "w")
         try:
@@ -1398,7 +1398,7 @@ class PatchBspEntities(bpy.types.Operator, ExportHelper):
         bsp = BlenderBSP.get_bsp_file(VFS, import_settings)
    
         # swap entity lump
-        entities = Entities.GetEntityStringFromScene()
+        entities = BlenderEntities.GetEntityStringFromScene()
         bsp.set_entity_lump(entities)
 
         # write bsp

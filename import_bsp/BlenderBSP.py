@@ -24,17 +24,17 @@ import cProfile
 if "bpy" not in locals():
     import bpy
 
+from .idtech3lib.ID3VFS import Q3VFS
 from .idtech3lib.BSP import BSP_READER as BSP
 from .idtech3lib import MAP
-from .idtech3lib.ID3VFS import Q3VFS
 from .idtech3lib import GamePacks
 from math import floor, atan, radians
 from numpy import dot, sqrt
 
 if "Entities" in locals():
-    importlib.reload(Entities)
+    importlib.reload(BlenderEntities)
 else:
-    from . import Entities
+    from . import BlenderEntities
 
 if "QuakeShader" in locals():
     importlib.reload(QuakeShader)
@@ -139,15 +139,23 @@ def create_meshes_from_models(models):
 def load_mesh(VFS, mesh_name, zoffset, bsp):
     blender_mesh = None
     if mesh_name.endswith(".md3"):
-        blender_mesh = MD3.ImportMD3(
-            VFS,
-            mesh_name,
-            zoffset)[0]
+        try:
+            blender_mesh = MD3.ImportMD3(
+                VFS,
+                mesh_name,
+                zoffset)[0]
+        except Exception:
+            print("Could not get model for mesh ", mesh_name)
+            return None
     elif mesh_name.endswith(".tik"):
-        blender_mesh = TAN.ImportTIK(
-            VFS,
-            mesh_name,
-            zoffset)[0]
+        try:
+            blender_mesh = TAN.ImportTIK(
+                VFS,
+                "models/{}".format(mesh_name),
+                zoffset)[0]
+        except Exception:
+            print("Could not get model for mesh ", mesh_name)
+            return None
     elif mesh_name.startswith("*") and bsp is not None:
         model_id = None
         try:
@@ -172,7 +180,7 @@ def load_mesh(VFS, mesh_name, zoffset, bsp):
     return blender_mesh
 
 
-def load_entity_surfaces(VFS, obj, import_settings):
+def load_map_entity_surfaces(VFS, obj, import_settings):
     materials = []
     surfaces = obj.custom_parameters.get("surfaces")
     if surfaces is None:
@@ -328,7 +336,7 @@ def create_blender_objects(VFS, import_settings, objects, meshes, bsp):
 
         if mesh_z_name not in meshes:
             if bsp is None and obj.custom_parameters.get("surfaces") is not None:
-                blender_mesh = load_entity_surfaces(VFS, obj, import_settings)
+                blender_mesh = load_map_entity_surfaces(VFS, obj, import_settings)
             else:
                 blender_mesh = load_mesh(VFS, obj.mesh_name, obj.zoffset, bsp)
             if blender_mesh is not None:
@@ -413,7 +421,7 @@ def import_bsp_file(import_settings):
             blender_objects.append(ob)
             bpy.context.collection.objects.link(ob)
     else:
-        bsp_objects = Entities.ImportEntities(VFS, import_settings, bsp_file)
+        bsp_objects = bsp_file.get_bsp_entity_objects()
         blender_objects = create_blender_objects(
             VFS,
             import_settings,
