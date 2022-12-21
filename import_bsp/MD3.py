@@ -896,20 +896,20 @@ def ImportMD3(VFS,
     return [mesh]
 
 
-def ImportMD3Object(VFS, file_path, import_tags, per_object_import=False):
+def ImportMD3Object(VFS, file_path, import_tags, per_object_import=False, import_animations=True):
     animations = []
     meshes = ImportMD3(VFS,
                        file_path,
                        0,
                        import_tags,
-                       animations,
+                       animations if import_animations else None,
                        per_object_import)
     objs = []
     for id, mesh in enumerate(meshes):
         if mesh is not None:
             ob = bpy.data.objects.new(mesh.name, mesh)
             bpy.context.collection.objects.link(ob)
-            if animations[id] is not None:
+            if import_animations and animations[id] is not None:
                 ob.shape_key_add(name=str(0))
                 ob.data.shape_keys.use_relative = False
                 ob.data.shape_keys.eval_time = 0
