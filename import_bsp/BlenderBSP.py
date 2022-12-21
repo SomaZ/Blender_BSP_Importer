@@ -77,9 +77,6 @@ def create_meshes_from_models(models):
             mesh.materials.append(mat)
         mesh.polygons.foreach_set("material_index", model.material_id)
 
-        for poly, smooth in zip(mesh.polygons, model.face_smooth):
-            poly.use_smooth = smooth
-
         unindexed_normals = model.vertex_normals.get_unindexed()
         if unindexed_normals is not None and len(unindexed_normals) > 0:
             mesh.normals_split_custom_set(unindexed_normals)
@@ -125,8 +122,13 @@ def create_meshes_from_models(models):
                     "value",
                     model.vertex_data_layers[vert_att].get_indexed(int))
         mesh.use_auto_smooth = True
-        mesh.update()
+        
         mesh.validate()
+        for poly, smooth in zip(mesh.polygons, model.face_smooth):
+            poly.use_smooth = smooth
+
+        mesh.update()
+        
         if name in return_meshes:
             print("Double mesh name found! Mesh did not get added: " + name)
             continue
