@@ -100,6 +100,7 @@ else:
 
 from .idtech3lib.ID3Brushes import parse_brush
 from .idtech3lib import MAP
+import uuid
 
 
 class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
@@ -2292,6 +2293,126 @@ class Reload_preview_shader(bpy.types.Operator):
 
         return {'FINISHED'}
 
+class FillAssetLibrary(bpy.types.Operator):
+    bl_idname = "q3.fill_asset_lib"
+    bl_label = "Fill asset library with models"
+    bl_options = {"INTERNAL", "REGISTER"}
+    def execute(self, context):
+        if bpy.app.version < (3, 0, 0):
+            return {'FINISHED'}
+
+        log = []
+        addon_name = __name__.split('.')[0]
+        prefs = context.preferences.addons[addon_name].preferences
+        base_path = prefs.base_path.replace("\\", "/")
+
+        if not base_path.endswith('/'):
+            base_path = base_path + '/'
+
+        base_paths = [base_path]
+        # initialize virtual file system
+        VFS = Q3VFS()
+        for base_path in base_paths:
+            VFS.add_base(base_path)
+        VFS.build_index()
+
+        reg = r"(.*?).md3$"
+        md3_files = VFS.search(reg)
+        md3_files = [f[1:] if f.startswith("/") else f for f in md3_files]
+
+        cats_f = "{}/blender_assets.cats.txt".format(prefs.assetlibrary)
+        os.makedirs(prefs.assetlibrary, exist_ok=True)
+        a_categorys = {}
+        add_version_to_cats = False
+        if os.path.isfile(cats_f):
+            with open(cats_f, "r") as f:
+                for line in f.readlines():
+                    if line.startswith(("#", "VERSION", "\n")):
+                        continue
+                    c_uuid, path, name = line.split(":")
+                    a_categorys[path] = c_uuid
+        else:
+            add_version_to_cats = True
+
+        for md3_file in md3_files:
+            game_folder_struct = md3_file.split("/")
+            current_path = "/".join(game_folder_struct[:-1])
+            if current_path not in a_categorys:
+                a_categorys[current_path] = None
+
+        with open(cats_f, "a+") as f:
+            if add_version_to_cats:
+                f.write("VERSION 1\n")
+            for cat in a_categorys:
+                if a_categorys[cat] is None:
+                    a_categorys[cat] = str(uuid.uuid4())
+                    split_cat = cat.split("/")
+                    f.write(":".join((a_categorys[cat], cat, split_cat[len(split_cat)-1])))
+                    f.write("\n")
+
+        imported_objects = []
+        for md3_file in md3_files:
+            game_folder_struct = md3_file.split("/")
+            len_gfs = len(game_folder_struct)
+            current_path = "/".join(game_folder_struct[:-1])
+
+            collection = bpy.data.collections.get(game_folder_struct[len_gfs-2])
+            if collection is None:
+                collection = bpy.data.collections.new(game_folder_struct[len_gfs-2])
+            if collection.name not in bpy.context.scene.collection.children:
+                bpy.context.scene.collection.children.link(collection)
+            layerColl = bpy.context.view_layer.layer_collection.children[collection.name]
+            bpy.context.view_layer.active_layer_collection = layerColl
+            layerColl.exclude = False
+
+            if current_path not in a_categorys:
+                print("Couldn't find category, woot?_?")
+                continue
+
+            obj_name = game_folder_struct[len_gfs-1][:-len(".md3")]
+            try:
+                imported_obj = MD3.ImportMD3Object(
+                    VFS,
+                    md3_file,
+                    False,
+                    False,
+                    False)[0]
+            except Exception:
+                log.append("Failed importing {}".format(md3_file))
+                continue
+            
+            if imported_obj is None:
+                log.append("is None {}".format(md3_file))
+                continue
+
+            imported_objects.append(imported_obj)
+            imported_obj.name = obj_name
+            imported_obj.asset_mark()
+            imported_obj.asset_data.catalog_id = a_categorys[current_path]
+
+        import_settings = Import_Settings()
+        import_settings.base_paths=base_paths
+        import_settings.bsp_name = ""
+        import_settings.preset = "PREVIEW"
+
+        QuakeShader.init_shader_system(None)
+        QuakeShader.build_quake_shaders(
+                VFS,
+                import_settings,
+                imported_objects)
+
+        for imported_obj in imported_objects:
+            imported_obj.asset_generate_preview()
+
+        for collection in bpy.data.collections:
+            layerColl = bpy.context.view_layer.layer_collection.children[collection.name]
+            layerColl.exclude = True
+
+        bpy.ops.wm.save_as_mainfile(filepath=prefs.assetlibrary+"/"+"md3_models.blend")
+
+        for line in log:
+            print(line)
+        return {'FINISHED'}
 
 class Reload_render_shader(bpy.types.Operator):
     """Reload Shaders"""
