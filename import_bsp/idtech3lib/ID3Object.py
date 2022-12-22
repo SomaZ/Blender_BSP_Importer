@@ -79,7 +79,7 @@ def ImportEntitiesText(entities_string):
 
         name = ent["classname"] + "_" + str(n_ent).zfill(4)
         new_object = ID3Object.from_entity_dict(ent, name)
-        if "targetname" in ent:
+        if "targetname" in ent and ent["targetname"] not in obj_dict:
             obj_dict[ent["targetname"]] = new_object
         else:
             obj_dict[name] = new_object
