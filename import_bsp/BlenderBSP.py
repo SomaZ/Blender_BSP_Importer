@@ -390,12 +390,53 @@ def create_blender_light(import_settings, bsp_object, objects):
     add_light_drivers(light)
 
 
+def is_object_valid_for_preset(bsp_object, import_settings):
+    # import every entity in editing preset
+    preset = import_settings.preset
+    if preset == "EDITING":
+        return True
+
+    classname = bsp_object.custom_parameters.get("classname")
+    mesh_name = bsp_object.mesh_name
+
+    if classname is not None:
+        if preset == "ONLY_LIGHTS" and classname != "light":
+            return False
+        if preset == "RENDERING" and classname == "light":
+            return True
+
+    class_dict = {}
+    if classname in import_settings.entity_dict:
+        class_dict = import_settings.entity_dict[classname]
+
+    if "Model" in class_dict and mesh_name is None:
+        mesh_name = class_dict["Model"]
+    elif mesh_name is None:
+        mesh_name = "box"
+
+    if mesh_name == "box":
+        return False
+
+    if classname is None:
+        return False
+
+    static_property = bsp_object.custom_parameters.get("make_static")
+    if static_property is not None:
+        return static_property == 0
+
+    return True
+
+
 def create_blender_objects(VFS, import_settings, objects, meshes, bsp):
     if len(objects) <= 0:
         return None
     object_list = []
     for obj_name in objects:
         obj = objects[obj_name]
+
+        if not is_object_valid_for_preset(obj, import_settings):
+            continue
+
         if obj.mesh_name is None:
             classname = obj.custom_parameters.get("classname")
             if (classname is not None and

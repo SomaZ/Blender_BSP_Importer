@@ -9,6 +9,7 @@ class Preset(Enum):
     RENDERING = "RENDERING"
     BRUSHES = "BRUSHES"
     SHADOW_BRUSHES = "SHADOW_BRUSHES"
+    ONLY_LIGHTS = "ONLY_LIGHTS"
 
 
 class Surface_Type(IntFlag):

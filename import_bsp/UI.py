@@ -207,8 +207,8 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
         if background is not None:
             background.inputs[0].default_value = 0, 0, 0, 1
 
-        if self.properties.preset == "BRUSHES":
-            context.scene.cycles.transparent_max_bounces = 32
+        if self.properties.preset in brush_imports:
+            context.scene.cycles.transparent_max_bounces = 36
         elif self.properties.preset == "RENDERING":
             context.scene.render.engine = "CYCLES"
         else:
@@ -231,29 +231,14 @@ class Import_MAP(bpy.types.Operator, ImportHelper):
         description="File path used for importing the MAP file",
         maxlen=1024,
         default="")
-    preset: EnumProperty(
-        name="Import preset",
-        description="You can select wether you want to import a map for "
-        "editing, rendering, or previewing.",
-        default=Preset.PREVIEW.value,
-        items=[
-            (Preset.PREVIEW.value, "Preview",
-             "Builds eevee shaders, imports all misc_model_statics "
-             "when available", 0),
-            (Preset.EDITING.value, "Entity Editing",
-             "Builds eevee shaders, imports all entitys, enables "
-             "entitiy modding", 1),
-            (Preset.RENDERING.value, "Rendering",
-             "Builds cycles shaders, only imports visable enities", 2),
-            (Preset.BRUSHES.value, "Brushes",
-             "Imports all Brushes", 3),
-            (Preset.SHADOW_BRUSHES.value, "Shadow Brushes", "Imports "
-             "Brushes as shadow casters", 4),
-        ])
     subdivisions: IntProperty(
         name="Patch subdivisions",
         description="How often a patch is subdivided at import",
         default=2)
+    only_lights: BoolProperty(
+        name="Only lights",
+        description="Only import lights from the map file",
+        default=False)
 
     def execute(self, context):
         addon_name = __name__.split('.')[0]
@@ -263,38 +248,23 @@ class Import_MAP(bpy.types.Operator, ImportHelper):
         if not fixed_base_path.endswith('/'):
             fixed_base_path = fixed_base_path + '/'
 
-        brush_imports = (
-            Preset.BRUSHES.value,
-            Preset.SHADOW_BRUSHES.value
-        )
-        surface_types = Surface_Type.BAD
-        if self.preset in brush_imports:
-            surface_types = Surface_Type.BRUSH | Surface_Type.PATCH
-        else:
-            surface_types = (Surface_Type.PLANAR |
-                             Surface_Type.PATCH |
-                             Surface_Type.TRISOUP |
-                             Surface_Type.FAKK_TERRAIN)
-
         dict_path = bpy.utils.script_paths(
             subdir="addons/import_bsp/gamepacks/")[0]
         entity_dict = GamePacks.get_gamepack(dict_path, "JKA_SP.json")
+
+        import_preset = Preset.ONLY_LIGHTS.value if self.only_lights else Preset.EDITING.value
 
         # trace some things like paths and lightmap size
         import_settings = Import_Settings(
             file=self.filepath.replace("\\", "/"),
             subdivisions=self.properties.subdivisions,
             base_paths=[fixed_base_path],
-            preset=self.properties.preset,
+            preset=import_preset,
             front_culling=False,
-            surface_types=surface_types,
+            surface_types=Surface_Type.BAD, # not used
             entity_dict=entity_dict
         )
 
-        # scene information
-        context.scene.id_tech_3_importer_preset = self.preset
-        if self.preset != "BRUSHES":
-            context.scene.id_tech_3_bsp_path = self.filepath
 
         BlenderBSP.import_map_file(import_settings)
 
