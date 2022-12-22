@@ -1358,7 +1358,26 @@ def get_shader_image_sizes(VFS, import_settings, material_list):
         material_list)
 
 
+def create_white_image():
+    white_image = bpy.data.images.get("$whiteimage")
+    if white_image is not None:
+        return
+    idtech3_image = ID3Shader.create_white_image()
+    new_image = bpy.data.images.new(
+        idtech3_image.name,
+        width=idtech3_image.width,
+        height=idtech3_image.height,
+        alpha=idtech3_image.num_components == 4)
+    new_image.pixels = idtech3_image.get_rgba()
+    new_image.alpha_mode = 'CHANNEL_PACKED'
+    new_image.use_fake_user = True
+
+
 def build_quake_shaders(VFS, import_settings, object_list):
+
+    # make sure the $whiteimage is loaded
+    create_white_image()
+
     shaders = {}
     material_list = []
     material_names = []

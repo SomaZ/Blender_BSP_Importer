@@ -10,16 +10,6 @@ def normalize(vector):
     return vector / sqrt(sqr_length)
 
 
-def create_white_image():
-    image = Image()
-    image.name = "$whiteimage"
-    image.width = 8
-    image.height = 8
-    image.num_components = 4
-    image.data = [[255.0] * 256]
-    return image
-
-
 def clamp_shift_tc(tc, min_tc, max_tc, u_shift, v_shift, flip_v):
     u = min(max(tc[0], min_tc), max_tc) + u_shift
     v = min(max(tc[1], min_tc), max_tc) + v_shift

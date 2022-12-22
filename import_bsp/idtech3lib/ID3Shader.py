@@ -2,6 +2,16 @@ from .Parsing import *
 from . import ID3Image as Image
 
 
+def create_white_image():
+    image = Image.ID3Image()
+    image.name = "$whiteimage"
+    image.width = 8
+    image.height = 8
+    image.num_components = 4
+    image.data = [255] * 256
+    return image
+
+
 def get_material_dicts(VFS, import_settings, material_list):
 
     for shader_path in import_settings.shader_dirs:
