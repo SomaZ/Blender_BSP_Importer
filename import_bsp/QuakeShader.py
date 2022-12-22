@@ -25,10 +25,10 @@ if "QuakeSky" in locals():
 else:
     from . import QuakeSky
 
-if "Image" in locals():
-    importlib.reload(Image)
+if "BlenderImage" in locals():
+    importlib.reload(BlenderImage)
 else:
-    from . import Image
+    from . import BlenderImage
 
 if "SRGBToLinear" in locals():
     importlib.reload(SRGBToLinear)
@@ -460,7 +460,7 @@ class quake_shader:
         if stage.valid:
             img = bpy.data.images.get(stage.diffuse)
             if img is None:
-                img = Image.load_file(stage.diffuse, VFS)
+                img = BlenderImage.load_file(stage.diffuse, VFS)
 
             if img is not None:
                 node_color = shader.nodes.new(type='ShaderNodeTexImage')
@@ -765,7 +765,7 @@ class quake_shader:
 
             node_light = None
             if "q3map_lightimage" in shader.attributes:
-                img = Image.load_file(
+                img = BlenderImage.load_file(
                     shader.attributes["q3map_lightimage"][0], VFS)
                 if img is not None:
                     node_light = shader.nodes.new(type='ShaderNodeTexImage')
@@ -840,7 +840,7 @@ class quake_shader:
                     node_BSDF.outputs[0], shader.nodes["Output"].inputs[0])
 
         else:
-            img = Image.load_file(shader.texture, VFS)
+            img = BlenderImage.load_file(shader.texture, VFS)
             if img is not None:
                 img.alpha_mode = "CHANNEL_PACKED"
                 node_texture = shader.nodes.new(type='ShaderNodeTexImage')
@@ -907,7 +907,7 @@ class quake_shader:
                 if (stage.tcGen == TCGEN_LM and
                    stage.diffuse.startswith("maps/")):
                     image = bpy.data.images.get(
-                        Image.remove_file_extension(stage.diffuse))
+                        BlenderImage.remove_file_extension(stage.diffuse))
                     if image is None:
                         node_lm.image = image
         else:
@@ -1139,7 +1139,7 @@ class quake_shader:
                 print(shader.name + " shader is not supported right now")
 
         else:
-            img = Image.load_file(shader.texture, VFS)
+            img = BlenderImage.load_file(shader.texture, VFS)
             if img is not None:
                 img.alpha_mode = "CHANNEL_PACKED"
                 if shader.is_vertex_lit:
@@ -1276,10 +1276,10 @@ class quake_shader:
         node_BSDF.inputs["Alpha"].default_value = 0.5
         is_sky = False
         if "qer_editorimage" in shader.attributes:
-            image = Image.load_file(
+            image = BlenderImage.load_file(
                 shader.attributes["qer_editorimage"][0], VFS)
         else:
-            image = Image.load_file(shader.texture, VFS)
+            image = BlenderImage.load_file(shader.texture, VFS)
 
         if image is not None:
             node_img = shader.nodes.new(type='ShaderNodeTexImage')

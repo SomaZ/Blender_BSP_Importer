@@ -3,10 +3,10 @@ import imp
 if "bpy" not in locals():
     import bpy
 
-if "Image" in locals():
-    imp.reload(Image)
+if "BlenderImage" in locals():
+    imp.reload(BlenderImage)
 else:
-    from . import Image
+    from . import BlenderImage
 
 if "QuakeLight" in locals():
     imp.reload(QuakeLight)
@@ -174,7 +174,7 @@ def make_equirectangular_from_sky(VFS, sky_name):
     biggest_w = 1
 
     for index, tex in enumerate(textures):
-        image = Image.load_file(tex, VFS)
+        image = BlenderImage.load_file(tex, VFS)
 
         if image is not None:
             cube[index] = image

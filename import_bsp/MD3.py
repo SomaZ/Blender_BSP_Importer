@@ -6,10 +6,10 @@ if "struct" not in locals():
 if "bpy" not in locals():
     import bpy
 
-if "Image" in locals():
-    importlib.reload(Image)
+if "BlenderImage" in locals():
+    importlib.reload(BlenderImage)
 else:
-    from . import Image
+    from . import BlenderImage
 
 from .idtech3lib.Parsing import guess_model_name, fillName
 
@@ -429,7 +429,7 @@ class MD3:
                         break
                 reverse = 64-first_0
 
-                self.name = Image.remove_file_extension(
+                self.name = BlenderImage.remove_file_extension(
                     array[0][:-reverse].decode("utf-8", errors="ignore"))
                 self.index = array[1]
 
