@@ -1,7 +1,7 @@
 from ctypes import (LittleEndianStructure,
                     c_char, c_float, c_int, c_ubyte, sizeof)
 from numpy import array
-from .Helpers import normalize
+from .Helpers import normalize, avg_ivec3, avg_vec2, avg_vec3
 
 
 class BSP_HEADER(LittleEndianStructure):
@@ -202,30 +202,21 @@ class BSP_INFO:
     lightmap_lumps = ("lightmaps",
                       )
 
-    @staticmethod
-    def lerp_vec(vec1, vec2, vec_out):
-        for i in range(len(vec1)):
-            vec_out[i] = (vec1[i] + vec2[i]) / 2.0
-
-    @staticmethod
-    def lerp_ivec(vec1, vec2, vec_out):
-        for i in range(len(vec1)):
-            vec_out[i] = int((vec1[i] + vec2[i]) / 2)
-
     @classmethod
     def lerp_vertices(
             cls,
             vertex1: BSP_VERTEX,
             vertex2: BSP_VERTEX
             ) -> BSP_VERTEX:
-        vec = normalize(array(vertex1.normal) + array(vertex2.normal))
 
         lerped_vert = BSP_VERTEX()
+
+        vec = normalize(array(vertex1.normal) + array(vertex2.normal))
         lerped_vert.normal[0] = vec[0]
         lerped_vert.normal[1] = vec[1]
         lerped_vert.normal[2] = vec[2]
-        cls.lerp_vec(vertex1.position, vertex2.position, lerped_vert.position)
-        cls.lerp_vec(vertex1.texcoord, vertex2.texcoord, lerped_vert.texcoord)
-        cls.lerp_vec(vertex1.lm1coord, vertex2.lm1coord, lerped_vert.lm1coord)
-        cls.lerp_ivec(vertex1.color1, vertex2.color1, lerped_vert.color1)
+        lerped_vert.position = avg_vec3(vertex1.position, vertex2.position)
+        lerped_vert.texcoord = avg_vec2(vertex1.texcoord, vertex2.texcoord)
+        lerped_vert.lm1coord = avg_vec2(vertex1.lm1coord, vertex2.lm1coord)
+        lerped_vert.color1 = avg_ivec3(vertex1.color1, vertex2.color1)
         return lerped_vert

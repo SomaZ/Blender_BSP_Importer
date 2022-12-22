@@ -3,6 +3,28 @@ from math import floor, ceil
 from numpy import array, dot, sin, cos, sqrt, pi
 
 
+def avg_vec2(vec1, vec2):
+    return ((vec1[0] + vec2[0]) * 0.5,
+            (vec1[1] + vec2[1]) * 0.5)
+
+
+def avg_vec3(vec1, vec2):
+    return ((vec1[0] + vec2[0]) * 0.5,
+            (vec1[1] + vec2[1]) * 0.5,
+            (vec1[2] + vec2[2]) * 0.5)
+
+
+def avg_ivec2(vec1, vec2):
+    return (int((vec1[0] + vec2[0]) * 0.5),
+            int((vec1[1] + vec2[1]) * 0.5))
+
+
+def avg_ivec3(vec1, vec2):
+    return (int((vec1[0] + vec2[0]) * 0.5),
+            int((vec1[1] + vec2[1]) * 0.5),
+            int((vec1[2] + vec2[2]) * 0.5))
+
+
 def normalize(vector):
     sqr_length = dot(vector, vector)
     if sqr_length == 0.0:
