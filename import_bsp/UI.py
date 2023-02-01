@@ -2276,6 +2276,8 @@ class FillAssetLibrary(bpy.types.Operator):
         prefs = context.preferences.addons[addon_name].preferences
         base_path = prefs.base_path.replace("\\", "/")
 
+        asset_library_path = prefs.assetlibrary.replace("\\", "/")
+
         if not base_path.endswith('/'):
             base_path = base_path + '/'
 
@@ -2290,8 +2292,8 @@ class FillAssetLibrary(bpy.types.Operator):
         md3_files = VFS.search(reg)
         md3_files = [f[1:] if f.startswith("/") else f for f in md3_files]
 
-        cats_f = "{}/blender_assets.cats.txt".format(prefs.assetlibrary)
-        os.makedirs(prefs.assetlibrary, exist_ok=True)
+        cats_f = "{}/blender_assets.cats.txt".format(asset_library_path)
+        os.makedirs(asset_library_path, exist_ok=True)
         a_categorys = {}
         add_version_to_cats = False
         if os.path.isfile(cats_f):
