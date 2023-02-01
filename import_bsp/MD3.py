@@ -12,6 +12,7 @@ else:
     from . import BlenderImage
 
 from .idtech3lib.Parsing import guess_model_name, fillName
+from .BlenderSurfaceFactory import Surface_factory
 
 from math import pi, sin, cos, atan2, acos, sqrt
 from mathutils import Matrix
@@ -22,191 +23,6 @@ HALF = 2
 INT = 4
 UBYTE = 1
 STRING = 64
-
-
-class vertex_map:
-    def __init__(self, object_id, mesh, vertex_id, loop_id):
-        self.mesh = mesh
-        self.obj_id = object_id
-        self.vert = vertex_id
-        self.loop = loop_id
-        self.position = mesh.vertices[vertex_id].co.copy()
-        self.normal = mesh.vertices[vertex_id].normal.copy()
-        if mesh.has_custom_normals:
-            self.normal = mesh.loops[loop_id].normal.copy()
-        self.tc = mesh.uv_layers.active.data[loop_id].uv.copy()
-
-    def set_mesh(self, mesh):
-        self.mesh = mesh
-
-
-class surface_descriptor:
-    def __init__(self, material, obj_name):
-        self.current_index = 0
-        self.vertex_mapping = []
-        self.triangles = []
-        self.material = material
-        self.obj_name = obj_name
-
-    # always make sure that you pack the same material in
-    # one surface descriptor!
-    def add_triangle(self, in_obj_id, in_mesh, in_triangle):
-        # Quake 3 limit from sourcecode
-        SHADER_MAX_VERTEXES = 1000
-
-        if len(self.triangles) * 3 >= 6 * SHADER_MAX_VERTEXES:
-            return False
-
-        new_triangle = [None, None, None]
-        new_map = None
-
-        reused_vertices = 0
-
-        triangle_descriptor = []
-        for index, zipped in enumerate(zip(in_triangle.vertices,
-                                           in_triangle.loops)):
-            tri = zipped[0]
-            loo = zipped[1]
-            vert_pos = in_mesh.vertices[tri].co.copy()
-            vert_nor = in_mesh.vertices[tri].normal.copy()
-            if in_mesh.has_custom_normals:
-                vert_nor = in_mesh.loops[loo].normal.copy()
-            vert_tc = in_mesh.uv_layers.active.data[loo].uv.copy()
-            triangle_descriptor.append((vert_pos, vert_nor, vert_tc))
-
-        # check for duplicates
-        for id, map in enumerate(self.vertex_mapping):
-            for index, tri_vert in enumerate(triangle_descriptor):
-                if (tri_vert[0] == map.position) and (
-                        tri_vert[1] == map.normal) and (
-                        tri_vert[2] == map.tc):
-                    # vertex already in the surface
-                    if new_triangle[index] is None:
-                        new_triangle[index] = id
-                        reused_vertices += 1
-                        break
-
-        if 3-reused_vertices + len(self.vertex_mapping) >= SHADER_MAX_VERTEXES:
-            return False
-
-        # add new vertices
-        for id, index in enumerate(new_triangle):
-            if index is None:
-                new_vert = in_triangle.vertices[id]
-                new_loop = in_triangle.loops[id]
-                new_mesh = in_mesh
-                new_map = vertex_map(in_obj_id, new_mesh, new_vert, new_loop)
-                self.vertex_mapping.append(new_map)
-                new_triangle[id] = self.current_index
-                self.current_index += 1
-
-        # add new triangle
-        self.triangles.append(new_triangle)
-        return True
-
-
-class surface_factory:
-    valid = False
-    status = "Unknown Error"
-
-    def __init__(self, objects, individual, material_merge=True):
-        self.individual = individual
-        surfaces = {}
-        self.surface_descriptors = []
-        self.num_surfaces = 0
-        self.objects = objects
-        # create a list for every material
-        for obj in objects:
-            if material_merge:
-                if len(obj.data.materials) == 0:
-                    surfaces["NoShader"] = [
-                        surface_descriptor("NoShader", obj.name)]
-                for mat in obj.data.materials:
-                    mat_name = mat.name.split(".")[0]
-                    if mat_name not in surfaces:
-                        surfaces[mat_name] = [
-                            surface_descriptor(mat_name, obj.name)]
-                        self.num_surfaces += 1
-            else:
-                if len(obj.data.materials) == 0:
-                    mat_name = "NoShader"
-                else:
-                    mat_name = obj.data.materials[0].name.split(".")[0]
-                surfaces[obj.name] = [surface_descriptor(mat_name, obj.name)]
-                self.num_surfaces += 1
-
-        for obj_id, obj in enumerate(objects):
-            mesh = obj.to_mesh()
-            if not self.individual:
-                mesh.transform(obj.matrix_world)
-            mesh.calc_normals_split()
-            mesh.calc_loop_triangles()
-
-            for triangle in mesh.loop_triangles:
-                if material_merge:
-                    if len(mesh.materials) == 0:
-                        mat = "NoShader"
-                    else:
-                        mat = mesh.materials[triangle.material_index].name
-                        mat = mat.split(".")[0]
-
-                    if mat in surfaces:
-                        surface_descr = surfaces[mat][len(surfaces[mat])-1]
-                        succeeded = surface_descr.add_triangle(
-                            obj_id, mesh, triangle)
-                        if not succeeded:
-                            new_surface_descr = surface_descriptor(
-                                mat, obj.name)
-                            new_surface_descr.add_triangle(
-                                obj_id, mesh, triangle)
-                            surfaces[mat].append(new_surface_descr)
-                            self.num_surfaces += 1
-                            if self.num_surfaces > 32:
-                                self.valid = False
-                                self.status = "Exported object(s) exceed "
-                                "max surfaces. Reduce model complexity."
-                                return
-                            self.status = (
-                                self.status + "Added additional surface for " +
-                                mat + " because there were too many "
-                                "vertices or triangles\n")
-                else:
-                    surface_descr = surfaces[obj.name][len(
-                        surfaces[obj.name])-1]
-                    succeeded = surface_descr.add_triangle(
-                        obj_id, mesh, triangle)
-                    # TODO: Split model, add numeric suffix to model names
-                    if not succeeded:
-                        self.valid = False
-                        self.status = (
-                            "Object exceeds vertex or indices limit: " +
-                            obj.name)
-                        return
-
-        for mat in surfaces:
-            for i in range(len(surfaces[mat])):
-                self.surface_descriptors.append(surfaces[mat][i])
-
-        self.valid = True
-        self.status = "Added object(s) successfully to surface factory."
-        return
-
-    def clear_meshes(self):
-        for obj in self.objects:
-            obj.to_mesh_clear()
-
-    def update_meshes(self):
-        meshes = []
-        for obj_id, obj in enumerate(self.objects):
-            mesh = obj.to_mesh()
-            if not self.individual:
-                mesh.transform(obj.matrix_world)
-            mesh.calc_normals_split()
-            meshes.append(mesh)
-        for surface_descriptor in self.surface_descriptors:
-            for map in surface_descriptor.vertex_mapping:
-                map.set_mesh(meshes[map.obj_id])
-
 
 class lump:
     def __init__(self, data_class):
@@ -934,6 +750,7 @@ def ImportMD3Object(VFS, file_path, import_tags, per_object_import=False, import
             objs.append(ob)
     return objs
 
+MD3_SHADER_MAX_VERTEXES = 1000
 
 def ExportMD3(file_path, objects, frame_list, individual, material_merge=True):
     return_status = [False, "Unknown Error"]
@@ -948,7 +765,12 @@ def ExportMD3(file_path, objects, frame_list, individual, material_merge=True):
     eval_mesh_objects = [obj for obj in eval_objects if obj.type == "MESH"]
     eval_tag_objects = [obj for obj in eval_objects if obj.type == "EMPTY"]
 
-    sf = surface_factory(eval_mesh_objects, individual, material_merge)
+    sf = Surface_factory(
+        eval_mesh_objects,
+        individual,
+        material_merge,
+        MD3_SHADER_MAX_VERTEXES)
+
     if not sf.valid:
         return_status[1] = sf.status
         return return_status
