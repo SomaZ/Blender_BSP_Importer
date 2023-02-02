@@ -218,7 +218,10 @@ def storeLighmaps(bsp,
                 internal_lightmap[pixel * 3] = outColor[0]
                 internal_lightmap[pixel * 3 + 1] = outColor[1]
                 internal_lightmap[pixel * 3 + 2] = outColor[2]
-            bsp.lumps["lightmaps"].add(internal_lightmap)
+
+            bsp_lightmap = bsp.lump_info["lightmaps"]()
+            bsp_lightmap.map[:] = internal_lightmap
+            bsp.lumps["lightmaps"].append(bsp_lightmap)
 
     if not internal or hdr:
         bsp_path = bsp.bsp_path.replace("\\", "/").split(".")[0] + "/"

@@ -641,8 +641,8 @@ def import_bsp_file(import_settings):
             new_image.pixels = atlas_pixels
             new_image.alpha_mode = 'CHANNEL_PACKED'
 
-    # bpy.context.scene.id_tech_3_lightmaps_per_row = num_rows
-    # bpy.context.scene.id_tech_3_lightmaps_per_column = num_columns
+    bpy.context.scene.id_tech_3_lightmaps_per_row = bsp_file.lightmap_size[0] / bsp_file.internal_lightmap_size[0]
+    bpy.context.scene.id_tech_3_lightmaps_per_column = bsp_file.lightmap_size[1] / bsp_file.internal_lightmap_size[1]
 
     QuakeShader.init_shader_system(bsp_file)
     QuakeShader.build_quake_shaders(VFS, import_settings, blender_objects)

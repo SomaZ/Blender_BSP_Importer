@@ -30,10 +30,10 @@ if "BlenderImage" in locals():
 else:
     from . import BlenderImage
 
-if "SRGBToLinear" in locals():
-    importlib.reload(SRGBToLinear)
+if "QuakeLight" in locals():
+    importlib.reload(QuakeLight)
 else:
-    from .QuakeLight import SRGBToLinear
+    from . import QuakeLight
 
 from .idtech3lib import ID3Shader
 from .idtech3lib.Parsing import *
@@ -774,7 +774,7 @@ class quake_shader:
             elif "q3map_lightrgb" in shader.attributes:
                 color = shader.attributes["q3map_lightrgb"][0].split()
                 if len(color) >= 2:
-                    color = SRGBToLinear(
+                    color = QuakeLight.SRGBToLinear(
                         (float(color[0]), float(color[1]), float(color[2])))
                     node_light = shader.nodes.new(type='ShaderNodeRGB')
                     node_light.outputs[0].default_value = (

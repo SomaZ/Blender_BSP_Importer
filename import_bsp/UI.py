@@ -1466,10 +1466,23 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
         fixed_base_path = self.prefs.base_path.replace("\\", "/")
         if not fixed_base_path.endswith('/'):
             fixed_base_path = fixed_base_path + '/'
+            
+        dict_path = bpy.utils.script_paths(
+            subdir="addons/import_bsp/gamepacks/")[0]
+        entity_dict = GamePacks.get_gamepack(dict_path, "JKA_SP.json")
 
         import_settings = Import_Settings(
             file=self.filepath.replace("\\", "/"),
-            base_paths=[fixed_base_path]
+            subdivisions=-1,
+            min_atlas_size=(
+                int(128),
+                int(128)
+                ),
+            base_paths=[fixed_base_path],
+            preset="PREVIEW",
+            front_culling=False,
+            surface_types=Surface_Type.BAD,
+            entity_dict=entity_dict
         )
 
         VFS = Q3VFS()
@@ -1477,7 +1490,7 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
             VFS.add_base(base_path)
         VFS.build_index()
 
-        bsp = BlenderBSP.import_bsp_file(None, import_settings)
+        bsp = BlenderBSP.get_bsp_file(VFS, import_settings)
 
         if self.only_selected:
             objs = [
@@ -1507,9 +1520,9 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
             self.report({"INFO"}, "Storing Vertex Data...")
             # stores bsp vertex indices
             patched_vertices = {id: False for id in range(
-                int(bsp.lumps["drawverts"].count))}
+                len(bsp.lumps["drawverts"]))}
             lightmapped_vertices = {id: False for id in range(
-                int(bsp.lumps["drawverts"].count))}
+                len(bsp.lumps["drawverts"]))}
             patch_lighting_type = True
             for obj, mesh in zip(objs, meshes):
                 if self.patch_lm_tcs:
@@ -1549,31 +1562,32 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                             patched_vertices[bsp_vert_index] = True
                             bsp_vert = bsp.lumps["drawverts"][bsp_vert_index]
                             if self.patch_tcs:
-                                bsp_vert.texcoord = (
+                                
+                                bsp_vert.texcoord[:] = (
                                     mesh.uv_layers["UVMap"].data[loop].uv)
                             if self.patch_lm_tcs:
-                                bsp_vert.lm1coord = (
+                                bsp_vert.lm1coord[:] = (
                                     mesh.uv_layers["LightmapUV"].data[loop].uv)
                                 bsp_vert.lm1coord[0] = min(
                                     1.0, max(0.0, bsp_vert.lm1coord[0]))
                                 bsp_vert.lm1coord[1] = min(
                                     1.0, max(0.0, bsp_vert.lm1coord[1]))
                                 if bsp.lightmaps == 4:
-                                    bsp_vert.lm2coord = (
+                                    bsp_vert.lm2coord[:] = (
                                         mesh.uv_layers[
                                             "LightmapUV2"].data[loop].uv)
                                     bsp_vert.lm2coord[0] = min(
                                         1.0, max(0.0, bsp_vert.lm2coord[0]))
                                     bsp_vert.lm2coord[1] = min(
                                         1.0, max(0.0, bsp_vert.lm2coord[1]))
-                                    bsp_vert.lm3coord = (
+                                    bsp_vert.lm3coord[:] = (
                                         mesh.uv_layers[
                                             "LightmapUV3"].data[loop].uv)
                                     bsp_vert.lm3coord[0] = min(
                                         1.0, max(0.0, bsp_vert.lm3coord[0]))
                                     bsp_vert.lm3coord[1] = min(
                                         1.0, max(0.0, bsp_vert.lm3coord[1]))
-                                    bsp_vert.lm4coord = (
+                                    bsp_vert.lm4coord[:] = (
                                         mesh.uv_layers[
                                             "LightmapUV4"].data[loop].uv)
                                     bsp_vert.lm4coord[0] = min(
@@ -1581,33 +1595,31 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                     bsp_vert.lm4coord[1] = min(
                                         1.0, max(0.0, bsp_vert.lm4coord[1]))
                             if self.patch_normals:
-                                bsp_vert.normal = (
+                                bsp_vert.normal[:] = (
                                     mesh.vertices[vertex].normal.copy())
                                 if mesh.has_custom_normals:
-                                    bsp_vert.normal = (
+                                    bsp_vert.normal[:] = (
                                         mesh.loops[loop].normal.copy())
                             if self.patch_colors:
                                 vert_colors = mesh.vertex_colors
-                                bsp_vert.color1 = (
-                                    vert_colors["Color"].data[loop].color)
-                                bsp_vert.color1[3] = (
-                                    vert_colors["Alpha"].data[loop].color[0])
+                                color = [
+                                    int(c * 255.0) for c in vert_colors["Color"].data[loop].color]
+                                color[3] = int(vert_colors["Alpha"].data[loop].color[0] * 255.0)
+                                bsp_vert.color1[:] = color
                                 if bsp.lightmaps == 4:
-                                    bsp_vert.color2 = (
-                                        vert_colors["Color2"].data[loop].color)
-                                    bsp_vert.color2[3] = (
-                                        vert_colors[
-                                            "Alpha"].data[loop].color[1])
-                                    bsp_vert.color3 = (
-                                        vert_colors["Color3"].data[loop].color)
-                                    bsp_vert.color3[3] = (
-                                        vert_colors[
-                                            "Alpha"].data[loop].color[2])
-                                    bsp_vert.color4 = (
-                                        vert_colors["Color4"].data[loop].color)
-                                    bsp_vert.color4[3] = (
-                                        vert_colors[
-                                            "Alpha"].data[loop].color[3])
+                                    color = [
+                                        int(c * 255.0) for c in vert_colors["Color2"].data[loop].color]
+                                    color[3] = int(vert_colors["Alpha"].data[loop].color[1] * 255.0)
+                                    bsp_vert.color2[:] = color
+                                    color = [
+                                        int(c * 255.0) for c in vert_colors["Color3"].data[loop].color]
+                                    color[3] = int(vert_colors["Alpha"].data[loop].color[2] * 255.0)
+                                    bsp_vert.color3[:] = color
+                                    color = [
+                                        int(c * 255.0) for c in vert_colors["Color4"].data[loop].color]
+                                    color[3] = int(vert_colors["Alpha"].data[loop].color[3] * 255.0)
+                                    bsp_vert.color4[:] = color
+
                 else:
                     self.report({"ERROR"}, "Not a valid mesh for patching")
                     return {'CANCELLED'}
@@ -1625,7 +1637,7 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
 
             fixed_vertices = []
             # fix lightmap tcs and tcs, set lightmap ids
-            for bsp_surf in bsp.lumps["surfaces"].data:
+            for bsp_surf in bsp.lumps["surfaces"]:
                 # fix lightmap tcs and tcs for patches
                 # unsmoothes tcs, so the game creates the same tcs we see here
                 # in blender
@@ -1638,7 +1650,7 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                     for i in range(bsp_surf.patch_width):
                         for j in range(bsp_surf.patch_height):
                             ctrlPoints[j][i] = (
-                                bsp.lumps["drawverts"].data[
+                                bsp.lumps["drawverts"][
                                     bsp_surf.vertex +
                                     j*bsp_surf.patch_width + i])
 
@@ -1848,7 +1860,7 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
 
                         # unpack lightmap tcs
                         for i in vertices:
-                            bsp_vert = bsp.lumps["drawverts"].data[i]
+                            bsp_vert = bsp.lumps["drawverts"][i]
                             Helpers.unpack_lm_tc(
                                 bsp_vert.lm1coord,
                                 lightmap_size,
@@ -1869,7 +1881,7 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
             self.report({"INFO"}, "Successful")
         # get number of lightmaps
         n_lightmaps = 0
-        for bsp_surf in bsp.lumps["surfaces"].data:
+        for bsp_surf in bsp.lumps["surfaces"]:
             # handle lightmap ids with lightstyles
             for i in range(bsp.lightmaps):
                 if bsp_surf.lm_indexes[i] > n_lightmaps:
