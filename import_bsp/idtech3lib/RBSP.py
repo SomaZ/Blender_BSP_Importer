@@ -181,7 +181,7 @@ class BSP_LIGHTGRID_ARRAY(LittleEndianStructure):
 
 class BSP_INFO:
     bsp_magic = b'RBSP'
-    bsp_version = 0
+    bsp_version = 1
 
     lightgrid_size = [64, 64, 128]
     lightgrid_inverse_size = [1.0 / float(lightgrid_size[0]),

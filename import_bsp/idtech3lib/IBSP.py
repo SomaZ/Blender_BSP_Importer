@@ -160,7 +160,7 @@ class BSP_VIS(LittleEndianStructure):
 
 class BSP_INFO:
     bsp_magic = b'IBSP'
-    bsp_version = 0x1
+    bsp_version = 46
 
     lightgrid_size = [64, 64, 128]
     lightgrid_inverse_size = [1.0 / float(lightgrid_size[0]),
