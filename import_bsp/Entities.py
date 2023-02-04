@@ -124,6 +124,7 @@ def ImportEntitiesText(entities_string, import_settings, bsp = None, only_lights
                                             
         if n_ent == 0 and not only_lights:
             me = bpy.data.meshes["*0"]
+            mesh_name = "*0"
             ob = bpy.data.objects.new("Entity " + (str(n_ent).zfill(4)), me)
             obj_list.append(ob)
         else:
