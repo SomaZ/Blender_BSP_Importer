@@ -1017,6 +1017,11 @@ def ImportBSP(import_settings):
                 continue
             
             name = "*"+str(model_index)
+
+            # check if another map has been imported before
+            mesh = bpy.data.meshes.get(name)
+            if mesh != None:
+                mesh.name = name+"_prev.000"
             
             mesh = bpy.data.meshes.new( name )
             mesh.from_pydata(model.vertices, [], model.face_vertices)

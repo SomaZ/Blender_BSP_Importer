@@ -29,7 +29,7 @@ import mathutils
 def create_new_image(name, width, height, float_buffer=False):
     old_image = bpy.data.images.get(name)
     if old_image != None:
-        old_image.name = name + "_previous.000"
+        old_image.name = name + "_prev.000"
         
     if float_buffer:
         image = bpy.data.images.new(
