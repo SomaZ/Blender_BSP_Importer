@@ -653,6 +653,15 @@ class lightmap:
         self.map = array
     def to_array(self):
         return self.map
+
+#fbsp
+class lightmap_fbsp:
+    size = 512*512*3*UBYTE
+    encoding = "<786432B"
+    def __init__(self, array):
+        self.map = array
+    def to_array(self):
+        return self.map
         
 #rbsp
 class lightgrid_rbsp:
@@ -751,6 +760,44 @@ class RBSP:
                 "fogs":             lump( effect ),
                 "surfaces":         lump( face_rbsp ),
                 "lightmaps":        lump( lightmap ),
+                "lightgrid":        lump( lightgrid_rbsp ),
+                "visdata":          lump( visdata ),
+                "lightgridarray":   lump( lightgridarray )
+                }
+
+class FBSP:
+    BSP_MAGIC = b'FBSP'
+    BSP_VERSION = 0
+    
+    lightgrid_size = [64,64,128]
+    lightgrid_inverse_size = [  1.0 / float(lightgrid_size[0]),
+                                1.0 / float(lightgrid_size[1]),
+                                1.0 / float(lightgrid_size[2]) ]
+    lightgrid_origin = [0.0,0.0,0.0]
+    lightgrid_z_step = 0.0
+    lightgrid_inverse_dim = [0.0,0.0,0.0]
+    lightgrid_dim = [0.0,0.0,0.0]
+    
+    lightmap_size = [512,512]
+    lightmaps = 4
+    lightstyles = 4
+    use_lightgridarray = True
+
+    lumps = {   "entities":         lump( entity ),
+                "shaders":          lump( texture ),
+                "planes":           lump( plane ),
+                "nodes":            lump( node ),
+                "leafs":            lump( leaf ),
+                "leaffaces":        lump( leafface ),
+                "leafbrushes":      lump( leafbrush ),
+                "models":           lump( model ),
+                "brushes":          lump( brush ),
+                "brushsides":       lump( brushside_rbsp ),
+                "drawverts":        lump( vertex_rbsp ),
+                "drawindexes":      lump( meshvert ),
+                "fogs":             lump( effect ),
+                "surfaces":         lump( face_rbsp ),
+                "lightmaps":        lump( lightmap_fbsp ),
                 "lightgrid":        lump( lightgrid_rbsp ),
                 "visdata":          lump( visdata ),
                 "lightgridarray":   lump( lightgridarray )
@@ -891,7 +938,7 @@ class BSP:
         if magic_nr in (EF2BSP.BSP_MAGIC, FAKKBSP.BSP_MAGIC):
             checksum = struct.unpack("<i", file.read(4))[0]
         
-        bsp_formats = [RBSP, IBSP, EF2BSP, FAKKBSP]
+        bsp_formats = [RBSP, FBSP, IBSP, EF2BSP, FAKKBSP]
         for format in bsp_formats:
             if format.BSP_MAGIC == magic_nr:
                 self.valid = True
