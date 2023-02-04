@@ -1030,9 +1030,6 @@ def ImportBSP(import_settings):
                     
             mesh.polygons.foreach_set("material_index", model.face_materials)
                 
-            for poly in mesh.polygons:
-                poly.use_smooth = True
-                
             mesh.vertices.foreach_set("normal", unpack_list(model.normals))
             mesh.normals_split_custom_set_from_vertices(model.normals)
             
@@ -1078,9 +1075,13 @@ def ImportBSP(import_settings):
                 mesh.vertex_layers_int.new(name="BSP_VERT_INDEX")
                 mesh.vertex_layers_int["BSP_VERT_INDEX"].data.foreach_set("value", model.vertex_bsp_indices)
             
-            mesh.use_auto_smooth = True
-            mesh.update()
             mesh.validate()
+            for poly in mesh.polygons:
+                poly.use_smooth = True
+            mesh.use_auto_smooth = True
+
+            mesh.update()
+            
             
         #import entities and get object list
         import_settings.log.append("----ImportEntities----")

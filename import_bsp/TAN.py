@@ -603,12 +603,12 @@ def ImportTAN(model_name, material_mapping, import_tags = False, animations = No
     if (not skip):
         magic_nr = file.read(4)
         version_nr = struct.unpack("<i", file.read(4))[0]
-                    
+
         tan = TAN(file, magic_nr, version_nr)
         if (not tan.valid):
             print("this tan version is not supported\n")
             skip = True
-        
+
     if (not skip):
         name        = file.read(64).decode("utf-8", errors="ignore").strip("\0")
         print("Import TAN: " + name)
@@ -621,19 +621,19 @@ def ImportTAN(model_name, material_mapping, import_tags = False, animations = No
         ofsSurfaces = struct.unpack("<i", file.read(4))[0]
         ofsTags     = struct.unpack("<16i", file.read(16*4))
         ofsEnd      = struct.unpack("<i", file.read(4))[0]
-        
+
         print("numFrames: " + str(numFrames))
         print("numTags: " + str(numTags))
         print("numSurfaces: " + str(numSurfaces))
         print("total_time: " + str(total_time))
         print("total_delta: " + str(total_delta))
-        
+
         print("ofsFrames: " + str(ofsFrames))
         for i in range(16):
             print("ofsTags" + str(i) + ": " + str(ofsTags[i]))
         print("ofsSurfaces: " + str(ofsSurfaces))
         print("ofsEnd: " + str(ofsEnd))
-        
+
         frames = lump(tan.frame)
         frames.set_offset_count([ofsFrames, numFrames])
         frames.readFrom(file)
@@ -644,24 +644,24 @@ def ImportTAN(model_name, material_mapping, import_tags = False, animations = No
             print("\t\tOrigin: " + str(frame.offset))
             print("\t\tRadius: " + str(frame.radius))
             print("\t\tScale: " + str(frame.scale))
-        
+
         surface_lumps = []
         for surface_lump in range(numSurfaces):
             surface = lump(tan.surface)
             surface.set_offset_count([ofsSurfaces,1])
             surface.readFrom(file)
-            
+
             surface.data[0].vertices.readFrom(file,ofsSurfaces)
             # decode vertex positions
             for vertex in surface.data[0].vertices.data:
                 vertex.position[0] = vertex.position[0] * frames.data[0].scale[0] + frames.data[0].offset[0]
                 vertex.position[1] = vertex.position[1] * frames.data[0].scale[1] + frames.data[0].offset[1]
                 vertex.position[2] = vertex.position[2] * frames.data[0].scale[2] + frames.data[0].offset[2]
-            
+
             surface.data[0].tcs.readFrom(file,ofsSurfaces)
             #surface.data[0].collapse_map.readFrom(file,ofsSurfaces)
             surface.data[0].triangles.readFrom(file,ofsSurfaces)
-            
+
             if animations != None:
                 if per_object_import:
                     animations.append([[0, surface.data[0].vertices.data]])
@@ -670,7 +670,7 @@ def ImportTAN(model_name, material_mapping, import_tags = False, animations = No
                         animations.append([[0, surface.data[0].vertices.data]])
                     else:
                         animations[0][0][1] += surface.data[0].vertices.data
-                
+
                 for frame in range(1, surface.data[0].n_frames):
                     current_frame_vertices = surface.data[0].get_frame_vertex_lump(frame)
                     current_frame_vertices.readFrom(file,ofsSurfaces)
@@ -679,7 +679,7 @@ def ImportTAN(model_name, material_mapping, import_tags = False, animations = No
                         vertex.position[0] = vertex.position[0] * frames.data[0].scale[0] + frames.data[0].offset[0]
                         vertex.position[1] = vertex.position[1] * frames.data[0].scale[1] + frames.data[0].offset[1]
                         vertex.position[2] = vertex.position[2] * frames.data[0].scale[2] + frames.data[0].offset[2]
-                        
+
                     if per_object_import:
                         animations[surface_lump].append([frame, current_frame_vertices.data])
                     else:
@@ -687,20 +687,20 @@ def ImportTAN(model_name, material_mapping, import_tags = False, animations = No
                             animations[0].append([frame, current_frame_vertices.data])
                         else:
                             animations[0][frame][1] += current_frame_vertices.data
-            
+
             surface_lumps.append(surface)
             ofsSurfaces += surface.data[0].off_end
-            
+
         if import_tags:
             for tag_id in range(numTags):
                 tag_lump = lump(tan.tag)
                 tag_lump.set_offset_count([ofsTags[tag_id], 1])
                 tag_lump.readFrom(file)
-                
+
                 tag_data_lump = lump(tan.tag_data)
                 tag_data_lump.set_offset_count([ofsTags[tag_id] + tan.tag.size , numFrames])
                 tag_data_lump.readFrom(file)
-                
+
                 bpy.ops.object.empty_add(type="ARROWS")
                 tag_obj = bpy.context.object
                 tag_obj.name = tag_lump.data[0].name
@@ -724,7 +724,7 @@ def ImportTAN(model_name, material_mapping, import_tags = False, animations = No
                         tag_obj.matrix_world = matrix
                         tag_obj.keyframe_insert('location', frame=frame, group='LocRot')
                         tag_obj.keyframe_insert('rotation_euler', frame=frame, group='LocRot')
-            
+
         vertex_pos = []
         vertex_nor = []
         vertex_tc = []
@@ -735,7 +735,7 @@ def ImportTAN(model_name, material_mapping, import_tags = False, animations = No
         face_index_offset = 0
         face_material_index = []
         meshes = []
-        
+
         #vertex groups
         surfaces = {}
         for surface_id, surface in enumerate(surface_lumps):
@@ -747,34 +747,34 @@ def ImportTAN(model_name, material_mapping, import_tags = False, animations = No
                 vertex_nor.append(vertex.normal)
                 vertex_tc.append(tc.tc)
                 n_indices += 1
-                
+
             for triangle in surface.data[0].triangles.data:
                 triangle_indices = [ triangle.indices[0] + face_index_offset,
                                      triangle.indices[1] + face_index_offset,
                                      triangle.indices[2] + face_index_offset]
                 surface_indices.append(triangle_indices)
                 face_indices.append(triangle_indices)
-                    
+
                 face_tcs.append(vertex_tc[triangle_indices[0]])
                 face_tcs.append(vertex_tc[triangle_indices[1]])
                 face_tcs.append(vertex_tc[triangle_indices[2]])
                 face_material_index.append(shaderindex)
-            
+
             print("\t\tnumTriangles: " + str(len(surface.data[0].triangles.data)))
-            
+
             if material_mapping != None and surface.data[0].name.lower() in material_mapping:
                 mat_name = material_mapping[surface.data[0].name.lower()]
             else:
                 mat_name = surface.data[0].name
-                
+
             face_shaders.append(mat_name)
             shaderindex += 1
             face_index_offset += n_indices
-            
+
             if per_object_import:
                 mesh = bpy.data.meshes.new( surface.data[0].name )
                 mesh.from_pydata(vertex_pos, [], face_indices)
-                
+
                 mat = bpy.data.materials.get(mat_name) 
                 if (mat == None):
                     mat = bpy.data.materials.new(name=mat_name)
@@ -782,18 +782,18 @@ def ImportTAN(model_name, material_mapping, import_tags = False, animations = No
                 mesh.polygons.foreach_set("material_index", face_material_index)
                 for poly in mesh.polygons:
                     poly.use_smooth = True
-                    
+
                 mesh.vertices.foreach_set("normal", unpack_list(vertex_nor))
                 mesh.normals_split_custom_set_from_vertices(vertex_nor)
-                
+
                 mesh.uv_layers.new(do_init=False,name="UVMap")
                 mesh.uv_layers["UVMap"].data.foreach_set("uv", unpack_list(face_tcs))
-                
+
                 mesh.use_auto_smooth = True
-                            
+
                 mesh.update()
                 meshes.append(mesh)
-                
+
                 vertex_pos = []
                 vertex_nor = []
                 vertex_tc = []
@@ -803,41 +803,41 @@ def ImportTAN(model_name, material_mapping, import_tags = False, animations = No
                 shaderindex = 0
                 face_index_offset = 0
                 face_material_index = []
-                
+
         if per_object_import:
             return meshes
 
         if len(vertex_pos) == 0:
             return [mesh]
-        
+
         guessed_name = guess_model_name( model_name.lower() ).lower()
         if guessed_name.endswith(".tan"):
             guessed_name = guessed_name[:-len(".tan")]
-        
+
         mesh = bpy.data.meshes.new( guessed_name )
         mesh.from_pydata(vertex_pos, [], face_indices)
-            
+
         for texture_instance in face_shaders:
             mat = bpy.data.materials.get(texture_instance)
             if (mat == None):
                 mat = bpy.data.materials.new(name=texture_instance)
             mesh.materials.append(mat)
-                        
+
         mesh.polygons.foreach_set("material_index", face_material_index)
-            
-        for poly in mesh.polygons:
-            poly.use_smooth = True
-                        
+
         mesh.vertices.foreach_set("normal", unpack_list(vertex_nor))
         mesh.normals_split_custom_set_from_vertices(vertex_nor)
-        
+
         mesh.uv_layers.new(do_init=False,name="UVMap")
         mesh.uv_layers["UVMap"].data.foreach_set("uv", unpack_list(face_tcs))
-        
+
+        mesh.validate()
+        for poly in mesh.polygons:
+            poly.use_smooth = True
         mesh.use_auto_smooth = True
-                    
+
         mesh.update()
-            
+
     file.close
     return [mesh]
 
