@@ -2240,8 +2240,8 @@ class Q3_PT_DataExportPanel(bpy.types.Panel):
         layout.separator()
         op = layout.operator("q3.patch_bsp_data", text="11. Patch .bsp Data")
 
-        layout.separator()
-        op = layout.operator("q3.test_operator", text="TEST OPERATOR")
+        #layout.separator()
+        #op = layout.operator("q3.test_operator", text="TEST OPERATOR")
 
 
 class Reload_preview_shader(bpy.types.Operator):
