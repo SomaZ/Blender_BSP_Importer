@@ -698,6 +698,9 @@ def ImportMD3(VFS,
 
         mesh.polygons.foreach_set("material_index", face_material_index)
 
+        mesh.use_auto_smooth = True
+        for poly in mesh.polygons:
+            poly.use_smooth = True
         mesh.vertices.foreach_set("normal", unpack_list(vertex_nor))
         mesh.normals_split_custom_set_from_vertices(vertex_nor)
 
@@ -705,11 +708,6 @@ def ImportMD3(VFS,
         mesh.uv_layers["UVMap"].data.foreach_set("uv", unpack_list(face_tcs))
 
         mesh.validate()
-
-        for poly in mesh.polygons:
-            poly.use_smooth = True
-        mesh.use_auto_smooth = True
-
         mesh.update()
 
     return [mesh]
