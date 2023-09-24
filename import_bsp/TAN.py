@@ -861,6 +861,12 @@ def ImportTAN(VFS,
                 triangle_indices = [triangle.indices[0] + face_index_offset,
                                     triangle.indices[1] + face_index_offset,
                                     triangle.indices[2] + face_index_offset]
+                
+                if (triangle_indices[0] == triangle_indices[1] or
+                    triangle_indices[0] == triangle_indices[2] or
+                    triangle_indices[1] == triangle_indices[2]):
+                    continue
+
                 surface_indices.append(triangle_indices)
                 face_indices.append(triangle_indices)
 
@@ -893,6 +899,9 @@ def ImportTAN(VFS,
                 mesh.polygons.foreach_set(
                     "material_index", face_material_index)
 
+                mesh.use_auto_smooth = True
+                for poly in mesh.polygons:
+                    poly.use_smooth = True
                 mesh.vertices.foreach_set("normal", unpack_list(vertex_nor))
                 mesh.normals_split_custom_set_from_vertices(vertex_nor)
 
@@ -901,11 +910,6 @@ def ImportTAN(VFS,
                     "uv", unpack_list(face_tcs))
 
                 mesh.validate()
-
-                for poly in mesh.polygons:
-                    poly.use_smooth = True
-                mesh.use_auto_smooth = True
-
                 mesh.update()
                 meshes.append(mesh)
 
