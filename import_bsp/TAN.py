@@ -819,7 +819,7 @@ def ImportTAN(VFS,
                     tag_obj.keyframe_insert(
                         'location', frame=0, group='LocRot')
                     tag_obj.keyframe_insert(
-                        'rotation_quaternion', frame=0, group='LocRot')
+                        'rotation_euler', frame=0, group='LocRot')
                     for frame in range(1, numFrames):
                         matrix = Matrix.Identity(4)
                         matrix[0] = [*tag_data_lump.data[frame].axis_1, 0.0]
@@ -831,7 +831,7 @@ def ImportTAN(VFS,
                         tag_obj.keyframe_insert(
                             'location', frame=frame, group='LocRot')
                         tag_obj.keyframe_insert(
-                            'rotation_quaternion', frame=frame, group='LocRot')
+                            'rotation_euler', frame=frame, group='LocRot')
 
         vertex_pos = []
         vertex_nor = []
@@ -921,6 +921,9 @@ def ImportTAN(VFS,
 
         if per_object_import:
             return meshes
+        
+        if len(vertex_pos) == 0:
+            return [mesh]
 
         guessed_name = guess_model_name(model_name.lower()).lower()
         if guessed_name.endswith(".tan"):
