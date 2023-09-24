@@ -512,20 +512,39 @@ def packLightgridData(bsp,
             if current_hash in hash_table:
                 found_twin = hash_table[current_hash]
             if found_twin == -1:
-                bsp.lumps["lightgrid"].add(hashing_array)
-                bsp.lumps["lightgridarray"].add([current_pixel_mapping])
+                lg_point = bsp.lump_info["lightgrid"]()
+                lg_point.ambient1[:] = [hashing_array[0],hashing_array[1],hashing_array[2]]
+                lg_point.ambient2[:] = [hashing_array[3],hashing_array[4],hashing_array[5]]
+                lg_point.ambient3[:] = [hashing_array[6],hashing_array[7],hashing_array[8]]
+                lg_point.ambient4[:] = [hashing_array[9],hashing_array[10],hashing_array[11]]
+                lg_point.direct1[:] = [hashing_array[12],hashing_array[13],hashing_array[14]]
+                lg_point.direct2[:] = [hashing_array[15],hashing_array[16],hashing_array[17]]
+                lg_point.direct3[:] = [hashing_array[18],hashing_array[19],hashing_array[20]]
+                lg_point.direct4[:] = [hashing_array[21],hashing_array[22],hashing_array[23]]
+                lg_point.styles[:] = [hashing_array[24],hashing_array[25],hashing_array[26],hashing_array[27]]
+                lg_point.lat_long[:] = [hashing_array[28],hashing_array[29]]
+                bsp.lumps["lightgrid"].append(lg_point)
+                lga_point = bsp.lump_info["lightgridarray"]()
+                lga_point.index = current_pixel_mapping
+                bsp.lumps["lightgridarray"].append(lga_point)
                 hash_table[current_hash] = current_pixel_mapping
                 hash_table_diff[current_hash] = hashing_diff
                 hash_table_count[current_hash] = 1
                 current_pixel_mapping += 1
             else:
-                bsp.lumps["lightgridarray"].add([found_twin])
+                lga_point = bsp.lump_info["lightgridarray"]()
+                lga_point.index = found_twin
+                bsp.lumps["lightgridarray"].append(lga_point)
                 for index, diff in enumerate(hash_table_diff[current_hash]):
                     diff += hashing_diff[index]
                 hash_table_count[current_hash] += 1
 
         else:
-            bsp.lumps["lightgrid"].add(array)
+            lg_point = bsp.lump_info["lightgrid"]()
+            lg_point.ambient1[:] = [hashing_array[0], hashing_array[1], hashing_array[2]]
+            lg_point.direct1[:] = [hashing_array[3], hashing_array[4], hashing_array[5]]
+            lg_point.lat_long[:] = [hashing_array[6], hashing_array[7]]
+            bsp.lumps["lightgrid"].append(lg_point)
 
     max_add = compression_level-1
     if compression_level > 1:
@@ -667,7 +686,7 @@ def storeLightgrid(bsp, light_settings):
 
     # get all lightgrid points that are in the void
     void_pixels = [True for i in range(num_elements_lightgrid)]
-    for index, leaf in enumerate(bsp.lumps["leafs"].data):
+    for index, leaf in enumerate(bsp.lumps["leafs"]):
         if leaf.area == -1:
             continue
 
