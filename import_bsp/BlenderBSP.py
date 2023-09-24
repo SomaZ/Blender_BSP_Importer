@@ -131,7 +131,7 @@ def create_meshes_from_models(models):
         if name in return_meshes:
             print("Double mesh name found! Mesh did not get added: " + name)
             continue
-        return_meshes[name] = mesh
+        return_meshes[name] = mesh, model.vertex_groups
     if len(return_meshes) > 0:
         return return_meshes
     return None
@@ -139,6 +139,7 @@ def create_meshes_from_models(models):
 
 def load_mesh(VFS, mesh_name, zoffset, bsp):
     blender_mesh = None
+    vertex_groups = {}
     if mesh_name.endswith(".md3"):
         try:
             blender_mesh = MD3.ImportMD3(
@@ -147,7 +148,7 @@ def load_mesh(VFS, mesh_name, zoffset, bsp):
                 zoffset)[0]
         except Exception:
             print("Could not get model for mesh ", mesh_name)
-            return None
+            return blender_mesh, vertex_groups
     elif mesh_name.endswith(".tik"):
         try:
             blender_mesh = TAN.ImportTIK(
@@ -156,7 +157,7 @@ def load_mesh(VFS, mesh_name, zoffset, bsp):
                 zoffset)[0]
         except Exception:
             print("Could not get model for mesh ", mesh_name)
-            return None
+            return blender_mesh, vertex_groups
     elif mesh_name.startswith("*") and bsp is not None:
         model_id = None
 
@@ -168,10 +169,10 @@ def load_mesh(VFS, mesh_name, zoffset, bsp):
             model_id = int(mesh_name[1:])
             new_blender_mesh = create_meshes_from_models([
                 bsp.get_bsp_model(model_id)])
-            blender_mesh = next(iter(new_blender_mesh.values()))
+            blender_mesh, vertex_groups = next(iter(new_blender_mesh.values()))
         except Exception:
             print("Could not get model for mesh ", mesh_name)
-            return None
+            return blender_mesh, vertex_groups
     elif mesh_name == "box":
         blender_mesh = bpy.data.meshes.get("box")
         if blender_mesh is None:
@@ -183,7 +184,7 @@ def load_mesh(VFS, mesh_name, zoffset, bsp):
             blender_mesh.name = "box"
             bpy.data.objects.remove(ent_object, do_unlink=True)
 
-    return blender_mesh
+    return blender_mesh, vertex_groups
 
 
 def load_map_entity_surfaces(VFS, obj, import_settings):
@@ -206,8 +207,8 @@ def load_map_entity_surfaces(VFS, obj, import_settings):
         MAP.get_entity_brushes(obj, material_sizes, import_settings)])
     if new_blender_mesh is None:
         return None
-    blender_mesh = next(iter(new_blender_mesh.values()))
-    return blender_mesh
+    blender_mesh, vertex_groups = next(iter(new_blender_mesh.values()))
+    return blender_mesh, vertex_groups
 
 
 def set_custom_properties(import_settings, blender_obj, bsp_obj):
@@ -463,11 +464,12 @@ def create_blender_objects(VFS, import_settings, objects, meshes, bsp):
             print("Didnt add object: " + str(obj.name))
             continue
 
+        vertex_groups = {}
         if mesh_z_name not in meshes:
             if bsp is None and obj.custom_parameters.get("surfaces") is not None:
-                blender_mesh = load_map_entity_surfaces(VFS, obj, import_settings)
+                blender_mesh, vertex_groups = load_map_entity_surfaces(VFS, obj, import_settings)
             else:
-                blender_mesh = load_mesh(VFS, obj.mesh_name, obj.zoffset, bsp)
+                blender_mesh, vertex_groups = load_mesh(VFS, obj.mesh_name, obj.zoffset, bsp)
             if blender_mesh is not None:
                 blender_mesh.name = mesh_z_name
                 meshes[mesh_z_name] = blender_mesh
@@ -490,6 +492,12 @@ def create_blender_objects(VFS, import_settings, objects, meshes, bsp):
 
         bpy.context.collection.objects.link(blender_obj)
         object_list.append(blender_obj)
+
+        for vert_group in vertex_groups:
+            vg = blender_obj.vertex_groups.get(vert_group)
+            if vg is None:
+                vg = blender_obj.vertex_groups.new(name=vert_group)
+            vg.add(list(vertex_groups[vert_group]), 1.0, 'ADD')
 
         set_custom_properties(import_settings, blender_obj, obj)
     return object_list
