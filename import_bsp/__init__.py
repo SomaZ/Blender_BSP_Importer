@@ -117,8 +117,8 @@ classes = (UI.Import_ID3_BSP,
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-    bpy.types.TOPBAR_MT_file_import.append(UI.menu_func_bsp_import)
     bpy.types.TOPBAR_MT_file_import.append(UI.menu_func_map_import)
+    bpy.types.TOPBAR_MT_file_import.append(UI.menu_func_bsp_import)
     bpy.types.TOPBAR_MT_file_import.append(UI.menu_func_md3_import)
     bpy.types.TOPBAR_MT_file_import.append(UI.menu_func_tik_import)
     bpy.types.TOPBAR_MT_file_export.append(UI.menu_func_md3_export)
@@ -146,8 +146,8 @@ def register():
 
 
 def unregister():
-    bpy.types.TOPBAR_MT_file_import.remove(UI.menu_func_bsp_import)
     bpy.types.TOPBAR_MT_file_import.remove(UI.menu_func_map_import)
+    bpy.types.TOPBAR_MT_file_import.remove(UI.menu_func_bsp_import)
     bpy.types.TOPBAR_MT_file_import.remove(UI.menu_func_md3_import)
     bpy.types.TOPBAR_MT_file_import.remove(UI.menu_func_tik_import)
     bpy.types.TOPBAR_MT_file_export.remove(UI.menu_func_md3_export)

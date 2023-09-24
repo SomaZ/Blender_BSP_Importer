@@ -539,7 +539,7 @@ def menu_func_bsp_import(self, context):
 
 
 def menu_func_map_import(self, context):
-    self.layout.operator(Import_MAP.bl_idname, text="id Software MAP (.map)")
+    self.layout.operator(Import_MAP.bl_idname, text="ID3 MAP (.map)")
 
 
 def menu_func_md3_import(self, context):
