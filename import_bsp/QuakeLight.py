@@ -1052,7 +1052,7 @@ def storeVertexColors(bsp, objs, light_settings, patch_colors=False):
                               round(clamp_uv(uv_coords.y) * (height - 1))]
                     index = (target[1] * width + target[0]) * 4
 
-                    bsp_vert = bsp.lumps["drawverts"].data[bsp_vert_index]
+                    bsp_vert = bsp.lumps["drawverts"][bsp_vert_index]
 
                     if patch_colors:
                         color = colorNormalize(
@@ -1061,11 +1061,11 @@ def storeVertexColors(bsp, objs, light_settings, patch_colors=False):
                              local_pixels[index + 2]],
                             color_scale,
                             light_settings)
-                        bsp_vert.color1[0] = color[0]
-                        bsp_vert.color1[1] = color[1]
-                        bsp_vert.color1[2] = color[2]
-                        bsp_vert.color1[3] = (
-                            mesh.vertex_colors["Alpha"].data[loop].color[0])
+                        bsp_vert.color1[0] = int(color[0] * 255)
+                        bsp_vert.color1[1] = int(color[1] * 255)
+                        bsp_vert.color1[2] = int(color[2] * 255)
+                        bsp_vert.color1[3] = int(
+                            mesh.vertex_colors["Alpha"].data[loop].color[0] * 255)
                         # TODO: Add support for lightstyles
                         # if bsp.lightmaps == 4:
                         #    bsp_vert.color2 = (
