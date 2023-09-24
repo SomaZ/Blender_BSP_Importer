@@ -39,7 +39,7 @@ def pack_lm_tc(tc,
                lightmap_size,
                packed_lightmap_size):
     if (lightmap_id < 0):
-        return clamp_shift_tc(tc, 0.0, 1.0, lightmap_id, 0.0)
+        return tc
 
     packed_lm_size = packed_lightmap_size
     num_columns = packed_lm_size[0] / lightmap_size[0]
