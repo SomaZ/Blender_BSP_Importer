@@ -549,7 +549,7 @@ def import_bsp_file(import_settings):
         bsp_models = bsp_file.get_bsp_models()
         blender_meshes = create_meshes_from_models(bsp_models)
         for mesh_name in blender_meshes:
-            mesh = blender_meshes[mesh_name]
+            mesh, vertex_groups = blender_meshes[mesh_name]
             if mesh is None:
                 mesh = bpy.data.meshes.new(mesh_name)
             ob = bpy.data.objects.new(
