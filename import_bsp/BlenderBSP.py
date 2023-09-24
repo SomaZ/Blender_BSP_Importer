@@ -159,6 +159,11 @@ def load_mesh(VFS, mesh_name, zoffset, bsp):
             return None
     elif mesh_name.startswith("*") and bsp is not None:
         model_id = None
+
+        mesh = bpy.data.meshes.get(mesh_name)
+        if mesh != None:
+            mesh.name = mesh_name+"_prev.000"
+
         try:
             model_id = int(mesh_name[1:])
             new_blender_mesh = create_meshes_from_models([
@@ -573,6 +578,10 @@ def import_bsp_file(import_settings):
 
     bsp_images = bsp_file.get_bsp_images()
     for image in bsp_images:
+        old_image = bpy.data.images.get(image.name)
+        if old_image != None:
+            old_image.name = image.name + "_prev.000"
+
         new_image = bpy.data.images.new(
             image.name,
             width=image.width,

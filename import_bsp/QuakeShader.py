@@ -1344,6 +1344,10 @@ class quake_shader:
 
 
 def init_shader_system(bsp):
+    bsp_node = bpy.data.node_groups.get("BspInfo")
+    if bsp_node is not None:
+        bsp_node.name = bsp_node.name+"_prev.000"
+
     bsp_node = ShaderNodes.Bsp_Node.create_node_tree(bsp)
     bsp_node.use_fake_user = True
     color_normalize_node = ShaderNodes.Color_Normalize_Node.create_node_tree(
