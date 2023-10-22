@@ -224,7 +224,7 @@ def storeLighmaps(bsp,
             bsp.lumps["lightmaps"].append(bsp_lightmap)
 
     if not internal or hdr:
-        bsp_path = bsp.bsp_path.replace("\\", "/").split(".")[0] + "/"
+        bsp_path = bsp.import_settings.file.replace("\\", "/").split(".")[0] + "/"
         if not os.path.exists(bsp_path):
             os.makedirs(bsp_path)
         file_type = "HDR" if hdr else "TARGA_RAW"
@@ -548,8 +548,49 @@ def packLightgridData(bsp,
 
     max_add = compression_level-1
     if compression_level > 1:
-        for grid_point in bsp.lumps["lightgrid"].data:
-            grid_array = grid_point.to_array()
+        for grid_point in bsp.lumps["lightgrid"]:
+            grid_array = []
+            if bsp.lightmaps == 4:
+                grid_array.append(grid_point.ambient1[0])
+                grid_array.append(grid_point.ambient1[1])
+                grid_array.append(grid_point.ambient1[2])
+                grid_array.append(grid_point.ambient2[0])
+                grid_array.append(grid_point.ambient2[1])
+                grid_array.append(grid_point.ambient2[2])
+                grid_array.append(grid_point.ambient3[0])
+                grid_array.append(grid_point.ambient3[1])
+                grid_array.append(grid_point.ambient3[2])
+                grid_array.append(grid_point.ambient4[0])
+                grid_array.append(grid_point.ambient4[1])
+                grid_array.append(grid_point.ambient4[2])
+                grid_array.append(grid_point.direct1[0])
+                grid_array.append(grid_point.direct1[1])
+                grid_array.append(grid_point.direct1[2])
+                grid_array.append(grid_point.direct2[0])
+                grid_array.append(grid_point.direct2[1])
+                grid_array.append(grid_point.direct2[2])
+                grid_array.append(grid_point.direct3[0])
+                grid_array.append(grid_point.direct3[1])
+                grid_array.append(grid_point.direct3[2])
+                grid_array.append(grid_point.direct4[0])
+                grid_array.append(grid_point.direct4[1])
+                grid_array.append(grid_point.direct4[2])
+                grid_array.append(grid_point.styles[0])
+                grid_array.append(grid_point.styles[1])
+                grid_array.append(grid_point.styles[2])
+                grid_array.append(grid_point.styles[3])
+                grid_array.append(grid_point.lat_long[0])
+                grid_array.append(grid_point.lat_long[1])
+            else:
+                grid_array.append(grid_point.ambient1[0])
+                grid_array.append(grid_point.ambient1[1])
+                grid_array.append(grid_point.ambient1[2])
+                grid_array.append(grid_point.direct1[0])
+                grid_array.append(grid_point.direct1[1])
+                grid_array.append(grid_point.direct1[2])
+                grid_array.append(grid_point.lat_long[0])
+                grid_array.append(grid_point.lat_long[1])
+            
             hashing_array = []
             for i in range(len(array)):
                 hashing_array.append(
@@ -780,7 +821,7 @@ def storeLightgrid(bsp, light_settings):
                 hdr_bytes += struct.pack("<f", dir_pixels[4 * pixel + 1])
                 hdr_bytes += struct.pack("<f", dir_pixels[4 * pixel + 2])
 
-        bsp_path = bsp.bsp_path.replace("\\", "/").split(".")[0] + "/"
+        bsp_path = bsp.import_settings.file.replace("\\", "/").split(".")[0] + "/"
         if not os.path.exists(bsp_path):
             os.makedirs(bsp_path)
 
@@ -1023,7 +1064,7 @@ def storeVertexColors(bsp, objs, light_settings, patch_colors=False):
 
     if hdr_export:
         hdr_vertex_colors = [0.0 for i in range(
-            int(bsp.lumps["drawverts"].count*3))]
+            int(len(bsp.lumps["drawverts"])*3))]
 
     for obj in objs:
         mesh = obj.data
@@ -1091,12 +1132,12 @@ def storeVertexColors(bsp, objs, light_settings, patch_colors=False):
 
     if hdr_export:
         hdr_bytes = bytearray()
-        for vert in range(bsp.lumps["drawverts"].count):
+        for vert in range(len(bsp.lumps["drawverts"])):
             hdr_bytes += struct.pack("<f", hdr_vertex_colors[vert * 3])
             hdr_bytes += struct.pack("<f", hdr_vertex_colors[vert * 3 + 1])
             hdr_bytes += struct.pack("<f", hdr_vertex_colors[vert * 3 + 2])
 
-        bsp_path = bsp.bsp_path.replace("\\", "/").split(".")[0] + "/"
+        bsp_path = bsp.import_settings.file.replace("\\", "/").split(".")[0] + "/"
         if not os.path.exists(bsp_path):
             os.makedirs(bsp_path)
 
