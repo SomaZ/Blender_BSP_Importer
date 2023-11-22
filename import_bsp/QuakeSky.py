@@ -14,7 +14,6 @@ else:
     from . import QuakeLight
 
 import math
-import bgl
 import gpu
 from gpu_extras.batch import batch_for_shader
 from mathutils import Matrix, Vector
@@ -190,46 +189,32 @@ def make_equirectangular_from_sky(VFS, sky_name):
 
     offscreen = gpu.types.GPUOffScreen(equi_w, equi_h)
     with offscreen.bind():
-        bgl.glClear(bgl.GL_COLOR_BUFFER_BIT)
+        fb = gpu.state.active_framebuffer_get()
+        fb.clear(color=(0.0, 0.0, 0.0, 0.0))
+
         with gpu.matrix.push_pop():
             # reset matrices -> use normalized device coordinates [-1, 1]
             gpu.matrix.load_matrix(Matrix.Identity(4))
             gpu.matrix.load_projection_matrix(Matrix.Identity(4))
 
-            if cube[0] is not None:
-                bgl.glActiveTexture(bgl.GL_TEXTURE0)
-                bgl.glBindTexture(bgl.GL_TEXTURE_2D, cube[0].bindcode)
-            if cube[1] is not None:
-                bgl.glActiveTexture(bgl.GL_TEXTURE1)
-                bgl.glBindTexture(bgl.GL_TEXTURE_2D, cube[1].bindcode)
-            if cube[2] is not None:
-                bgl.glActiveTexture(bgl.GL_TEXTURE2)
-                bgl.glBindTexture(bgl.GL_TEXTURE_2D, cube[2].bindcode)
-            if cube[3] is not None:
-                bgl.glActiveTexture(bgl.GL_TEXTURE3)
-                bgl.glBindTexture(bgl.GL_TEXTURE_2D, cube[3].bindcode)
-            if cube[4] is not None:
-                bgl.glActiveTexture(bgl.GL_TEXTURE4)
-                bgl.glBindTexture(bgl.GL_TEXTURE_2D, cube[4].bindcode)
-            if cube[5] is not None:
-                bgl.glActiveTexture(bgl.GL_TEXTURE5)
-                bgl.glBindTexture(bgl.GL_TEXTURE_2D, cube[5].bindcode)
-
             # now draw
             shader.bind()
-            shader.uniform_int("tex_up", 0)
-            shader.uniform_int("tex_dn", 1)
-            shader.uniform_int("tex_ft", 2)
-            shader.uniform_int("tex_bk", 3)
-            shader.uniform_int("tex_lf", 4)
-            shader.uniform_int("tex_rt", 5)
+            if cube[0] is not None:
+                shader.uniform_sampler("tex_up", gpu.texture.from_image(cube[0]))
+            if cube[1] is not None:
+                shader.uniform_sampler("tex_dn", gpu.texture.from_image(cube[1]))
+            if cube[2] is not None:
+                shader.uniform_sampler("tex_ft", gpu.texture.from_image(cube[2]))
+            if cube[3] is not None:
+                shader.uniform_sampler("tex_bk", gpu.texture.from_image(cube[3]))
+            if cube[4] is not None:
+                shader.uniform_sampler("tex_lf", gpu.texture.from_image(cube[4]))
+            if cube[5] is not None:
+                shader.uniform_sampler("tex_rt", gpu.texture.from_image(cube[5]))
             shader.uniform_float("clamp_value", 1.0 / biggest_h)
             batch.draw(shader)
 
-        buffer = bgl.Buffer(bgl.GL_FLOAT, equi_w * equi_h * 4)
-        bgl.glReadBuffer(bgl.GL_BACK)
-        bgl.glReadPixels(0, 0, equi_w, equi_h,
-                         bgl.GL_RGBA, bgl.GL_FLOAT, buffer)
+        buffer = fb.read_color(0, 0, equi_w, equi_h, 4, 0, 'FLOAT')
 
     offscreen.free()
 
@@ -237,7 +222,9 @@ def make_equirectangular_from_sky(VFS, sky_name):
     if image is None:
         image = bpy.data.images.new(sky_name, width=equi_w, height=equi_h)
     image.scale(equi_w, equi_h)
-    image.pixels = buffer
+
+    buffer.dimensions = equi_w * equi_h * 4
+    image.pixels = [v for v in buffer]
     image.pack()
     return image
 

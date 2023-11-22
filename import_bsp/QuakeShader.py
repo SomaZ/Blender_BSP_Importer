@@ -38,6 +38,11 @@ else:
 from .idtech3lib import ID3Shader
 from .idtech3lib.Parsing import *
 
+if bpy.app.version >= (4, 0, 0):
+    EMISSION_KEY = "Emission Color"
+else:
+    EMISSION_KEY = "Emission"
+
 LIGHTING_IDENTITY = 0
 LIGHTING_VERTEX = 1
 LIGHTING_LIGHTGRID = 3
@@ -398,7 +403,7 @@ class quake_shader:
                 new_out_node.location = (0, 0)
                 if out_node is not None:
                     shader.links.new(
-                        out_node.outputs["Vector"],
+                        out_node.outputs[0],
                         new_out_node.inputs["Vector"])
                 out_node = new_out_node
 
@@ -423,7 +428,7 @@ class quake_shader:
                     new_out_node.inputs["Time"])
                 if out_node is not None:
                     shader.links.new(
-                        out_node.outputs["Vector"],
+                        out_node.outputs[0],
                         new_out_node.inputs["Vector"])
                 out_node = new_out_node
 
@@ -444,7 +449,7 @@ class quake_shader:
                     new_out_node.inputs["Time"])
                 if out_node is not None:
                     shader.links.new(
-                        out_node.outputs["Vector"],
+                        out_node.outputs[0],
                         new_out_node.inputs["Vector"])
                 out_node = new_out_node
             else:
@@ -481,7 +486,7 @@ class quake_shader:
                             tc_gen.outputs["UV"],
                             tc_mod.inputs["Vector"])
                         shader.links.new(
-                            tc_mod.outputs["Vector"],
+                            tc_mod.outputs[0],
                             node_color.inputs["Vector"])
 
                 lighting = shader.get_rgbGen_node(stage.lighting)
@@ -788,7 +793,7 @@ class quake_shader:
                 if out_Glow is not None or node_light is not None:
                     new_node = shader.get_node_by_name("EmissionScaleNode")
                     shader.links.new(
-                        new_node.outputs[0], node_BSDF.inputs["Emission"])
+                        new_node.outputs[0], node_BSDF.inputs[EMISSION_KEY])
                     if out_Glow is not None:
                         shader.links.new(out_Glow, new_node.inputs[2])
                     if node_light is not None:
@@ -798,6 +803,8 @@ class quake_shader:
                         new_node.inputs[1].default_value = (
                             float(shader.attributes["q3map_surfacelight"][0]) /
                             1000.0)
+                    if bpy.app.version >= (4, 0, 0):
+                        node_BSDF.inputs["Emission Strength"].default_value = 1.0
                 if (shader.mat.blend_method != "OPAQUE" and
                    out_Alpha is not None and
                    "portal" not in shader.attributes):
@@ -1261,7 +1268,9 @@ class quake_shader:
 
             if color_out is not None:
                 shader.links.new(color_out, node_BSDF.inputs["Base Color"])
-                shader.links.new(color_out, node_BSDF.inputs["Emission"])
+                shader.links.new(color_out, node_BSDF.inputs[EMISSION_KEY])
+                if bpy.app.version >= (4, 0, 0):
+                        node_BSDF.inputs["Emission Strength"].default_value = 1.0
             if shader.mat.blend_method != "OPAQUE" and alpha_out is not None:
                 shader.links.new(alpha_out, node_BSDF.inputs["Alpha"])
             shader_out = node_BSDF.outputs["BSDF"]

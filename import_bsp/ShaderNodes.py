@@ -1,5 +1,28 @@
 import bpy
 
+def create_node_output(node_group, type, name):
+    if bpy.app.version >= (4, 0, 0):
+        node_group.interface.new_socket(name=name, in_out='OUTPUT', socket_type=type)
+    else:
+        node_group.outputs.new(type, name)
+
+def create_node_input(node_group, type, name):
+    if bpy.app.version >= (4, 0, 0):
+        node_group.interface.new_socket(name=name, in_out='INPUT', socket_type=type)
+    else:
+        node_group.inputs.new(type, name)
+
+def set_default_input(node_group, name, value):
+    if bpy.app.version >= (4, 0, 0):
+        node_group.interface.items_tree[name].default_value = value
+    else:
+        node_group.inputs[name].default_value = value
+
+def set_default_output(node_group, name, value):
+    if bpy.app.version >= (4, 0, 0):
+        node_group.interface.items_tree[name].default_value = value
+    else:
+        node_group.outputs[name].default_value = value
 
 def create_static_node(shader, name):
     node = None
@@ -90,9 +113,9 @@ class Bsp_Node(Generic_Node_Group):
         bsp_group = bpy.data.node_groups.new(self.name, 'ShaderNodeTree')
         group_outputs = bsp_group.nodes.new('NodeGroupOutput')
         group_outputs.location = (1300, 0)
-        bsp_group.outputs.new('NodeSocketVector', 'LightGridOrigin')
-        bsp_group.outputs.new('NodeSocketVector', 'LightGridInverseSize')
-        bsp_group.outputs.new('NodeSocketVector', 'LightGridInverseDimension')
+        create_node_output(bsp_group, 'NodeSocketVector', 'LightGridOrigin')
+        create_node_output(bsp_group, 'NodeSocketVector', 'LightGridInverseSize')
+        create_node_output(bsp_group, 'NodeSocketVector', 'LightGridInverseDimension')
 
         node_grid_origin = bsp_group.nodes.new(type="ShaderNodeCombineXYZ")
         node_grid_origin.name = "GridOrigin"
@@ -168,14 +191,15 @@ class Emission_Node(Generic_Node_Group):
 
         group_inputs = emission_group.nodes.new('NodeGroupInput')
         group_inputs.location = (-1600, 0)
-        emission_group.inputs.new('NodeSocketColor', 'Color')
-        emission_group.inputs.new('NodeSocketFloat', 'Light')
-        emission_group.inputs.new('NodeSocketColor', 'ExtraColor')
-        emission_group.inputs['Light'].default_value = 1.0
+        create_node_input(emission_group, 'NodeSocketColor', 'Color')
+        create_node_input(emission_group, 'NodeSocketFloat', 'Light')
+        create_node_input(emission_group, 'NodeSocketColor', 'ExtraColor')
+
+        set_default_input(emission_group, 'Light', 1.0)
 
         group_outputs = emission_group.nodes.new('NodeGroupOutput')
         group_outputs.location = (1300, 0)
-        emission_group.outputs.new('NodeSocketColor', 'OutColor')
+        create_node_output(emission_group, 'NodeSocketColor', 'OutColor')
 
         shader_emission = emission_group.nodes.new(type="ShaderNodeVectorMath")
         shader_emission.operation = "SCALE"
@@ -239,7 +263,7 @@ class Normal_Set_Node(Generic_Node_Group):
 
         group_outputs = normal_group.nodes.new('NodeGroupOutput')
         group_outputs.location = (1300, 0)
-        normal_group.outputs.new('NodeSocketVector', 'OutNormal')
+        create_node_output(normal_group, 'NodeSocketVector', 'OutNormal')
 
         normal = normal_group.nodes.new(type="ShaderNodeNormal")
         normal.name = "Tangent Space Normal"
@@ -265,13 +289,13 @@ class Color_Normalize_Node(Generic_Node_Group):
 
         group_inputs = light_group.nodes.new('NodeGroupInput')
         group_inputs.location = (-1600, 0)
-        light_group.inputs.new('NodeSocketColor', 'Color')
-        light_group.inputs.new('NodeSocketFloat', 'HDR')
-        light_group.inputs['HDR'].default_value = 0.0
-
+        create_node_input(light_group, 'NodeSocketColor', 'Color')
+        create_node_input(light_group, 'NodeSocketFloat', 'HDR')
+        set_default_input(light_group, 'HDR', 0.0)
+        
         group_outputs = light_group.nodes.new('NodeGroupOutput')
         group_outputs.location = (1300, 0)
-        light_group.outputs.new('NodeSocketColor', 'OutColor')
+        create_node_output(light_group, 'NodeSocketColor', 'OutColor')
 
         rgb_node = light_group.nodes.new(type="ShaderNodeSeparateRGB")
         light_group.links.new(
@@ -316,7 +340,7 @@ class Base_Light_Vector_Node(Generic_Node_Group):
 
         group_outputs = vector_group.nodes.new('NodeGroupOutput')
         group_outputs.location = (1300, 0)
-        vector_group.outputs.new('NodeSocketVector', 'Vector')
+        create_node_output(vector_group, 'NodeSocketVector', 'Vector')
 
         node_geometry = vector_group.nodes.new(type="ShaderNodeNewGeometry")
         node_geometry.location = (0, 0)
@@ -356,16 +380,16 @@ class Blend_Node(Generic_Node_Group):
 
         group_inputs = blend_group.nodes.new('NodeGroupInput')
         group_inputs.location = (-1600, 0)
-        blend_group.inputs.new('NodeSocketColor', 'DestinationColor')
-        blend_group.inputs.new('NodeSocketFloat', 'DestinationAlpha')
-        blend_group.inputs.new('NodeSocketColor', 'SourceColor')
-        blend_group.inputs.new('NodeSocketFloat', 'SourceAlpha')
-        blend_group.inputs.new('NodeSocketColor', 'rgbGen')
+        create_node_input(blend_group, 'NodeSocketColor', 'DestinationColor')
+        create_node_input(blend_group, 'NodeSocketFloat', 'DestinationAlpha')
+        create_node_input(blend_group, 'NodeSocketColor', 'SourceColor')
+        create_node_input(blend_group, 'NodeSocketFloat', 'SourceAlpha')
+        create_node_input(blend_group, 'NodeSocketColor', 'rgbGen')
 
         group_outputs = blend_group.nodes.new('NodeGroupOutput')
         group_outputs.location = (1300, 0)
-        blend_group.outputs.new('NodeSocketColor', 'OutColor')
-        blend_group.outputs.new('NodeSocketFloat', 'OutAlpha')
+        create_node_output(blend_group, 'NodeSocketColor', 'OutColor')
+        create_node_output(blend_group, 'NodeSocketFloat', 'OutAlpha')
 
         node_term_dest = blend_group.nodes.new(type="ShaderNodeMixRGB")
         node_term_dest.name = "DestinationColorTerm"
@@ -755,8 +779,8 @@ class Blend_Node(Generic_Node_Group):
         blend_group.links.new(
             node_output_a.outputs["Value"], group_outputs.inputs['OutAlpha'])
 
-        blend_group.inputs["DestinationAlpha"].default_value = 0.0
-        blend_group.inputs["rgbGen"].default_value = [1.0, 1.0, 1.0, 1.0]
+        set_default_input(blend_group, "DestinationAlpha", 0.0)
+        set_default_input(blend_group, "rgbGen", [1.0, 1.0, 1.0, 1.0])
         return blend_group
 
 
@@ -769,17 +793,16 @@ class Lightgrid_Node(Generic_Node_Group):
 
         group_inputs = lightgrid_group.nodes.new('NodeGroupInput')
         group_inputs.location = (-1600, 0)
-        lightgrid_group.inputs.new('NodeSocketFloat', 'ZOffset')
+        create_node_input(lightgrid_group, 'NodeSocketFloat', 'ZOffset')
         group_inputs.outputs["ZOffset"].default_value = 0.0
-        lightgrid_group.inputs.new('NodeSocketVector', 'LightGridOrigin')
-        lightgrid_group.inputs.new('NodeSocketVector', 'LightGridInverseSize')
-        lightgrid_group.inputs.new(
-            'NodeSocketVector', 'LightGridInverseDimension')
+        create_node_input(lightgrid_group, 'NodeSocketVector', 'LightGridOrigin')
+        create_node_input(lightgrid_group, 'NodeSocketVector', 'LightGridInverseSize')
+        create_node_input(lightgrid_group, 'NodeSocketVector', 'LightGridInverseDimension')
 
         group_outputs = lightgrid_group.nodes.new('NodeGroupOutput')
         group_outputs.location = (1300, 0)
-        lightgrid_group.outputs.new('NodeSocketVector', 'LightGridLight')
-        lightgrid_group.outputs.new('NodeSocketVector', 'LightGridVector')
+        create_node_output(lightgrid_group, 'NodeSocketVector', 'LightGridLight')
+        create_node_output(lightgrid_group, 'NodeSocketVector', 'LightGridVector')
 
         node_object = lightgrid_group.nodes.new(type="ShaderNodeObjectInfo")
         node_object.name = "Object"
@@ -1082,7 +1105,7 @@ class TcGen_Env_Node(Generic_Node_Group):
 
         group_outputs = tc_group.nodes.new('NodeGroupOutput')
         group_outputs.location = (1100, 0)
-        tc_group.outputs.new('NodeSocketVector', 'UV')
+        create_node_output(tc_group, 'NodeSocketVector', 'UV')
 
         node_geometry = tc_group.nodes.new(type="ShaderNodeNewGeometry")
         node_geometry.location = (0, 0)
@@ -1135,11 +1158,11 @@ class AlphaGen_Spec_Node(Generic_Node_Group):
 
         group_outputs = alpha_group.nodes.new('NodeGroupOutput')
         group_outputs.location = (1300, 0)
-        alpha_group.outputs.new('NodeSocketFloat', 'Value')
+        create_node_output(alpha_group, 'NodeSocketFloat', 'Value')
 
         group_inputs = alpha_group.nodes.new('NodeGroupInput')
         group_inputs.location = (-1600, 0)
-        alpha_group.inputs.new('NodeSocketVector', 'LightVector')
+        create_node_input(alpha_group, 'NodeSocketVector', 'LightVector')
 
         node_geometry = alpha_group.nodes.new(type="ShaderNodeNewGeometry")
         node_geometry.location = (0, 0)
@@ -1215,7 +1238,7 @@ class Shader_Time_Node(Generic_Node_Group):
 
         group_outputs = time_group.nodes.new('NodeGroupOutput')
         group_outputs.location = (1300, 0)
-        time_group.outputs.new('NodeSocketFloat', 'Time')
+        create_node_output(time_group, 'NodeSocketFloat', 'Time')
 
         start_end = [bpy.context.scene.frame_start,
                      bpy.context.scene.frame_end]
@@ -1249,14 +1272,13 @@ class Shader_Rotate_Node(Generic_Node_Group):
 
         group_outputs = rotate_group.nodes.new('NodeGroupOutput')
         group_outputs.location = (1300, 0)
-        rotate_group.outputs.new('NodeSocketVector', 'Vector')
+        create_node_output(rotate_group, 'NodeSocketVector', 'OutVector')
 
         group_inputs = rotate_group.nodes.new('NodeGroupInput')
         group_inputs.location = (-1600, 0)
-        rotate_group.inputs.new('NodeSocketVector', 'Vector')
-        rotate_group.inputs.new('NodeSocketFloat', 'Degrees')
-
-        rotate_group.inputs.new('NodeSocketFloat', 'Time')
+        create_node_input(rotate_group, 'NodeSocketVector', 'Vector')
+        create_node_input(rotate_group, 'NodeSocketFloat', 'Degrees')
+        create_node_input(rotate_group, 'NodeSocketFloat', 'Time')
 
         node_dps = rotate_group.nodes.new(type="ShaderNodeMath")
         node_dps.name = "Degree per second"
@@ -1415,7 +1437,7 @@ class Shader_Rotate_Node(Generic_Node_Group):
         rotate_group.links.new(node_t.outputs[0], node_uv.inputs["Y"])
 
         rotate_group.links.new(
-            node_uv.outputs["Vector"], group_outputs.inputs["Vector"])
+            node_uv.outputs["Vector"], group_outputs.inputs["OutVector"])
 
         return rotate_group
 
@@ -1429,14 +1451,13 @@ class Shader_Scroll_Node(Generic_Node_Group):
 
         group_outputs = scroll_group.nodes.new('NodeGroupOutput')
         group_outputs.location = (1300, 0)
-        scroll_group.outputs.new('NodeSocketVector', 'Vector')
+        create_node_output(scroll_group, 'NodeSocketVector', 'OutVector')
 
         group_inputs = scroll_group.nodes.new('NodeGroupInput')
         group_inputs.location = (-1600, 0)
-        scroll_group.inputs.new('NodeSocketVector', 'Vector')
-        scroll_group.inputs.new('NodeSocketVector', 'Arguments')
-
-        scroll_group.inputs.new('NodeSocketFloat', 'Time')
+        create_node_input(scroll_group, 'NodeSocketVector', 'Vector')
+        create_node_input(scroll_group, 'NodeSocketVector', 'Arguments')
+        create_node_input(scroll_group, 'NodeSocketFloat', 'Time')
 
         node_mult = scroll_group.nodes.new(type="ShaderNodeMixRGB")
         node_mult.name = "Term1"
@@ -1475,6 +1496,6 @@ class Shader_Scroll_Node(Generic_Node_Group):
         scroll_group.links.new(node_uv.outputs["Vector"], node_sub.inputs[1])
 
         scroll_group.links.new(
-            node_sub.outputs["Vector"], group_outputs.inputs["Vector"])
+            node_sub.outputs["Vector"], group_outputs.inputs["OutVector"])
 
         return scroll_group
