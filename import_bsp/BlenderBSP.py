@@ -191,7 +191,7 @@ def load_map_entity_surfaces(VFS, obj, import_settings):
     materials = []
     surfaces = obj.custom_parameters.get("surfaces")
     if surfaces is None:
-        return None
+        return None, None
     for surf in surfaces:
         if surf.type == "BRUSH":
             for plane in surf.planes:
@@ -206,7 +206,7 @@ def load_map_entity_surfaces(VFS, obj, import_settings):
     new_blender_mesh = create_meshes_from_models([
         MAP.get_entity_brushes(obj, material_sizes, import_settings)])
     if new_blender_mesh is None:
-        return None
+        return None, None
     blender_mesh, vertex_groups = next(iter(new_blender_mesh.values()))
     return blender_mesh, vertex_groups
 
