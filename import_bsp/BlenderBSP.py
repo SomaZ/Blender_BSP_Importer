@@ -306,9 +306,9 @@ def add_light_drivers(light):
         }
 
         if scale_value != None:
-            expression = "light * scale * {}"
+            expression = "float(light) * float(scale) * {}"
         else:
-            expression = "light * {}"
+            expression = "float(light) * {}"
 
         driver.driver.expression = expression.format(light_type_scale[light_data.type])
 
