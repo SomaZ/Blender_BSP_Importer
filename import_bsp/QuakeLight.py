@@ -229,7 +229,7 @@ def storeLighmaps(bsp,
             os.makedirs(bsp_path)
         file_type = "HDR" if hdr else "TARGA_RAW"
         file_ext = ".hdr" if hdr else ".tga"
-        color_space = 'Linear' if hdr else "sRGB"
+        color_space = 'Non-Color' if hdr else "sRGB"
 
         image_settings = bpy.context.scene.render.image_settings
         image_settings.file_format = file_type
