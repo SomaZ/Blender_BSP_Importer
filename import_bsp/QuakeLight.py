@@ -1069,66 +1069,70 @@ def storeVertexColors(bsp, objs, light_settings, patch_colors=False):
     for obj in objs:
         mesh = obj.data
         # check if its an imported bsp data set
-        if mesh.vertex_layers_int.get("BSP_VERT_INDEX") is not None:
-            bsp_indices = mesh.vertex_layers_int["BSP_VERT_INDEX"]
-            for poly in mesh.polygons:
-                mat_name = mesh.materials[poly.material_index].name
+        if bpy.app.version >= (2, 91, 0):
+            bsp_indices = mesh.attributes.get("BSP_VERT_INDEX")
+        else:
+            bsp_indices = mesh.vertex_layers_int.get("BSP_VERT_INDEX")
 
-                if mat_name.endswith(".vertex"):
-                    local_pixels = vt_local_pixels
-                    width = vt_width
-                    height = vt_height
-                else:
-                    local_pixels = lm_local_pixels
-                    width = lm_width
-                    height = lm_height
+        if bsp_indices is None:
+            continue
+        for poly in mesh.polygons:
+            mat_name = mesh.materials[poly.material_index].name
 
-                for vertex, loop in zip(poly.vertices, poly.loop_indices):
-                    # get the vertex position in the bsp file
-                    bsp_vert_index = bsp_indices.data[vertex].value
-                    if bsp_vert_index < 0:
-                        continue
-                    uv_coords = mesh.uv_layers["LightmapUV"].data[loop].uv
-                    target = [round(clamp_uv(uv_coords.x) * (width - 1)),
-                              round(clamp_uv(uv_coords.y) * (height - 1))]
-                    index = (target[1] * width + target[0]) * 4
+            if mat_name.endswith(".vertex"):
+                local_pixels = vt_local_pixels
+                width = vt_width
+                height = vt_height
+            else:
+                local_pixels = lm_local_pixels
+                width = lm_width
+                height = lm_height
+            for vertex, loop in zip(poly.vertices, poly.loop_indices):
+                # get the vertex position in the bsp file
+                bsp_vert_index = bsp_indices.data[vertex].value
+                if bsp_vert_index < 0:
+                    continue
+                uv_coords = mesh.uv_layers["LightmapUV"].data[loop].uv
+                target = [round(clamp_uv(uv_coords.x) * (width - 1)),
+                          round(clamp_uv(uv_coords.y) * (height - 1))]
+                index = (target[1] * width + target[0]) * 4
 
-                    bsp_vert = bsp.lumps["drawverts"][bsp_vert_index]
+                bsp_vert = bsp.lumps["drawverts"][bsp_vert_index]
 
-                    if patch_colors:
-                        color = colorNormalize(
-                            [local_pixels[index],
-                             local_pixels[index + 1],
-                             local_pixels[index + 2]],
-                            color_scale,
-                            light_settings)
-                        bsp_vert.color1[0] = int(color[0] * 255)
-                        bsp_vert.color1[1] = int(color[1] * 255)
-                        bsp_vert.color1[2] = int(color[2] * 255)
-                        bsp_vert.color1[3] = int(
-                            mesh.vertex_colors["Alpha"].data[loop].color[0] * 255)
-                        # TODO: Add support for lightstyles
-                        # if bsp.lightmaps == 4:
-                        #    bsp_vert.color2 = (
-                        #       mesh.vertex_colors["Color2"].data[loop].color)
-                        #    bsp_vert.color2[3] = (
-                        #       mesh.vertex_colors["Alpha"].data[loop].color[1])
-                        #    bsp_vert.color3 = (
-                        #       mesh.vertex_colors["Color3"].data[loop].color)
-                        #    bsp_vert.color3[3] = (
-                        #       mesh.vertex_colors["Alpha"].data[loop].color[2])
-                        #    bsp_vert.color4 = (
-                        #       mesh.vertex_colors["Color4"].data[loop].color)
-                        #    bsp_vert.color4[3] = (
-                        #       mesh.vertex_colors["Alpha"].data[loop].color[3])
+                if patch_colors:
+                    color = colorNormalize(
+                        [local_pixels[index],
+                         local_pixels[index + 1],
+                         local_pixels[index + 2]],
+                        color_scale,
+                        light_settings)
+                    bsp_vert.color1[0] = int(color[0] * 255)
+                    bsp_vert.color1[1] = int(color[1] * 255)
+                    bsp_vert.color1[2] = int(color[2] * 255)
+                    bsp_vert.color1[3] = int(
+                        mesh.vertex_colors["Alpha"].data[loop].color[0] * 255)
+                    # TODO: Add support for lightstyles
+                    # if bsp.lightmaps == 4:
+                    #    bsp_vert.color2 = (
+                    #       mesh.vertex_colors["Color2"].data[loop].color)
+                    #    bsp_vert.color2[3] = (
+                    #       mesh.vertex_colors["Alpha"].data[loop].color[1])
+                    #    bsp_vert.color3 = (
+                    #       mesh.vertex_colors["Color3"].data[loop].color)
+                    #    bsp_vert.color3[3] = (
+                    #       mesh.vertex_colors["Alpha"].data[loop].color[2])
+                    #    bsp_vert.color4 = (
+                    #       mesh.vertex_colors["Color4"].data[loop].color)
+                    #    bsp_vert.color4[3] = (
+                    #       mesh.vertex_colors["Alpha"].data[loop].color[3])
 
-                    if hdr_export:
-                        hdr_vertex_colors[bsp_vert_index *
-                                          3] = local_pixels[index]
-                        hdr_vertex_colors[bsp_vert_index *
-                                          3 + 1] = local_pixels[index + 1]
-                        hdr_vertex_colors[bsp_vert_index *
-                                          3 + 2] = local_pixels[index + 2]
+                if hdr_export:
+                    hdr_vertex_colors[bsp_vert_index *
+                                      3] = local_pixels[index]
+                    hdr_vertex_colors[bsp_vert_index *
+                                      3 + 1] = local_pixels[index + 1]
+                    hdr_vertex_colors[bsp_vert_index *
+                                      3 + 2] = local_pixels[index + 2]
 
     if hdr_export:
         hdr_bytes = bytearray()
