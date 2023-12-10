@@ -1146,6 +1146,8 @@ class Q3_PT_PropertiesEntityPanel(bpy.types.Panel):
 
         filtered_keys = ["classname", "spawnflags",
                          "origin", "angles", "angle"]
+        if obj.data.name.startswith("*"):
+            filtered_keys = ["classname", "spawnflags", "origin"]
 
         dict_path = bpy.utils.script_paths(
             subdir="addons/import_bsp/gamepacks/")[0]

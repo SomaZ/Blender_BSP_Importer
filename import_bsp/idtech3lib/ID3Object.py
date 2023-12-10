@@ -108,9 +108,11 @@ class ID3Object:
         return new_object
 
     def set_angle(self, angle):
+        self.custom_parameters["angle"] = str(angle)
         self.rotation = array((0.0, 0.0, deg2rad(angle)))
 
     def set_angles(self, angles):
+        self.custom_parameters["angles"] = '{} {} {}'.format(*angles)
         self.rotation = array((deg2rad(angles[2]),
                                deg2rad(angles[0]),
                                deg2rad(angles[1])))

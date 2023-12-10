@@ -23,32 +23,33 @@ def GetEntityStringFromScene():
                                      obj.location[1],
                                      obj.location[2]]
 
-            if (degrees(obj.rotation_euler[0]) == 0.0 and
-               degrees(obj.rotation_euler[1]) == 0.0):
-                if degrees(obj.rotation_euler[2]) != 0.0:
-                    obj["angle"] = degrees(obj.rotation_euler[2])
-                    obj["angles"] = ""
+            if not obj.data.name.startswith("*"):
+                if (degrees(obj.rotation_euler[0]) == 0.0 and
+                degrees(obj.rotation_euler[1]) == 0.0):
+                    if degrees(obj.rotation_euler[2]) != 0.0:
+                        obj["angle"] = degrees(obj.rotation_euler[2])
+                        obj["angles"] = ""
+                    else:
+                        obj["angle"] = ""
+                        obj["angles"] = ""
                 else:
+                    obj["angles"] = (degrees(obj.rotation_euler[2]), degrees(
+                        obj.rotation_euler[0]), degrees(obj.rotation_euler[1]))
                     obj["angle"] = ""
-                    obj["angles"] = ""
-            else:
-                obj["angles"] = (degrees(obj.rotation_euler[2]), degrees(
-                    obj.rotation_euler[0]), degrees(obj.rotation_euler[1]))
-                obj["angle"] = ""
 
-            if (obj.scale[0] != 1.0 or
-               obj.scale[1] != 1.0 or
-               obj.scale[2] != 1.0):
-                if obj.scale[0] == obj.scale[1] == obj.scale[2]:
-                    obj["modelscale"] = obj.scale[0]
-                    obj["modelscale_vec"] = ""
+                if (obj.scale[0] != 1.0 or
+                obj.scale[1] != 1.0 or
+                obj.scale[2] != 1.0):
+                    if obj.scale[0] == obj.scale[1] == obj.scale[2]:
+                        obj["modelscale"] = obj.scale[0]
+                        obj["modelscale_vec"] = ""
+                    else:
+                        obj["modelscale_vec"] = (
+                            obj.scale[0], obj.scale[1], obj.scale[2])
+                        obj["modelscale"] = ""
                 else:
-                    obj["modelscale_vec"] = (
-                        obj.scale[0], obj.scale[1], obj.scale[2])
                     obj["modelscale"] = ""
-            else:
-                obj["modelscale"] = ""
-                obj["modelscale_vec"] = ""
+                    obj["modelscale_vec"] = ""
 
             lines = []
             lines.append("{")
