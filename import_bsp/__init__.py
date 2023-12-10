@@ -103,13 +103,11 @@ classes = (UI.Import_ID3_BSP,
            UI.Create_Lightgrid,
            UI.Convert_Baked_Lightgrid,
            UI.Pack_Lightmap_Images,
-           UI.Pack_Lightgrid_Images,
            UI.Q3_PT_PropertiesEntityPanel,
            UI.Q3_PT_DescribtionEntityPanel,
            UI.Q3_PT_EditEntityPanel,
            UI.Q3_PT_DataExportPanel,
            BspImportAddonPreferences,
-           UI.TEST_OPERATOR,
            UI.FillAssetLibrary,
            )
 

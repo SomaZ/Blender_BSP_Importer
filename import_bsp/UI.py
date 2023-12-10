@@ -1116,9 +1116,9 @@ class Q3_PT_EntityPanel(bpy.types.Panel):
         if obj is None:
             return
 
-        # layout.prop(context.scene.id_tech_3_settings,"gamepack")
-        layout.label(
-            text=context.scene.id_tech_3_settings.gamepack.split(".")[0])
+        layout.prop(context.scene.id_tech_3_settings,"gamepack")
+        #layout.label(
+        #    text=context.scene.id_tech_3_settings.gamepack.split(".")[0])
 
         if "classname" in obj:
             classname = obj["classname"].lower()
@@ -1990,6 +1990,15 @@ class Store_Vertex_Colors(bpy.types.Operator):
         return {'FINISHED'}
 
 
+def pack_image(name):
+    image = bpy.data.images.get(name)
+    if image is not None:
+        if image.packed_file is None or image.is_dirty:
+            image.pack()
+        return True
+    return False
+
+
 class Create_Lightgrid(bpy.types.Operator):
     bl_idname = "q3.create_lightgrid"
     bl_label = "Create Lightgrid"
@@ -2012,17 +2021,13 @@ class Convert_Baked_Lightgrid(bpy.types.Operator):
         if QuakeLight.createLightGridTextures() is False:
             self.report({"ERROR"}, "Couldn't convert baked lightgrid textures")
             return {'CANCELLED'}
+        images = ["$Vector", "$Ambient", "$Direct"]
+        for image in images:
+            if not pack_image(image):
+                error = "Couldn't pack " + image + " image"
+                self.report({"ERROR"}, error)
 
         return {'FINISHED'}
-
-
-def pack_image(name):
-    image = bpy.data.images.get(name)
-    if image is not None:
-        if image.packed_file is None or image.is_dirty:
-            image.pack()
-        return True
-    return False
 
 
 class Pack_Lightmap_Images(bpy.types.Operator):
@@ -2036,137 +2041,6 @@ class Pack_Lightmap_Images(bpy.types.Operator):
             if not pack_image(image):
                 error = "Couldn't pack " + image + " image"
                 self.report({"ERROR"}, error)
-        return {'FINISHED'}
-
-
-class Pack_Lightgrid_Images(bpy.types.Operator):
-    bl_idname = "q3.pack_lightgrid_images"
-    bl_label = "Pack Lightgrid Images"
-    bl_options = {"INTERNAL", "REGISTER"}
-
-    def execute(self, context):
-        images = ["$Vector", "$Ambient", "$Direct"]
-        for image in images:
-            if not pack_image(image):
-                error = "Couldn't pack " + image + " image"
-                self.report({"ERROR"}, error)
-        return {'FINISHED'}
-
-
-class TEST_OPERATOR(bpy.types.Operator):
-    bl_idname = "q3.test_operator"
-    bl_label = "TEST"
-    bl_options = {"INTERNAL", "REGISTER"}
-
-    def execute(self, context):
-
-        addon_name = __name__.split('.')[0]
-        prefs = context.preferences.addons[addon_name].preferences
-
-        # TODO: write shader dir to scene and read this
-        import_settings = Import_Settings()
-        import_settings.base_paths.append(prefs.base_path.replace("\\", "/"))
-
-        if not import_settings.base_paths[0].endswith('/'):
-            import_settings.base_paths[0] = import_settings.base_paths[0] + '/'
-
-        import_settings = Import_Settings(
-            base_paths=['G:/Xonotic/unpacked/'],
-            preset=Preset.RENDERING.value,
-        )
-
-        VFS = Q3VFS()
-        VFS.add_base('G:/Xonotic/unpacked/')
-        VFS.build_index()
-
-        file = ('G:/Xonotic/unpacked/'
-                'maps/solarium.map')
-
-        byte_array = VFS.get(file)
-        entities = MAP.read_map_file(byte_array)
-        objects = []
-
-        for ent_id, ent in enumerate(entities):
-            index_mapping = None
-            current_index = 0
-            positions = []
-            uv_list = []
-            indices = []
-            materials = []
-            material_ids = []
-            material_sizes = {}
-            if "surfaces" not in ent:
-                continue
-            for surf in ent["surfaces"]:
-                if surf.type == "BRUSH":
-                    for plane in surf.planes:
-                        mat = plane.material
-                        if mat not in materials:
-                            materials.append(mat)
-
-            material_sizes = (
-                QuakeShader.get_shader_image_sizes(
-                    VFS,
-                    import_settings,
-                    materials))
-
-            for surf in ent["surfaces"]:
-                if surf.type == "BRUSH":
-                    final_points, uvs, faces, mats = parse_brush(
-                        surf.planes, material_sizes)
-                    for mat in mats:
-                        if mat not in materials:
-                            materials.append(mat)
-
-                    index_mapping = [-2] * len(final_points)
-                    for index, (point, uv) in enumerate(
-                            zip(final_points, uvs)):
-                        index_mapping[index] = current_index
-                        current_index += 1
-                        positions.append(point)
-                        uv_list.append(uv)
-
-                    for face, mat in zip(faces, mats):
-                        # add vertices to model
-                        model_indices = []
-                        for index in face:
-                            model_indices.append(index_mapping[index])
-                        indices.append(model_indices)
-                        material_ids.append(materials.index(mat))
-            name = "entity" + str(ent_id)
-            mesh = bpy.data.meshes.new(name)
-            mesh.from_pydata(
-                positions,
-                [],
-                indices)
-
-            for texture_instance in materials:
-                mat = bpy.data.materials.get(texture_instance)
-                if (mat is None):
-                    mat = bpy.data.materials.new(name=texture_instance)
-                mesh.materials.append(mat)
-            mesh.polygons.foreach_set("material_index", material_ids)
-
-            uvs = []
-            uv_layer = "UVMap"
-            for uv in uv_list:
-                uvs.append(uv[0])
-                uvs.append(1.0 - uv[1])
-
-            mesh.uv_layers.new(do_init=False, name=uv_layer)
-            mesh.uv_layers[uv_layer].data.foreach_set(
-                "uv", uvs)
-
-            mesh.use_auto_smooth = True
-            mesh.update()
-            mesh.validate()
-            ob = bpy.data.objects.new(
-                    name=name,
-                    object_data=mesh)
-            objects.append(ob)
-            bpy.context.collection.objects.link(ob)
-
-        QuakeShader.build_quake_shaders(VFS, import_settings, objects)
         return {'FINISHED'}
 
 
@@ -2235,13 +2109,7 @@ class Q3_PT_DataExportPanel(bpy.types.Panel):
         op = layout.operator("q3.convert_baked_lightgrid",
                              text="9. Convert Baked Lightgrid")
         layout.separator()
-        op = layout.operator("q3.pack_lightgrid_images",
-                             text="10. Pack and Save Converted Images")
-        layout.separator()
-        op = layout.operator("q3.patch_bsp_data", text="11. Patch .bsp Data")
-
-        #layout.separator()
-        #op = layout.operator("q3.test_operator", text="TEST OPERATOR")
+        op = layout.operator("q3.patch_bsp_data", text="10. Patch .bsp Data")
 
 
 class Reload_preview_shader(bpy.types.Operator):
@@ -2274,6 +2142,39 @@ class Reload_preview_shader(bpy.types.Operator):
         QuakeShader.build_quake_shaders(VFS, import_settings, objs)
 
         return {'FINISHED'}
+
+
+class Reload_render_shader(bpy.types.Operator):
+    """Reload Shaders"""
+    bl_idname = "q3mapping.reload_render_shader"
+    bl_label = "Reload Cycles Shaders"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        addon_name = __name__.split('.')[0]
+        prefs = context.preferences.addons[addon_name].preferences
+
+        # TODO: write shader dir to scene and read this
+        base_path = prefs.base_path.replace("\\", "/")
+        if not base_path.endswith('/'):
+            base_path = base_path + '/'
+
+        import_settings = Import_Settings(
+            base_paths=[base_path],
+            preset=Preset.RENDERING.value,
+        )
+
+        # initialize virtual file system
+        VFS = Q3VFS()
+        for base_path in import_settings.base_paths:
+            VFS.add_base(base_path)
+        VFS.build_index()
+
+        objs = [obj for obj in context.selected_objects if obj.type == "MESH"]
+        QuakeShader.build_quake_shaders(VFS, import_settings, objs)
+
+        return {'FINISHED'}
+
 
 class FillAssetLibrary(bpy.types.Operator):
     bl_idname = "q3.fill_asset_lib"
@@ -2396,35 +2297,4 @@ class FillAssetLibrary(bpy.types.Operator):
 
         for line in log:
             print(line)
-        return {'FINISHED'}
-
-class Reload_render_shader(bpy.types.Operator):
-    """Reload Shaders"""
-    bl_idname = "q3mapping.reload_render_shader"
-    bl_label = "Reload Cycles Shaders"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    def execute(self, context):
-        addon_name = __name__.split('.')[0]
-        prefs = context.preferences.addons[addon_name].preferences
-
-        # TODO: write shader dir to scene and read this
-        base_path = prefs.base_path.replace("\\", "/")
-        if not base_path.endswith('/'):
-            base_path = base_path + '/'
-
-        import_settings = Import_Settings(
-            base_paths=[base_path],
-            preset=Preset.RENDERING.value,
-        )
-
-        # initialize virtual file system
-        VFS = Q3VFS()
-        for base_path in import_settings.base_paths:
-            VFS.add_base(base_path)
-        VFS.build_index()
-
-        objs = [obj for obj in context.selected_objects if obj.type == "MESH"]
-        QuakeShader.build_quake_shaders(VFS, import_settings, objs)
-
         return {'FINISHED'}
