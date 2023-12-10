@@ -409,6 +409,8 @@ def is_object_valid_for_preset(bsp_object, import_settings):
             return False
         if preset == "RENDERING" and classname == "light":
             return True
+        if preset == "RENDERING" and classname == "misc_model":
+            return False
 
     class_dict = {}
     if classname in import_settings.entity_dict:
@@ -426,7 +428,7 @@ def is_object_valid_for_preset(bsp_object, import_settings):
         return False
 
     static_property = bsp_object.custom_parameters.get("make_static")
-    if static_property is not None:
+    if static_property is not None and preset == "RENDERING":
         return static_property == 0
 
     return True
