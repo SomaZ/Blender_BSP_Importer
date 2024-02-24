@@ -98,9 +98,33 @@ if "GamePacks" in locals():
 else:
     from .idtech3lib import GamePacks
 
-from .idtech3lib.ID3Brushes import parse_brush
-from .idtech3lib import MAP
 import uuid
+
+def get_base_paths(context, import_file_path = None):
+    addon_name = __name__.split('.')[0]
+    prefs = context.preferences.addons[addon_name].preferences
+
+    paths = []
+    # mod paths overwrite files in base, so are higher priority
+    for path in [prefs.mod_path_1, prefs.mod_path_0, prefs.base_path]:
+        if path.strip() == "":
+            continue
+        fixed_base_path = path.replace("\\", "/")
+        if not fixed_base_path.endswith('/'):
+            fixed_base_path = fixed_base_path + '/'
+        paths.append(fixed_base_path)
+    # no path found, so make a guess?
+    if len(paths) == 0 and import_file_path is not None:
+        fixed_file_path = import_file_path.replace("\\", "/")
+        split_folder = "/maps/"
+        if fixed_file_path.endswith(".md3") or fixed_file_path.endswith(".tik"):
+            split_folder = "/models/"
+        split = fixed_file_path.split(split_folder)
+        if len(split) > 1:
+            paths = [split[0] + '/']
+            print("Guessed base path:" + paths[0])
+
+    return paths
 
 
 class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
@@ -150,13 +174,6 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
         ])
 
     def execute(self, context):
-        addon_name = __name__.split('.')[0]
-        self.prefs = context.preferences.addons[addon_name].preferences
-
-        fixed_base_path = self.prefs.base_path.replace("\\", "/")
-        if not fixed_base_path.endswith('/'):
-            fixed_base_path = fixed_base_path + '/'
-
         brush_imports = (
             Preset.BRUSHES.value,
             Preset.SHADOW_BRUSHES.value
@@ -188,7 +205,7 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
                 int(self.min_atlas_size),
                 int(self.min_atlas_size)
                 ),
-            base_paths=[fixed_base_path],
+            base_paths=get_base_paths(context, self.filepath),
             preset=self.properties.preset,
             front_culling=False,
             surface_types=surface_types,
@@ -198,7 +215,7 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
         # scene information
         context.scene.id_tech_3_importer_preset = self.preset
         if self.preset != "BRUSHES":
-            context.scene.id_tech_3_bsp_path = self.filepath
+            context.scene.id_tech_3_file_path = self.filepath
 
         BlenderBSP.import_bsp_file(import_settings)
 
@@ -241,13 +258,6 @@ class Import_MAP(bpy.types.Operator, ImportHelper):
         default=False)
 
     def execute(self, context):
-        addon_name = __name__.split('.')[0]
-        self.prefs = context.preferences.addons[addon_name].preferences
-
-        fixed_base_path = self.prefs.base_path.replace("\\", "/")
-        if not fixed_base_path.endswith('/'):
-            fixed_base_path = fixed_base_path + '/'
-
         dict_path = bpy.utils.script_paths(
             subdir="addons/import_bsp/gamepacks/")[0]
         entity_dict = GamePacks.get_gamepack(dict_path, "JKA_SP.json")
@@ -258,15 +268,17 @@ class Import_MAP(bpy.types.Operator, ImportHelper):
         import_settings = Import_Settings(
             file=self.filepath.replace("\\", "/"),
             subdivisions=self.properties.subdivisions,
-            base_paths=[fixed_base_path],
+            base_paths=get_base_paths(context, self.filepath),
             preset=import_preset,
             front_culling=False,
             surface_types=Surface_Type.BAD, # not used
             entity_dict=entity_dict
         )
 
-
         BlenderBSP.import_map_file(import_settings)
+
+        if context.scene.id_tech_3_file_path == "":
+            context.scene.id_tech_3_file_path = self.filepath
 
         return {'FINISHED'}
 
@@ -298,16 +310,9 @@ class Import_ID3_MD3(bpy.types.Operator, ImportHelper):
         ])
 
     def execute(self, context):
-        addon_name = __name__.split('.')[0]
-        self.prefs = context.preferences.addons[addon_name].preferences
-
-        fixed_base_path = self.prefs.base_path.replace("\\", "/")
-        if not fixed_base_path.endswith('/'):
-            fixed_base_path = fixed_base_path + '/'
-
         # trace some things like paths and lightmap size
         import_settings = Import_Settings()
-        import_settings.base_paths.append(fixed_base_path)
+        import_settings.base_paths = get_base_paths(context, self.filepath)
         import_settings.bsp_name = ""
         import_settings.preset = "PREVIEW"
 
@@ -323,6 +328,9 @@ class Import_ID3_MD3(bpy.types.Operator, ImportHelper):
             self.import_tags,
             self.preset == 'OBJECTS')
         QuakeShader.build_quake_shaders(VFS, import_settings, objs)
+
+        if context.scene.id_tech_3_file_path == "":
+            context.scene.id_tech_3_file_path = self.filepath
 
         return {'FINISHED'}
 
@@ -354,16 +362,9 @@ class Import_ID3_TIK(bpy.types.Operator, ImportHelper):
         ])
 
     def execute(self, context):
-        addon_name = __name__.split('.')[0]
-        self.prefs = context.preferences.addons[addon_name].preferences
-
-        fixed_base_path = self.prefs.base_path.replace("\\", "/")
-        if not fixed_base_path.endswith('/'):
-            fixed_base_path = fixed_base_path + '/'
-
         # trace some things like paths and lightmap size
         import_settings = Import_Settings()
-        import_settings.base_paths.append(fixed_base_path)
+        import_settings.base_paths = get_base_paths(context, self.filepath)
         import_settings.bsp_name = ""
         import_settings.preset = "PREVIEW"
 
@@ -379,6 +380,9 @@ class Import_ID3_TIK(bpy.types.Operator, ImportHelper):
             self.import_tags,
             self.preset == 'OBJECTS')
         QuakeShader.build_quake_shaders(VFS, import_settings, objs)
+
+        if context.scene.id_tech_3_file_path == "":
+            context.scene.id_tech_3_file_path = self.filepath
 
         return {'FINISHED'}
 
@@ -866,25 +870,22 @@ def update_model(self, context):
         if "zoffset" in obj:
             zoffset = int(obj["zoffset"])
 
-        addon_name = __name__.split('.')[0]
-        prefs = context.preferences.addons[addon_name].preferences
-
-        base_path = prefs.base_path.replace("\\", "/")
-        if not base_path.endswith('/'):
-            base_path = import_settings.base_path + '/'
         import_settings = Import_Settings()
-        import_settings.base_paths.append(base_path)
+        import_settings.base_paths = get_base_paths(
+            context, context.scene.id_tech_3_file_path)
         import_settings.shader_dirs = "shaders/", "scripts/"
         import_settings.preset = 'PREVIEW'
 
-        if model_name.startswith("models/"):
-            model_name = import_settings.base_path + model_name
-        # FIXME: Add VFS Support!
-        mesh = MD3.ImportMD3(None, model_name + ".md3", zoffset)[0]
+        VFS = Q3VFS()
+        for base_path in import_settings.base_paths:
+            VFS.add_base(base_path)
+        VFS.build_index()
+
+        mesh = MD3.ImportMD3(VFS, model_name + ".md3", zoffset)[0]
         if mesh is not None:
             obj.data = mesh
             obj.q3_dynamic_props.model = obj.data.name
-            QuakeShader.build_quake_shaders(import_settings, [obj])
+            QuakeShader.build_quake_shaders(VFS, import_settings, [obj])
         elif orig_model is not None:
             obj["model"] = orig_model
 
@@ -936,26 +937,22 @@ def update_model2(self, context):
         if "zoffset" in obj:
             zoffset = int(obj["zoffset"])
 
-        addon_name = __name__.split('.')[0]
-        prefs = context.preferences.addons[addon_name].preferences
-
         import_settings = Import_Settings()
-        base_path = prefs.base_path.replace("\\", "/")
-        if not base_path.endswith('/'):
-            base_path = import_settings.base_path + '/'
-        import_settings.base_paths.append(base_path)
+        import_settings.base_paths = get_base_paths(
+            context, context.scene.id_tech_3_file_path)
         import_settings.shader_dirs = "shaders/", "scripts/"
         import_settings.preset = 'PREVIEW'
 
-        if model_name.startswith("models/"):
-            model_name = import_settings.base_path + model_name
+        VFS = Q3VFS()
+        for base_path in import_settings.base_paths:
+            VFS.add_base(base_path)
+        VFS.build_index()
 
-        # FIXME: Add VFS Support!
-        mesh = MD3.ImportMD3(None, model_name + ".md3", zoffset)[0]
+        mesh = MD3.ImportMD3(VFS, model_name + ".md3", zoffset)[0]
         if mesh is not None:
             children[0].data = mesh
             obj.q3_dynamic_props.model2 = children[0].data.name
-            QuakeShader.build_quake_shaders(import_settings, [children[0]])
+            QuakeShader.build_quake_shaders(VFS, import_settings, [children[0]])
 
 
 # Properties like spawnflags and model
@@ -1352,16 +1349,9 @@ class PatchBspEntities(bpy.types.Operator, ExportHelper):
         default=True)
 
     def execute(self, context):
-        addon_name = __name__.split('.')[0]
-        self.prefs = context.preferences.addons[addon_name].preferences
-
-        fixed_base_path = self.prefs.base_path.replace("\\", "/")
-        if not fixed_base_path.endswith('/'):
-            fixed_base_path = fixed_base_path + '/'
-
         import_settings = Import_Settings(
             file=self.filepath.replace("\\", "/"),
-            base_paths=[fixed_base_path]
+            base_paths=get_base_paths(context)
         )
 
         VFS = Q3VFS()
@@ -1461,13 +1451,6 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
         light_settings.overbright_bits = int(self.overbright_bits)
         light_settings.compensate = self.compensate
         light_settings.hdr = self.patch_hdr
-
-        addon_name = __name__.split('.')[0]
-        self.prefs = context.preferences.addons[addon_name].preferences
-
-        fixed_base_path = self.prefs.base_path.replace("\\", "/")
-        if not fixed_base_path.endswith('/'):
-            fixed_base_path = fixed_base_path + '/'
             
         dict_path = bpy.utils.script_paths(
             subdir="addons/import_bsp/gamepacks/")[0]
@@ -1480,7 +1463,7 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                 int(128),
                 int(128)
                 ),
-            base_paths=[fixed_base_path],
+            base_paths=get_base_paths(context),
             preset="PREVIEW",
             front_culling=False,
             surface_types=Surface_Type.BAD,
@@ -2121,16 +2104,8 @@ class Reload_preview_shader(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        addon_name = __name__.split('.')[0]
-        prefs = context.preferences.addons[addon_name].preferences
-
-        # TODO: write shader dir to scene and read this
-        base_path = prefs.base_path.replace("\\", "/")
-        if not base_path.endswith('/'):
-            base_path = base_path + '/'
-
         import_settings = Import_Settings(
-            base_paths=[base_path],
+            base_paths=get_base_paths(context, context.scene.id_tech_3_file_path),
             preset=Preset.PREVIEW.value,
         )
 
@@ -2153,16 +2128,8 @@ class Reload_render_shader(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        addon_name = __name__.split('.')[0]
-        prefs = context.preferences.addons[addon_name].preferences
-
-        # TODO: write shader dir to scene and read this
-        base_path = prefs.base_path.replace("\\", "/")
-        if not base_path.endswith('/'):
-            base_path = base_path + '/'
-
         import_settings = Import_Settings(
-            base_paths=[base_path],
+            base_paths=get_base_paths(context, context.scene.id_tech_3_file_path),
             preset=Preset.RENDERING.value,
         )
 
@@ -2189,14 +2156,10 @@ class FillAssetLibrary(bpy.types.Operator):
         log = []
         addon_name = __name__.split('.')[0]
         prefs = context.preferences.addons[addon_name].preferences
-        base_path = prefs.base_path.replace("\\", "/")
 
         asset_library_path = prefs.assetlibrary.replace("\\", "/")
 
-        if not base_path.endswith('/'):
-            base_path = base_path + '/'
-
-        base_paths = [base_path]
+        base_paths = get_base_paths(context)
         # initialize virtual file system
         VFS = Q3VFS()
         for base_path in base_paths:

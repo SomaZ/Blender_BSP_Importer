@@ -47,8 +47,23 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
     base_path: bpy.props.StringProperty(
         name="basepath",
         description="Path to base folder",
-        default="C:/Program Files (x86)/Steam/steamapps/common/Jedi Academy/"
-                "GameData/unpacked",
+        default="",
+        subtype="DIR_PATH",
+        maxlen=2048,
+    )
+
+    mod_path_0: bpy.props.StringProperty(
+        name="mod path",
+        description="Path to a mod folder",
+        default="",
+        subtype="DIR_PATH",
+        maxlen=2048,
+    )
+
+    mod_path_1: bpy.props.StringProperty(
+        name="additional mod path",
+        description="Path to an addtional mod folder",
+        default="",
         subtype="DIR_PATH",
         maxlen=2048,
     )
@@ -71,6 +86,10 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
         layout = self.layout
         row = layout.row()
         row.prop(self, "base_path")
+        row = layout.row()
+        row.prop(self, "mod_path_0")
+        row = layout.row()
+        row.prop(self, "mod_path_1")
         if bpy.app.version >= (3, 0, 0):
             row = layout.row()
             row.prop(self, "assetlibrary")
@@ -128,9 +147,9 @@ def register():
     bpy.types.Scene.id_tech_3_importer_preset = bpy.props.StringProperty(
         name="id3 importer preset",
         description="Last used importer preset")
-    bpy.types.Scene.id_tech_3_bsp_path = bpy.props.StringProperty(
-        name="BSP path",
-        description="Full path to the last imported BSP File")
+    bpy.types.Scene.id_tech_3_file_path = bpy.props.StringProperty(
+        name="ID3 file path",
+        description="Full path to the last imported id tech 3 File")
     bpy.types.Scene.id_tech_3_lightmaps_per_row = bpy.props.IntProperty(
         name="Lightmaps per row",
         description=(
