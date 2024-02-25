@@ -135,7 +135,7 @@ def read_map_file(byte_array):
             if len(current_ent) > 0:
                 id3_obj = ID3Object.from_entity_dict(current_ent, name)
                 if ("surfaces" in current_ent and len(current_ent["surfaces"]) > 0):
-                    id3_obj.mesh_name = name
+                    id3_obj.mesh_name = "*" + name
                 if "targetname" in current_ent:
                     entities[current_ent["targetname"]] = id3_obj
                 else:
