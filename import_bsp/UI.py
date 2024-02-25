@@ -1833,15 +1833,21 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                         lightmap_id4[0] = -3
                                         break
 
+                            bsp_lm_index_0 = bsp_surf.lm_indexes
+                            if bsp.lightmaps > 1:
+                                bsp_lm_index_0 = bsp_surf.lm_indexes[0]
+
                             if patch_lighting_type or (
-                                    bsp_surf.lm_indexes[0] >= 0):
+                                    bsp_lm_index_0 >= 0):
                                 # bsp_surf.type = 1 #force using lightmaps
                                 # for surfaces with less than 64 verticies
-                                bsp_surf.lm_indexes[0] = lightmap_id[0]
                                 if bsp.lightmaps == 4:
+                                    bsp_surf.lm_indexes[0] = lightmap_id[0]
                                     bsp_surf.lm_indexes[1] = lightmap_id2[0]
                                     bsp_surf.lm_indexes[2] = lightmap_id3[0]
                                     bsp_surf.lm_indexes[3] = lightmap_id4[0]
+                                else:
+                                    bsp_surf.lm_indexes = lightmap_id[0]
 
                         # unpack lightmap tcs
                         for i in vertices:
@@ -1867,6 +1873,11 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
         # get number of lightmaps
         n_lightmaps = 0
         for bsp_surf in bsp.lumps["surfaces"]:
+            if bsp.lightmaps == 1:
+                if bsp_surf.lm_indexes > n_lightmaps:
+                    n_lightmaps = bsp_surf.lm_indexes
+                continue
+
             # handle lightmap ids with lightstyles
             for i in range(bsp.lightmaps):
                 if bsp_surf.lm_indexes[i] > n_lightmaps:
