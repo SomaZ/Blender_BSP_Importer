@@ -406,8 +406,8 @@ def is_object_valid_for_preset(bsp_object, import_settings):
     mesh_name = bsp_object.mesh_name
 
     if classname is not None:
-        if preset == "ONLY_LIGHTS" and classname != "light":
-            return False
+        if preset == "ONLY_LIGHTS":
+            return classname == "light"
         if preset == "RENDERING" and classname == "light":
             return True
         if preset == "RENDERING" and classname == "misc_model":
