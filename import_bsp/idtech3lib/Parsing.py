@@ -41,10 +41,14 @@ def guess_name(literal, file_path):
 
 
 def guess_model_name(file_path):
+    if file_path.startswith("models/"):
+        return file_path
     return guess_name("models/", file_path)
 
 
 def guess_map_name(file_path):
+    if file_path.startswith("maps/"):
+        return file_path
     return guess_name("maps/", file_path)
 
 

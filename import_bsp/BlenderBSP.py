@@ -262,11 +262,12 @@ def set_custom_properties(import_settings, blender_obj, bsp_obj):
     if spawnflag & 512 > 1:
         blender_obj.q3_dynamic_props.b512 = True
 
-    # TODO: really needed? need to check that
     if bsp_obj.mesh_name:
         blender_obj.q3_dynamic_props.model = bsp_obj.mesh_name
+        blender_obj["model"] = bsp_obj.mesh_name
     if bsp_obj.model2:
         blender_obj.q3_dynamic_props.model2 = bsp_obj.model2
+        blender_obj["model2"] = bsp_obj.model2
 
 
 def add_light_drivers(light):
@@ -459,6 +460,11 @@ def create_blender_objects(VFS, import_settings, objects, meshes, bsp):
                     obj.mesh_name = class_dict["Model"]
 
         mesh_z_name = obj.mesh_name
+        #TODO: Get rid of this stupid zoffset BS
+        if mesh_z_name.endswith(".md3"):
+            mesh_z_name = mesh_z_name[:-len(".md3")]
+        if mesh_z_name.endswith(".tik"):
+            mesh_z_name = mesh_z_name[:-len(".tik")]
         if obj.zoffset != 0:
             mesh_z_name = mesh_z_name + ".z{}".format(obj.zoffset)
 
