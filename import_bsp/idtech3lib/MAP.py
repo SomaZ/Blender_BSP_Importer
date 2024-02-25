@@ -13,6 +13,9 @@ PROP_LEN = {
     "modelscale": 1,
     "spawnflags": 1,
     "zoffset": 1,
+    "light": 1,
+    "scale": 1,
+    "_color": 3,
 }
 
 
@@ -157,7 +160,7 @@ def read_map_file(byte_array):
             # entity key value pair
             if len(splitted_line) == 2:
                 key = splitted_line[0].replace("\"", "")
-                values = splitted_line[1].replace("\"", "")
+                values = splitted_line[1].replace("\"", "").replace("\\\\", " ")
                 fixed_values = [
                     float(new) for new in values.split() if is_float(new)]
                 if (len(values.split()) != len(fixed_values) and

@@ -235,7 +235,7 @@ class BSP_READER:
             packed_lightmap_size[1] = packed_lightmap_size[1] // 2
         return packed_lightmap_size
 
-    def get_bsp_entity_objects(self) -> list[OBJECT]:
+    def get_bsp_entity_objects(self) -> dict:
         return OBJECT.get_entity_objects_from_bsp(self)
 
     def get_bsp_model(self, model_id) -> MODEL:
