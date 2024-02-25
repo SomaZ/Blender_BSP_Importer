@@ -80,36 +80,56 @@ def get_shader_image_sizes(VFS, import_settings, material_list):
     shader_info = get_material_dicts(VFS, import_settings, material_list)
     image_formats = ("", ".tga", ".png", ".jpg")
     material_sizes = {}
+
+    no_shader_mats = [mat for mat in material_list if mat not in shader_info]
+    for mat in no_shader_mats:
+        shader_info[mat] = {},[]
+
     for shader in shader_info:
         attributes, stages = shader_info[shader]
         if "qer_editorimage" in attributes:
             for fmt in image_formats:
-                editor_image = VFS.get(attributes["qer_editorimage"][0]+fmt)
+                image_name = attributes["qer_editorimage"][0]+fmt
+                editor_image = VFS.get(image_name)
                 if editor_image is not None:
+                    material_sizes[shader.lower()] = (
+                        Image.get_image_dimensions_from_bytearray(
+                            editor_image,
+                            image_name.endswith(".tga")
+                            )
+                        )
                     break
             if editor_image is not None:
-                material_sizes[shader.lower()] = (
-                    Image.get_image_dimensions_from_bytearray(editor_image))
                 continue
 
         for fmt in image_formats:
-            image = VFS.get(shader+fmt)
+            image_name = shader+fmt
+            image = VFS.get(image_name)
             if image is not None:
+                material_sizes[shader.lower()] = (
+                    Image.get_image_dimensions_from_bytearray(
+                        image,
+                        image_name.endswith(".tga")
+                        )
+                    )
                 break
         if image is not None:
-            material_sizes[shader.lower()] = (
-                Image.get_image_dimensions_from_bytearray(image))
             continue
 
         for stage in stages:
             if "map" in stage:
                 for fmt in image_formats:
-                    image = VFS.get(stage["map"]+fmt)
+                    image_name = stage["map"]+fmt
+                    image = VFS.get(image_name)
                     if image is not None:
+                        material_sizes[shader.lower()] = (
+                            Image.get_image_dimensions_from_bytearray(
+                                image,
+                                image_name.endswith(".tga")
+                                )
+                            )
                         break
                 if image is not None:
-                    material_sizes[shader.lower()] = (
-                        Image.get_image_dimensions_from_bytearray(image))
                     break
 
     return material_sizes

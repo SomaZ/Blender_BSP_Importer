@@ -67,7 +67,7 @@ def loadFtx_from_bytearray(name, byte_array):
 
 
 # based on https://github.com/scardine/image_size
-def get_image_dimensions_from_bytearray(byte_array):
+def get_image_dimensions_from_bytearray(byte_array, force_tga = False):
     """
     Return (width, height) for a given img file bytearray - no external
     dependencies except the struct module from core
@@ -123,7 +123,7 @@ def get_image_dimensions_from_bytearray(byte_array):
             raise Exception("ValueError" + msg)
         except Exception as e:
             raise Exception(e.__class__.__name__ + msg)
-    elif (size >= 18) and byte_array.endswith(b'TRUEVISION-XFILE.\0'):
+    elif (size >= 18) and (byte_array.endswith(b'TRUEVISION-XFILE.\0') or force_tga):
         # TGAs
         w, h = struct.unpack("<hh", data[12:16])
         width = int(w)
