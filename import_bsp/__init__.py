@@ -68,6 +68,20 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
         maxlen=2048,
     )
 
+    default_classname: bpy.props.StringProperty(
+        name="Asset classname",
+        description="classname that is assigned to the imported assets per default",
+        default="misc_model",
+        maxlen=2048,
+    )
+
+    default_spawnflags: bpy.props.StringProperty(
+        name="Asset spawnflags",
+        description="spawnflags that are assigned to the imported assets per default",
+        default="0",
+        maxlen=2048,
+    )
+
     def assetslibs_list_cb(self, context):
         if bpy.app.version >= (3, 0, 0):
             libs = context.preferences.filepaths.asset_libraries
@@ -91,6 +105,11 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
         row = layout.row()
         row.prop(self, "mod_path_1")
         if bpy.app.version >= (3, 0, 0):
+            layout.separator()
+            row = layout.row()
+            row.prop(self, "default_classname")
+            row = layout.row()
+            row.prop(self, "default_spawnflags")
             row = layout.row()
             row.prop(self, "assetlibrary")
             row.operator("q3.fill_asset_lib", text="Fill with models")

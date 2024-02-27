@@ -2252,6 +2252,33 @@ class FillAssetLibrary(bpy.types.Operator):
             imported_obj.name = obj_name
             imported_obj.asset_mark()
             imported_obj.asset_data.catalog_id = a_categorys[current_path]
+            if prefs.default_classname != "":
+                imported_obj["classname"] = prefs.default_classname
+                imported_obj.q3_dynamic_props.model = md3_file
+                imported_obj["model"] = md3_file
+            if prefs.default_spawnflags != "":
+                spawnflags = int(prefs.default_spawnflags)
+                imported_obj["spawnflags"] = spawnflags
+                if spawnflags % 2 == 1:
+                    imported_obj.q3_dynamic_props.b1 = True
+                if spawnflags & 2 > 1:
+                    imported_obj.q3_dynamic_props.b2 = True
+                if spawnflags & 4 > 1:
+                    imported_obj.q3_dynamic_props.b4 = True
+                if spawnflags & 8 > 1:
+                    imported_obj.q3_dynamic_props.b8 = True
+                if spawnflags & 16 > 1:
+                    imported_obj.q3_dynamic_props.b16 = True
+                if spawnflags & 32 > 1:
+                    imported_obj.q3_dynamic_props.b32 = True
+                if spawnflags & 64 > 1:
+                    imported_obj.q3_dynamic_props.b64 = True
+                if spawnflags & 128 > 1:
+                    imported_obj.q3_dynamic_props.b128 = True
+                if spawnflags & 256 > 1:
+                    imported_obj.q3_dynamic_props.b256 = True
+                if spawnflags & 512 > 1:
+                    imported_obj.q3_dynamic_props.b512 = True
 
         import_settings = Import_Settings()
         import_settings.base_paths=base_paths
