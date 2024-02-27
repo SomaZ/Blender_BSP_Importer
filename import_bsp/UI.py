@@ -881,7 +881,7 @@ def update_model(self, context):
             VFS.add_base(base_path)
         VFS.build_index()
 
-        mesh = MD3.ImportMD3(VFS, model_name + ".md3", zoffset)[0]
+        mesh = MD3.ImportMD3(VFS, mesh_name + ".md3", zoffset)[0]
         if mesh is not None:
             obj.data = mesh
             obj.q3_dynamic_props.model = obj.data.name
@@ -925,9 +925,11 @@ def update_model2(self, context):
         if children[0].data.name == obj.q3_dynamic_props.model2.split(".")[0]:
             return
     else:
-        obj.parent = make_empty_bsp_model(context)
-        obj.hide_select = True
-        children = [obj]
+        m2_obj = make_empty_bsp_model(context)
+        m2_obj.name = "{}_model2".format(obj.name)
+        m2_obj.hide_select = True
+        m2_obj.parent = obj
+        children = [m2_obj]
 
     if mesh_name in bpy.data.meshes:
         children[0].data = bpy.data.meshes[mesh_name]
@@ -948,7 +950,7 @@ def update_model2(self, context):
             VFS.add_base(base_path)
         VFS.build_index()
 
-        mesh = MD3.ImportMD3(VFS, model_name + ".md3", zoffset)[0]
+        mesh = MD3.ImportMD3(VFS, mesh_name + ".md3", zoffset)[0]
         if mesh is not None:
             children[0].data = mesh
             obj.q3_dynamic_props.model2 = children[0].data.name

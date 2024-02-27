@@ -136,7 +136,7 @@ class ID3Object:
             self.mesh_name = str(mesh_name)
 
     def set_model2(self, mesh_name):
-        self.set_model2 = str(mesh_name)
+        self.model2 = str(mesh_name)
 
     def set_name(self, target_name):
         self.name = str(target_name)

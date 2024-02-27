@@ -30,6 +30,8 @@ def parse(line):
 
 
 def guess_name(literal, file_path):
+    if file_path == "":
+        return ""
     split_name = file_path.replace("\\", "/")
     split_name = split_name.split("/" + literal)
     if len(split_name) > 1:

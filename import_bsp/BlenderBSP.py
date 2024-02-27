@@ -265,7 +265,7 @@ def set_custom_properties(import_settings, blender_obj, bsp_obj):
     if bsp_obj.mesh_name:
         blender_obj.q3_dynamic_props.model = bsp_obj.mesh_name
         blender_obj["model"] = bsp_obj.mesh_name
-    if bsp_obj.model2:
+    if bsp_obj.model2 != "":
         blender_obj.q3_dynamic_props.model2 = bsp_obj.model2
         blender_obj["model2"] = bsp_obj.model2
 
@@ -423,7 +423,7 @@ def is_object_valid_for_preset(bsp_object, import_settings):
         mesh_name = "box"
 
     if mesh_name == "box":
-        return False
+        return bsp_object.model2 != ""
 
     if classname is None:
         return False
@@ -481,6 +481,8 @@ def create_blender_objects(VFS, import_settings, objects, meshes, bsp):
             if blender_mesh is not None:
                 blender_mesh.name = mesh_z_name
                 meshes[mesh_z_name] = blender_mesh
+            elif obj.model2 != "":
+                blender_mesh, vertex_groups = load_mesh(VFS, "box", 0, bsp)
         else:
             blender_mesh = meshes[mesh_z_name]
 
@@ -508,6 +510,22 @@ def create_blender_objects(VFS, import_settings, objects, meshes, bsp):
             vg.add(list(vertex_groups[vert_group]), 1.0, 'ADD')
 
         set_custom_properties(import_settings, blender_obj, obj)
+
+        if "model2" not in blender_obj:
+            continue
+        blender_mesh, vertex_groups = load_mesh(VFS, blender_obj["model2"], obj.zoffset, None)
+        if blender_mesh is None:
+            continue
+        m2_obj = bpy.data.objects.new(obj.name + "_model2", blender_mesh)
+        bpy.context.collection.objects.link(m2_obj)
+        object_list.append(m2_obj)
+        m2_obj.parent = blender_obj
+        m2_obj.hide_select = True
+        print(blender_obj.name, blender_obj.data.name)
+        if blender_obj.data.name == "box":
+            print("Hidden box")
+            blender_obj.hide_render = True
+
     return object_list
 
 
