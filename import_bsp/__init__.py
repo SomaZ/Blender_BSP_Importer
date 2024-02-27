@@ -39,13 +39,33 @@ else:
     from . import UI
 
 
+panel_cls = [
+    (UI.Q3_PT_ShaderPanel, "ID3 Shaders"),
+    (UI.Q3_PT_EntityPanel, "ID3 Entities"),
+    (UI.Q3_PT_EntExportPanel, "ID3 Entities"),
+    (UI.Q3_PT_PropertiesEntityPanel, "ID3 Entities"),
+    (UI.Q3_PT_DescribtionEntityPanel, "ID3 Entities"),
+    (UI.Q3_PT_EditEntityPanel, "ID3 Entities"),
+    (UI.Q3_PT_DataExportPanel, "ID3 Data"),
+]
+
+def update_panels(self, context):
+    for cls, catergory in panel_cls:
+        if cls.is_registered:
+            bpy.utils.unregister_class(cls)
+            cls.bl_category = "ID3 Editing" if self.merge_id3_panels else catergory
+            bpy.utils.register_class(cls)
+
+    return True
+
+
 # ------------------------------------------------------------------------
 #    store properties in the user preferences
 # ------------------------------------------------------------------------
 class BspImportAddonPreferences(bpy.types.AddonPreferences):
     bl_idname = __name__
     base_path: bpy.props.StringProperty(
-        name="basepath",
+        name="Base path",
         description="Path to base folder",
         default="",
         subtype="DIR_PATH",
@@ -53,7 +73,7 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
     )
 
     mod_path_0: bpy.props.StringProperty(
-        name="mod path",
+        name="Mod path",
         description="Path to a mod folder",
         default="",
         subtype="DIR_PATH",
@@ -61,11 +81,18 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
     )
 
     mod_path_1: bpy.props.StringProperty(
-        name="additional mod path",
+        name="Additional mod path",
         description="Path to an addtional mod folder",
         default="",
         subtype="DIR_PATH",
         maxlen=2048,
+    )
+
+    merge_id3_panels: bpy.props.BoolProperty(
+        name="Merge UI panels as 'ID3 Editing'",
+        description="Merges the shader, data and patching panels into one panel instead",
+        default=True,
+        update=update_panels
     )
 
     default_classname: bpy.props.StringProperty(
@@ -104,6 +131,9 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
         row.prop(self, "mod_path_0")
         row = layout.row()
         row.prop(self, "mod_path_1")
+        layout.separator()
+        row = layout.row()
+        row.prop(self, "merge_id3_panels")
         if bpy.app.version >= (3, 0, 0):
             layout.separator()
             row = layout.row()
@@ -121,8 +151,6 @@ classes = (UI.Import_ID3_BSP,
            UI.Import_ID3_TIK,
            UI.Export_ID3_MD3,
            UI.Export_ID3_TIK,
-           UI.Q3_PT_ShaderPanel,
-           UI.Q3_PT_EntityPanel,
            UI.Reload_preview_shader,
            UI.Reload_render_shader,
            UI.DynamicProperties,
@@ -132,7 +160,6 @@ classes = (UI.Import_ID3_BSP,
            UI.Add_entity_definition,
            UI.Add_key_definition,
            UI.Update_entity_definition,
-           UI.Q3_PT_EntExportPanel,
            UI.ExportEnt,
            UI.PatchBspEntities,
            UI.PatchBspData,
@@ -141,10 +168,6 @@ classes = (UI.Import_ID3_BSP,
            UI.Create_Lightgrid,
            UI.Convert_Baked_Lightgrid,
            UI.Pack_Lightmap_Images,
-           UI.Q3_PT_PropertiesEntityPanel,
-           UI.Q3_PT_DescribtionEntityPanel,
-           UI.Q3_PT_EditEntityPanel,
-           UI.Q3_PT_DataExportPanel,
            BspImportAddonPreferences,
            UI.FillAssetLibrary,
            )
@@ -179,6 +202,14 @@ def register():
         description=(
             "How many lightmaps are packed in one column of the lightmap atlas"
             ))
+    
+    addon_name = __name__.split('.')[0]
+    prefs = bpy.context.preferences.addons[addon_name].preferences
+    for cls, catergory in panel_cls:
+        if cls.is_registered:
+            bpy.utils.unregister_class(cls)
+        cls.bl_category = "ID3 Editing" if prefs.merge_id3_panels else catergory
+        bpy.utils.register_class(cls)
 
 
 def unregister():
@@ -189,6 +220,8 @@ def unregister():
     bpy.types.TOPBAR_MT_file_export.remove(UI.menu_func_md3_export)
     bpy.types.TOPBAR_MT_file_export.remove(UI.menu_func_tik_export)
     for cls in classes:
+        bpy.utils.unregister_class(cls)
+    for cls, catergory in panel_cls:
         bpy.utils.unregister_class(cls)
 
 

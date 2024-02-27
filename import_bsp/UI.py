@@ -1061,7 +1061,7 @@ class Q3_PT_ShaderPanel(bpy.types.Panel):
     bl_label = "Shaders"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Q3 Shaders"
+    bl_category = "ID3 Shaders"
 
     def draw(self, context):
         layout = self.layout
@@ -1105,7 +1105,7 @@ class Q3_PT_EntityPanel(bpy.types.Panel):
     bl_label = "Selected Entity"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Q3 Entities"
+    bl_category = "ID3 Entities"
 
     def draw(self, context):
         layout = self.layout
@@ -1133,7 +1133,7 @@ class Q3_PT_PropertiesEntityPanel(bpy.types.Panel):
     bl_label = "Entity Properties"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Q3 Entities"
+    bl_category = "ID3 Entities"
 
     def draw(self, context):
         layout = self.layout
@@ -1228,7 +1228,7 @@ class Q3_PT_DescribtionEntityPanel(bpy.types.Panel):
     bl_label = "Entity Describtion"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Q3 Entities"
+    bl_category = "ID3 Entities"
 
     def draw(self, context):
         layout = self.layout
@@ -1261,7 +1261,7 @@ class Q3_PT_EditEntityPanel(bpy.types.Panel):
     bl_label = "Edit Entity Definitions"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Q3 Entities"
+    bl_category = "ID3 Entities"
 
     def draw(self, context):
         layout = self.layout
@@ -2048,7 +2048,7 @@ class Q3_PT_EntExportPanel(bpy.types.Panel):
     bl_options = {"DEFAULT_CLOSED"}
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Q3 Entities"
+    bl_category = "ID3 Entities"
 
     @classmethod
     def poll(self, context):
@@ -2074,7 +2074,7 @@ class Q3_PT_DataExportPanel(bpy.types.Panel):
     bl_label = "Patch BSP Data"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Q3 Data"
+    bl_category = "ID3 Data"
 
     def draw(self, context):
         layout = self.layout
