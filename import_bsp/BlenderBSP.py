@@ -521,9 +521,7 @@ def create_blender_objects(VFS, import_settings, objects, meshes, bsp):
         object_list.append(m2_obj)
         m2_obj.parent = blender_obj
         m2_obj.hide_select = True
-        print(blender_obj.name, blender_obj.data.name)
         if blender_obj.data.name == "box":
-            print("Hidden box")
             blender_obj.hide_render = True
 
     return object_list
