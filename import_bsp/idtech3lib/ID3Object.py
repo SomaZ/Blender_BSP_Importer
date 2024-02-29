@@ -1,6 +1,13 @@
 from numpy import array, deg2rad
 from .Parsing import *
 
+def is_float(value):
+    try:
+        float(value)
+        return True
+    except Exception:
+        return False
+
 def ImportEntitiesText(entities_string):
     ent = {}
     entities = []
@@ -44,6 +51,8 @@ def ImportEntitiesText(entities_string):
             )
             if key in parsing_keys:
                 value = value.strip(" \'\"\t\n\r").replace("\\", "/")
+            elif is_float(value):
+                value = float(value)
 
             # oh man.... Problem in hoth2
             if (key == "modelscale"):
