@@ -212,11 +212,12 @@ def load_map_entity_surfaces(VFS, obj, import_settings):
 
 
 def set_custom_properties(import_settings, blender_obj, bsp_obj):
-    # needed for custom descriptions and data types
-    rna_ui = blender_obj.get('_RNA_UI')
-    if rna_ui is None:
-        blender_obj['_RNA_UI'] = {}
-        rna_ui = blender_obj['_RNA_UI']
+    if bpy.app.version < (3, 0, 0):
+        # needed for custom descriptions and data types prior 3.0
+        rna_ui = blender_obj.get('_RNA_UI')
+        if rna_ui is None:
+            blender_obj['_RNA_UI'] = {}
+            rna_ui = blender_obj['_RNA_UI']
 
     class_dict_keys = {}
     classname = bsp_obj.custom_parameters.get("classname")
@@ -231,14 +232,26 @@ def set_custom_properties(import_settings, blender_obj, bsp_obj):
         if property not in class_dict_keys:
             continue
         property_dict = class_dict_keys[property]
-        descr_dict = {}
+        property_subtype = "NONE"
+        property_desc = ""
+        key_type = "STRING"
         if "Description" in property_dict:
-            descr_dict["description"] = property_dict["Description"]
+            property_desc = property_dict["Description"]
         if "Type" in property_dict:
             key_type = property_dict["Type"]
             if key_type in GamePacks.TYPE_MATCHING:
-                descr_dict["subtype"] = GamePacks.TYPE_MATCHING[key_type]
-        rna_ui[property] = descr_dict
+                property_subtype = GamePacks.TYPE_MATCHING[key_type]
+        if bpy.app.version < (3, 0, 0):
+            descr_dict = {}
+            descr_dict["description"] = property_desc
+            if property_subtype != "NONE":
+                descr_dict["subtype"] = property_subtype
+            rna_ui[property] = descr_dict
+        else:
+            id_props = blender_obj.id_properties_ui(property)
+            id_props.update(description=property_desc)
+            if property_subtype != "NONE":
+                id_props.update(subtype=property_subtype)
 
     spawnflag = bsp_obj.spawnflags
     if spawnflag % 2 == 1:
