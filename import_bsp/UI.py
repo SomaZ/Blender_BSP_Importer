@@ -126,6 +126,16 @@ def get_base_paths(context, import_file_path = None):
 
     return paths
 
+def get_current_entity_dict(context):
+    addon_name = __name__.split('.')[0]
+    prefs = context.preferences.addons[addon_name].preferences
+
+    dict_path = bpy.utils.script_paths(
+            subdir="addons/import_bsp/gamepacks/")[0]
+    gamepack = context.scene.id_tech_3_settings.gamepack
+    entity_dict = GamePacks.get_gamepack(dict_path, gamepack)
+    return entity_dict
+    
 
 class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
     bl_idname = "import_scene.id3_bsp"
@@ -193,9 +203,7 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
                              Surface_Type.TRISOUP |
                              Surface_Type.FAKK_TERRAIN)
 
-        dict_path = bpy.utils.script_paths(
-            subdir="addons/import_bsp/gamepacks/")[0]
-        entity_dict = GamePacks.get_gamepack(dict_path, "JKA_SP.json")
+        entity_dict = get_current_entity_dict(context)
 
         # trace some things like paths and lightmap size
         import_settings = Import_Settings(
@@ -258,9 +266,7 @@ class Import_MAP(bpy.types.Operator, ImportHelper):
         default=False)
 
     def execute(self, context):
-        dict_path = bpy.utils.script_paths(
-            subdir="addons/import_bsp/gamepacks/")[0]
-        entity_dict = GamePacks.get_gamepack(dict_path, "JKA_SP.json")
+        entity_dict = get_current_entity_dict(context)
 
         import_preset = Preset.ONLY_LIGHTS.value if self.only_lights else Preset.EDITING.value
 
@@ -620,9 +626,7 @@ class Add_property(bpy.types.Operator):
             ob["classname"] = ""
             return {'FINISHED'}
 
-        dict_path = bpy.utils.script_paths(
-            subdir="addons/import_bsp/gamepacks/")[0]
-        entity_dict = GamePacks.get_gamepack(dict_path, "JKA_SP.json")
+        entity_dict = get_current_entity_dict(context)
 
         Dict = entity_dict
         if self.name not in ob:
@@ -670,9 +674,7 @@ class Add_entity_definition(bpy.types.Operator):
                      "Keys": {},
                      }
 
-        dict_path = bpy.utils.script_paths(
-            subdir="addons/import_bsp/gamepacks/")[0]
-        entity_dict = GamePacks.get_gamepack(dict_path, "JKA_SP.json")
+        entity_dict = get_current_entity_dict(context)
 
         entity_dict[self.name] = new_entry
         GamePacks.save_gamepack(
@@ -699,9 +701,7 @@ class Add_key_definition(bpy.types.Operator):
                 print("Couldn't find new property name :(\n")
                 return
 
-        dict_path = bpy.utils.script_paths(
-            subdir="addons/import_bsp/gamepacks/")[0]
-        entity_dict = GamePacks.get_gamepack(dict_path, "JKA_SP.json")
+        entity_dict = get_current_entity_dict(context)
 
         if "classname" in obj:
             classname = obj["classname"]
@@ -736,9 +736,7 @@ class Update_entity_definition(bpy.types.Operator):
             obj['_RNA_UI'] = {}
             rna_ui = obj['_RNA_UI']
 
-        dict_path = bpy.utils.script_paths(
-            subdir="addons/import_bsp/gamepacks/")[0]
-        entity_dict = GamePacks.get_gamepack(dict_path, "JKA_SP.json")
+        entity_dict = get_current_entity_dict(context)
 
         if self.name in entity_dict:
             ent = entity_dict[self.name]
@@ -1146,9 +1144,7 @@ class Q3_PT_PropertiesEntityPanel(bpy.types.Panel):
         if obj.data.name.startswith("*"):
             filtered_keys = ["classname", "spawnflags", "origin"]
 
-        dict_path = bpy.utils.script_paths(
-            subdir="addons/import_bsp/gamepacks/")[0]
-        entity_dict = GamePacks.get_gamepack(dict_path, "JKA_SP.json")
+        entity_dict = get_current_entity_dict(context)
 
         if "classname" in obj:
             classname = obj["classname"].lower()
@@ -1235,10 +1231,8 @@ class Q3_PT_DescriptionEntityPanel(bpy.types.Panel):
 
         if obj is None:
             return
-
-        dict_path = bpy.utils.script_paths(
-            subdir="addons/import_bsp/gamepacks/")[0]
-        entity_dict = GamePacks.get_gamepack(dict_path, "JKA_SP.json")
+        
+        entity_dict = get_current_entity_dict(context)
 
         if "classname" in obj:
             classname = obj["classname"].lower()
@@ -1272,9 +1266,7 @@ class Q3_PT_EditEntityPanel(bpy.types.Panel):
         filtered_keys = ["classname", "spawnflags",
                          "origin", "angles", "angle"]
 
-        dict_path = bpy.utils.script_paths(
-            subdir="addons/import_bsp/gamepacks/")[0]
-        entity_dict = GamePacks.get_gamepack(dict_path, "JKA_SP.json")
+        entity_dict = get_current_entity_dict(context)
 
         if "classname" in obj:
             classname = obj["classname"].lower()
@@ -1451,10 +1443,8 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
         light_settings.overbright_bits = int(self.overbright_bits)
         light_settings.compensate = self.compensate
         light_settings.hdr = self.patch_hdr
-            
-        dict_path = bpy.utils.script_paths(
-            subdir="addons/import_bsp/gamepacks/")[0]
-        entity_dict = GamePacks.get_gamepack(dict_path, "JKA_SP.json")
+
+        entity_dict = get_current_entity_dict(context)
 
         import_settings = Import_Settings(
             file=self.filepath.replace("\\", "/"),

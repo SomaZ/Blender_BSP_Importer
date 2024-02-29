@@ -19,11 +19,12 @@
 #  Imports
 #  Python
 import importlib
+import os
 
 bl_info = {
     "name": "Import id Tech 3 BSP",
     "author": "SomaZ",
-    "version": (0, 9, 92),
+    "version": (0, 9, 93),
     "description": "Importer for id Tech 3 BSP maps",
     "blender": (3, 3, 0),
     "location": "File > Import-Export",
@@ -37,6 +38,10 @@ if "UI" in locals():
     importlib.reload(UI)
 else:
     from . import UI
+if "Gamepacks" in locals():
+    importlib.reload(Gamepacks)
+else:
+    from . import Gamepacks
 
 
 panel_cls = [
@@ -109,6 +114,22 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
         maxlen=2048,
     )
 
+    def gamepack_list_cb(self, context):
+        file_path = bpy.utils.script_paths(
+            subdir="addons/import_bsp/gamepacks/")[0]
+        gamepack_files = []
+
+        try:
+            gamepack_files = sorted(f for f in os.listdir(file_path)
+                                    if f.endswith(".json"))
+        except Exception as e:
+            print('Could not open gamepack files ' + ", error: " + str(e))
+
+        gamepack_list = [(gamepack, gamepack.split(".")[0], "")
+                         for gamepack in sorted(gamepack_files)]
+
+        return gamepack_list
+
     def assetslibs_list_cb(self, context):
         if bpy.app.version >= (3, 0, 0):
             libs = context.preferences.filepaths.asset_libraries
@@ -123,6 +144,19 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
         description="Asset library to use for packing models"
     )
 
+    gamepack: bpy.props.EnumProperty(
+        items=gamepack_list_cb,
+        name="Gamepack",
+        description="List of available gamepacks"
+    )
+
+    gamepack_name: bpy.props.StringProperty(
+        name="New Gamepack Name",
+        description="Name of the new/renamed gamepack",
+        default="New Gamepack",
+        maxlen=2048,
+    )
+
     def draw(self, context):
         layout = self.layout
         row = layout.row()
@@ -134,6 +168,18 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
         layout.separator()
         row = layout.row()
         row.prop(self, "merge_id3_panels")
+        layout.separator()
+        row = layout.row()
+        row.prop(self, "gamepack")
+        row.operator("q3.open_gamepack", text="", icon="TEXT").name = self.gamepack
+        row.operator("q3.delete_gamepack", text="", icon="X").name = self.gamepack
+        layout.separator()
+        row = layout.row()
+        row.prop(self, "gamepack_name")
+        row = layout.row()
+        row.operator("q3.add_new_gamepack").name = self.gamepack_name
+        row.operator("q3.import_def_gamepack").name = self.gamepack_name
+        row = layout.row()
         if bpy.app.version >= (3, 0, 0):
             layout.separator()
             row = layout.row()
@@ -145,7 +191,12 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
             row.operator("q3.fill_asset_lib", text="Fill with models")
 
 
-classes = (UI.Import_ID3_BSP,
+classes = (Gamepacks.Open_gamepack,
+           Gamepacks.Add_new_gamepack,
+           Gamepacks.Import_from_def,
+           Gamepacks.Delete_gamepack,
+           BspImportAddonPreferences,
+           UI.Import_ID3_BSP,
            UI.Import_MAP,
            UI.Import_ID3_MD3,
            UI.Import_ID3_TIK,
@@ -168,7 +219,6 @@ classes = (UI.Import_ID3_BSP,
            UI.Create_Lightgrid,
            UI.Convert_Baked_Lightgrid,
            UI.Pack_Lightmap_Images,
-           BspImportAddonPreferences,
            UI.FillAssetLibrary,
            )
 
