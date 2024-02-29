@@ -215,7 +215,7 @@ def parse_brush(planes, material_sizes=None):
                 uv[0] /= mat_size[0]
                 uv[1] /= mat_size[1]
 
-            final_uvs.append(tuple(uv))
+            final_uvs.append((uv[0], 1.0 - uv[1]))
             face_indices.append(final_points.index(point))
 
         materials.append(uv_data[0])
