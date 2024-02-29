@@ -44,7 +44,7 @@ panel_cls = [
     (UI.Q3_PT_EntityPanel, "ID3 Entities"),
     (UI.Q3_PT_EntExportPanel, "ID3 Entities"),
     (UI.Q3_PT_PropertiesEntityPanel, "ID3 Entities"),
-    (UI.Q3_PT_DescribtionEntityPanel, "ID3 Entities"),
+    (UI.Q3_PT_DescriptionEntityPanel, "ID3 Entities"),
     (UI.Q3_PT_EditEntityPanel, "ID3 Entities"),
     (UI.Q3_PT_DataExportPanel, "ID3 Data"),
 ]

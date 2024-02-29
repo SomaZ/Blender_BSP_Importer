@@ -665,7 +665,7 @@ class Add_entity_definition(bpy.types.Operator):
                      "Mins": [-8, -8, -8],
                      "Maxs": [8, 8, 8],
                      "Model": "box",
-                     "Describtion": "NOT DOCUMENTED YET",
+                     "Description": "NOT DOCUMENTED YET",
                      "Spawnflags": {},
                      "Keys": {},
                      }
@@ -1116,8 +1116,6 @@ class Q3_PT_EntityPanel(bpy.types.Panel):
             return
 
         layout.prop(context.scene.id_tech_3_settings,"gamepack")
-        #layout.label(
-        #    text=context.scene.id_tech_3_settings.gamepack.split(".")[0])
 
         if "classname" in obj:
             classname = obj["classname"].lower()
@@ -1221,11 +1219,11 @@ class Q3_PT_PropertiesEntityPanel(bpy.types.Panel):
                     text='You can add it via "Edit Entity Definitions"')
 
 
-class Q3_PT_DescribtionEntityPanel(bpy.types.Panel):
-    bl_idname = "Q3_PT_describtion_entity_panel"
+class Q3_PT_DescriptionEntityPanel(bpy.types.Panel):
+    bl_idname = "Q3_PT_description_entity_panel"
     bl_parent_id = "Q3_PT_entity_panel"
     bl_options = {"DEFAULT_CLOSED"}
-    bl_label = "Entity Describtion"
+    bl_label = "Entity Description"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "ID3 Entities"
@@ -1246,7 +1244,7 @@ class Q3_PT_DescribtionEntityPanel(bpy.types.Panel):
             classname = obj["classname"].lower()
             if classname in entity_dict:
                 ent = entity_dict[classname]
-                for line in ent["Describtion"]:
+                for line in ent["Description"]:
                     layout.label(text=line)
             else:
                 layout.label(text="Unknown entity")
