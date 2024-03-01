@@ -241,7 +241,12 @@ def set_custom_properties(import_settings, blender_obj, bsp_obj):
     if classname in import_settings.entity_dict:
         class_dict_keys = import_settings.entity_dict[classname]["Keys"]
         if "Color" in import_settings.entity_dict[classname]:
-            blender_obj.color = (*import_settings.entity_dict[classname]["Color"], 1.0)
+            color_info = [*import_settings.entity_dict[classname]["Color"], 1.0]
+            blender_obj.color = (
+                pow(color_info[0], 2.2),
+                pow(color_info[1], 2.2),
+                pow(color_info[2], 2.2),
+                pow(color_info[3], 2.2))
 
     for property in bsp_obj.custom_parameters:
         if property == "surfaces":
