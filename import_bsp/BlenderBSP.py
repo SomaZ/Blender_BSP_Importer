@@ -237,6 +237,7 @@ def set_custom_properties(import_settings, blender_obj, bsp_obj):
             rna_ui = blender_obj['_RNA_UI']
 
     class_dict_keys = {}
+    class_model_forced = False
     classname = bsp_obj.custom_parameters.get("classname").lower()
     if classname in import_settings.entity_dict:
         class_dict_keys = import_settings.entity_dict[classname]["Keys"]
@@ -247,6 +248,8 @@ def set_custom_properties(import_settings, blender_obj, bsp_obj):
                 pow(color_info[1], 2.2),
                 pow(color_info[2], 2.2),
                 pow(color_info[3], 2.2))
+        if "Model" in import_settings.entity_dict[classname]:
+            class_model_forced = import_settings.entity_dict[classname]["Model"] != "box"
 
     for property in bsp_obj.custom_parameters:
         if property == "surfaces":
@@ -299,7 +302,7 @@ def set_custom_properties(import_settings, blender_obj, bsp_obj):
     if spawnflag & 512 > 1:
         blender_obj.q3_dynamic_props.b512 = True
 
-    if bsp_obj.mesh_name:
+    if bsp_obj.mesh_name != "box" and not class_model_forced:
         blender_obj.q3_dynamic_props.model = bsp_obj.mesh_name
         blender_obj["model"] = bsp_obj.mesh_name
     if bsp_obj.model2 != "":
