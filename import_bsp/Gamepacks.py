@@ -7,7 +7,7 @@ import json
 
 class Open_gamepack(bpy.types.Operator):
     bl_idname = "q3.open_gamepack"
-    bl_label = "Open gamepack"
+    bl_label = "Open Gamepack as Blender text"
     name: bpy.props.StringProperty()
 
     def execute(self, context):
@@ -22,7 +22,7 @@ class Open_gamepack(bpy.types.Operator):
 
 class Add_new_gamepack(bpy.types.Operator):
     bl_idname = "q3.add_new_gamepack"
-    bl_label = "Add new gamepack"
+    bl_label = "Add new Gamepack"
     name: bpy.props.StringProperty()
 
     def execute(self, context):
@@ -36,7 +36,7 @@ class Add_new_gamepack(bpy.types.Operator):
 
 class Delete_gamepack(bpy.types.Operator):
     bl_idname = "q3.delete_gamepack"
-    bl_label = "Delete current selected gamepack"
+    bl_label = "Delete currently selected Gamepack"
     name: bpy.props.StringProperty()
 
     def execute(self, context):
@@ -220,7 +220,19 @@ def build_ent_dict(source_files):
                 if len(splitted) > 20 - skip:
                     if splitted[20 - skip].upper() != "X":
                         ent.spawnflags[splitted[20 - skip].upper()] = Spawn_flag(512, "NOT DOCUMENTED YET")
+            elif line.lower() == "*/":
+                continue
+            elif line.lower().startswith("model="):
+                splitted=line.split("=")
+                if len(splitted) > 1:
+                    ent.default_model = splitted[1].replace("\"", "")
             else:
+                if described:
+                    ent.descripton.append(line.replace("\t", "").strip("\t\n\r ").replace("\\", "/").replace("\"", "'"))
+                else:
+                    ent.descripton = [line.replace("\t", "").strip("\t\n\r ").replace("\\", "/").replace("\"", "'")]
+                    described = True
+
                 splitted = line.replace("\"","").replace("\t", "").strip("\t\n\r ").split(" ", 1)
                 if len(splitted) < 2:
                     continue
@@ -229,23 +241,14 @@ def build_ent_dict(source_files):
                     for key in ent.spawnflags:
                         if ident.upper() == key:
                             ent.spawnflags[key].description = str(splitted[1].strip(" -"))
-                elif len(splitted) > 1 and splitted[1].startswith("-"):
-                    if ident.lower() != "x":
-                        if ident.lower() in ent.keys:
-                            ent.keys[ident.lower()].description += splitted[1].strip(" -").replace("/", "\\")
-                        else:
-                            ent.keys[ident.lower()] = Key(splitted[1].strip(" -").replace("\\", "/"))
-                else:
-                    if line.lower().startswith("model="):
-                        splitted=line.split("=")
-                        if len(splitted) > 1:
-                            ent.default_model = splitted[1].replace("\"", "")
-                    elif line.lower() != "*/":
-                        if described:
-                            ent.descripton.append(line.replace("\t", "").strip("\t\n\r ").replace("\\", "/").replace("\"", "'"))
-                        else:
-                            ent.descripton = [line.replace("\t", "").strip("\t\n\r ").replace("\\", "/").replace("\"", "'")]
-                            described = True
+                elif splitted[1].startswith("-"): # Only seen this in the jedi knight def files, but I have no other way right now
+                    if ident.lower() == "x":
+                        continue
+                    if ident.lower() in ent.keys:
+                        ent.keys[ident.lower()].description += splitted[1].strip(" -").replace("/", "\\")
+                    else:
+                        ent.keys[ident.lower()] = Key(splitted[1].strip(" -").replace("\\", "/"))
+                
         entities[name] = ent
         n_entities += 1
     return entities

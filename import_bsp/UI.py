@@ -2268,3 +2268,124 @@ class FillAssetLibrary(bpy.types.Operator):
         for line in log:
             print(line)
         return {'FINISHED'}
+
+
+class FillAssetLibraryEntities(bpy.types.Operator):
+    bl_idname = "q3.fill_asset_lib_entities"
+    bl_label = "Fill asset library with entities"
+    bl_options = {"INTERNAL", "REGISTER"}
+    def execute(self, context):
+        if bpy.app.version < (3, 0, 0):
+            return {'FINISHED'}
+
+        log = []
+        addon_name = __name__.split('.')[0]
+        prefs = context.preferences.addons[addon_name].preferences
+
+        asset_library_path = prefs.assetlibrary.replace("\\", "/")
+
+        base_paths = get_base_paths(context)
+        if len(base_paths) == 0:
+            self.report({"ERROR"}, "No base path configured.")
+            return {'CANCELLED'}
+        
+        # initialize virtual file system
+        VFS = Q3VFS()
+        for base_path in base_paths:
+            VFS.add_base(base_path)
+        VFS.build_index()
+
+        cats_f = "{}/blender_assets.cats.txt".format(asset_library_path)
+        os.makedirs(asset_library_path, exist_ok=True)
+        a_categorys = {}
+        add_version_to_cats = False
+        if os.path.isfile(cats_f):
+            with open(cats_f, "r") as f:
+                for line in f.readlines():
+                    if line.startswith(("#", "VERSION", "\n")):
+                        continue
+                    c_uuid, path, name = line.split(":")
+                    a_categorys[path] = c_uuid
+        else:
+            add_version_to_cats = True
+
+        # categories
+        entities = get_current_entity_dict(context)
+        if len(entities) == 0:
+            self.report({"ERROR"}, "No gamepack found.")
+            return {'CANCELLED'}
+
+        for entity in entities:
+            game_folder_struct = entity.split("_", 1)
+            current_path = "Entities/" + "/".join(game_folder_struct[:-1])
+            if current_path not in a_categorys:
+                a_categorys[current_path] = None
+        
+        with open(cats_f, "a+") as f:
+            if add_version_to_cats:
+                f.write("VERSION 1\n")
+            for cat in a_categorys:
+                if a_categorys[cat] is None:
+                    a_categorys[cat] = str(uuid.uuid4())
+                    split_cat = cat.split("/")
+                    f.write(":".join((a_categorys[cat], cat, split_cat[len(split_cat)-1])))
+                    f.write("\n")
+
+        imported_objects = []
+        for entity in entities:
+            game_folder_struct = entity.split("_", 1)
+            len_gfs = len(game_folder_struct)
+            current_path = "Entities/" + "/".join(game_folder_struct[:-1])
+
+            collection = bpy.data.collections.get(game_folder_struct[len_gfs-2])
+            if collection is None:
+                collection = bpy.data.collections.new(game_folder_struct[len_gfs-2])
+            if collection.name not in context.scene.collection.children:
+                context.scene.collection.children.link(collection)
+            layerColl = context.view_layer.layer_collection.children[collection.name]
+            context.view_layer.active_layer_collection = layerColl
+            layerColl.exclude = False
+
+            if current_path not in a_categorys:
+                print("Couldn't find category, woot?_?")
+                continue
+
+            mesh, vertex_groups = BlenderBSP.load_mesh(VFS, entities[entity]["Model"], 0, None)
+            if mesh is None:
+                log.append("is None {} {}".format(entity, entities[entity]["Model"]))
+                mesh, vertex_groups = BlenderBSP.load_mesh(VFS, 'box', 0, None)
+            imported_obj = bpy.data.objects.new(entity, mesh)
+            if imported_obj is None:
+                log.append("is None {}".format(entities[entity]))
+                continue
+            context.collection.objects.link(imported_obj)
+
+            imported_obj["classname"] = entity
+
+            imported_objects.append(imported_obj)
+            imported_obj.asset_mark()
+            imported_obj.asset_data.catalog_id = a_categorys[current_path]
+
+        import_settings = Import_Settings()
+        import_settings.base_paths=base_paths
+        import_settings.bsp_name = ""
+        import_settings.preset = "PREVIEW"
+
+        QuakeShader.init_shader_system(None)
+        QuakeShader.build_quake_shaders(
+                VFS,
+                import_settings,
+                imported_objects)
+
+        for imported_obj in imported_objects:
+            imported_obj.asset_generate_preview()
+
+        for collection in bpy.data.collections:
+            layerColl = bpy.context.view_layer.layer_collection.children[collection.name]
+            layerColl.exclude = True
+
+        bpy.ops.wm.save_as_mainfile(filepath=prefs.assetlibrary+"/"+"entities.blend")
+
+        for line in log:
+            print(line)
+        return {'FINISHED'}

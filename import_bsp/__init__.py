@@ -151,9 +151,9 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
     )
 
     gamepack_name: bpy.props.StringProperty(
-        name="New Gamepack Name",
-        description="Name of the new/renamed gamepack",
-        default="New Gamepack",
+        name="New Gamepack",
+        description="Name of the new empty gamepack",
+        default="Empty",
         maxlen=2048,
     )
 
@@ -173,11 +173,10 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
         row.prop(self, "gamepack")
         row.operator("q3.open_gamepack", text="", icon="TEXT").name = self.gamepack
         row.operator("q3.delete_gamepack", text="", icon="X").name = self.gamepack
-        layout.separator()
         row = layout.row()
         row.prop(self, "gamepack_name")
+        row.operator("q3.add_new_gamepack", text="", icon="PLUS").name = self.gamepack_name
         row = layout.row()
-        row.operator("q3.add_new_gamepack").name = self.gamepack_name
         row.operator("q3.import_def_gamepack").name = self.gamepack_name
         row = layout.row()
         if bpy.app.version >= (3, 0, 0):
@@ -188,7 +187,9 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
             row.prop(self, "default_spawnflags")
             row = layout.row()
             row.prop(self, "assetlibrary")
+            row = layout.row()
             row.operator("q3.fill_asset_lib", text="Fill with models")
+            row.operator("q3.fill_asset_lib_entities", text="Fill with entities")
 
 
 classes = (Gamepacks.Open_gamepack,
@@ -219,6 +220,7 @@ classes = (Gamepacks.Open_gamepack,
            UI.Convert_Baked_Lightgrid,
            UI.Pack_Lightmap_Images,
            UI.FillAssetLibrary,
+           UI.FillAssetLibraryEntities,
            )
 
 
