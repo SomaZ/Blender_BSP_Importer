@@ -132,7 +132,7 @@ def get_current_entity_dict(context):
 
     dict_path = bpy.utils.script_paths(
             subdir="addons/import_bsp/gamepacks/")[0]
-    gamepack = context.scene.id_tech_3_settings.gamepack
+    gamepack = prefs.gamepack
     entity_dict = GamePacks.get_gamepack(dict_path, gamepack)
     return entity_dict
     
@@ -664,7 +664,9 @@ class Add_entity_definition(bpy.types.Operator):
     name: StringProperty()
 
     def execute(self, context):
-        obj = bpy.context.active_object
+        addon_name = __name__.split('.')[0]
+        prefs = context.preferences.addons[addon_name].preferences
+
         new_entry = {"Color": [0.0, 0.5, 0.0],
                      "Mins": [-8, -8, -8],
                      "Maxs": [8, 8, 8],
@@ -678,7 +680,7 @@ class Add_entity_definition(bpy.types.Operator):
 
         entity_dict[self.name] = new_entry
         GamePacks.save_gamepack(
-            entity_dict, context.scene.id_tech_3_settings.gamepack)
+            entity_dict, prefs.gamepack)
         return {'FINISHED'}
 
 
@@ -689,6 +691,9 @@ class Add_key_definition(bpy.types.Operator):
     name: StringProperty()
 
     def execute(self, context):
+        addon_name = __name__.split('.')[0]
+        prefs = context.preferences.addons[addon_name].preferences
+
         obj = bpy.context.active_object
 
         if self.name != "":
@@ -712,7 +717,7 @@ class Add_key_definition(bpy.types.Operator):
                         "Description": "NOT DOCUMENTED YET"}
                     GamePacks.save_gamepack(
                         entity_dict,
-                        context.scene.id_tech_3_settings.gamepack)
+                        prefs.gamepack)
         return {'FINISHED'}
 
 
@@ -729,6 +734,9 @@ class Update_entity_definition(bpy.types.Operator):
     name: StringProperty()
 
     def execute(self, context):
+        addon_name = __name__.split('.')[0]
+        prefs = context.preferences.addons[addon_name].preferences
+
         obj = bpy.context.active_object
 
         rna_ui = obj.get('_RNA_UI')
@@ -750,7 +758,7 @@ class Update_entity_definition(bpy.types.Operator):
                             type_save_matching[rna_ui[key]["subtype"]])
 
             GamePacks.save_gamepack(
-                entity_dict, context.scene.id_tech_3_settings.gamepack)
+                entity_dict, prefs.gamepack)
 
         return {'FINISHED'}
 
@@ -1020,40 +1028,8 @@ class DynamicProperties(PropertyGroup):
         subtype="FILE_PATH"
     )
 
-# Properties like spawnflags and model
-
-
-class SceneProperties(PropertyGroup):
-
-    def gamepack_list_cb(self, context):
-        file_path = bpy.utils.script_paths(
-            subdir="addons/import_bsp/gamepacks/")[0]
-        gamepack_files = []
-
-        try:
-            gamepack_files = sorted(f for f in os.listdir(file_path)
-                                    if f.endswith(".json"))
-        except Exception as e:
-            print('Could not open gamepack files ' + ", error: " + str(e))
-
-        gamepack_list = [(gamepack, gamepack.split(".")[0], "")
-                         for gamepack in sorted(gamepack_files)]
-
-        return gamepack_list
-
-    new_prop_name: StringProperty(
-        name="New Property",
-        default="",
-    )
-    gamepack: EnumProperty(
-        items=gamepack_list_cb,
-        name="Gamepack",
-        description="List of available gamepacks"
-    )
 
 # Panels
-
-
 class Q3_PT_ShaderPanel(bpy.types.Panel):
     bl_idname = "Q3_PT_shader_panel"
     bl_label = "Shaders"
@@ -1107,16 +1083,17 @@ class Q3_PT_EntityPanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        scene = context.scene
         obj = bpy.context.active_object
+
+        addon_name = __name__.split('.')[0]
+        prefs = context.preferences.addons[addon_name].preferences
 
         if obj is None:
             return
 
-        layout.prop(context.scene.id_tech_3_settings,"gamepack")
+        layout.prop(prefs,"gamepack")
 
         if "classname" in obj:
-            classname = obj["classname"].lower()
             layout.prop(obj, '["classname"]')
         else:
             op = layout.operator(

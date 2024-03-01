@@ -222,6 +222,8 @@ def build_ent_dict(source_files):
                         ent.spawnflags[splitted[20 - skip].upper()] = Spawn_flag(512, "NOT DOCUMENTED YET")
             else:
                 splitted = line.replace("\"","").replace("\t", "").strip("\t\n\r ").split(" ", 1)
+                if len(splitted) < 2:
+                    continue
                 ident = splitted[0].strip(" ")
                 if ident.upper() in ent.spawnflags:
                     for key in ent.spawnflags:

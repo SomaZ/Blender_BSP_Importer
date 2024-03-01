@@ -205,7 +205,6 @@ classes = (Gamepacks.Open_gamepack,
            UI.Reload_preview_shader,
            UI.Reload_render_shader,
            UI.DynamicProperties,
-           UI.SceneProperties,
            UI.Add_property,
            UI.Del_property,
            UI.Add_entity_definition,
@@ -234,8 +233,6 @@ def register():
     bpy.types.TOPBAR_MT_file_export.append(UI.menu_func_tik_export)
     bpy.types.Object.q3_dynamic_props = bpy.props.PointerProperty(
         type=UI.DynamicProperties)
-    bpy.types.Scene.id_tech_3_settings = bpy.props.PointerProperty(
-        type=UI.SceneProperties)
     bpy.types.Scene.id_tech_3_importer_preset = bpy.props.StringProperty(
         name="id3 importer preset",
         description="Last used importer preset")
