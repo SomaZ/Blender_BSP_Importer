@@ -180,6 +180,23 @@ def load_mesh(VFS, mesh_name, zoffset, bsp):
                                 size=8.0, location=([0, 0, 0]))
             ent_object = bpy.context.object
             ent_object.name = "box"
+
+            material_name = "Object Color"
+            mat = bpy.data.materials.get(material_name)
+            if (mat == None):
+                mat = bpy.data.materials.new(name=material_name)
+                mat.use_nodes = True
+                node = mat.node_tree.nodes["Principled BSDF"]
+                object_node = mat.node_tree.nodes.new(type="ShaderNodeObjectInfo")
+                object_node.location = (node.location[0] - 400, node.location[1])
+                mat.node_tree.links.new(object_node.outputs["Color"], node.inputs["Base Color"])
+                if bpy.app.version >= (4, 0, 0):
+                    mat.node_tree.links.new(object_node.outputs["Color"], node.inputs["Emission Color"])
+                    node.inputs["Emission Strength"].default_value = 1.0
+                else:
+                    mat.node_tree.links.new(object_node.outputs["Color"], node.inputs["Emission"])
+            ent_object.data.materials.append(mat)
+            
             blender_mesh = ent_object.data
             blender_mesh.name = "box"
             bpy.data.objects.remove(ent_object, do_unlink=True)
@@ -220,9 +237,11 @@ def set_custom_properties(import_settings, blender_obj, bsp_obj):
             rna_ui = blender_obj['_RNA_UI']
 
     class_dict_keys = {}
-    classname = bsp_obj.custom_parameters.get("classname")
+    classname = bsp_obj.custom_parameters.get("classname").lower()
     if classname in import_settings.entity_dict:
         class_dict_keys = import_settings.entity_dict[classname]["Keys"]
+        if "Color" in import_settings.entity_dict[classname]:
+            blender_obj.color = (*import_settings.entity_dict[classname]["Color"], 1.0)
 
     for property in bsp_obj.custom_parameters:
         if property == "surfaces":

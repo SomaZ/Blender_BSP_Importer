@@ -1395,6 +1395,8 @@ def build_quake_shaders(VFS, import_settings, object_list):
     material_list = []
     material_names = []
     for object in object_list:
+        if object.data.name == "box":
+            continue
         force_vertex = False
         force_grid = False
         if "LightmapUV" not in object.data.uv_layers:
