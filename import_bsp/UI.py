@@ -208,13 +208,13 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
         # trace some things like paths and lightmap size
         import_settings = Import_Settings(
             file=self.filepath.replace("\\", "/"),
-            subdivisions=self.properties.subdivisions,
+            subdivisions=self.subdivisions,
             min_atlas_size=(
                 int(self.min_atlas_size),
                 int(self.min_atlas_size)
                 ),
             base_paths=get_base_paths(context, self.filepath),
-            preset=self.properties.preset,
+            preset=self.preset,
             front_culling=False,
             surface_types=surface_types,
             entity_dict=entity_dict
@@ -222,7 +222,7 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
 
         # scene information
         context.scene.id_tech_3_importer_preset = self.preset
-        if self.preset != "BRUSHES":
+        if self.preset not in brush_imports:
             context.scene.id_tech_3_file_path = self.filepath
 
         BlenderBSP.import_bsp_file(import_settings)
@@ -232,9 +232,9 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
         if background is not None:
             background.inputs[0].default_value = 0, 0, 0, 1
 
-        if self.properties.preset in brush_imports:
+        if self.preset in brush_imports:
             context.scene.cycles.transparent_max_bounces = 36
-        elif self.properties.preset == "RENDERING":
+        elif self.preset == "RENDERING":
             context.scene.render.engine = "CYCLES"
         else:
             context.scene.render.engine = "BLENDER_EEVEE"
@@ -273,7 +273,7 @@ class Import_MAP(bpy.types.Operator, ImportHelper):
         # trace some things like paths and lightmap size
         import_settings = Import_Settings(
             file=self.filepath.replace("\\", "/"),
-            subdivisions=self.properties.subdivisions,
+            subdivisions=self.subdivisions,
             base_paths=get_base_paths(context, self.filepath),
             preset=import_preset,
             front_culling=False,

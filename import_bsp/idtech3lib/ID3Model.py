@@ -443,7 +443,7 @@ class ID3Model:
                 bsp_index_list.append(fixed_bsp_indices[j][i])
 
         force_nodraw = False
-        if import_settings.preset not in ["BRUSHES", "SHADOWBRUSHES"]:
+        if import_settings.preset not in ["BRUSHES", "SHADOW_BRUSHES"]:
             shaders_lump = bsp.lumps["shaders"]
             force_nodraw = shaders_lump[face.texture].flags == 0x00200000
 
@@ -538,7 +538,20 @@ class ID3Model:
                 if brush_shader.startswith("models/"):
                     continue
                 if brush_shader.startswith("textures/system/"):
-                    continue
+                    for side in range(bsp_brush.n_brushsides):
+                        brushside = bsp.lumps["brushsides"][
+                            bsp_brush.brushside + side]
+                        bsp_plane = bsp.lumps["planes"][brushside.plane]
+                        shader = (
+                            bsp.lumps["shaders"]
+                            [brushside.texture].name.decode("latin-1"))
+                        if not (shader.startswith("textures/system/") or \
+                                shader.startswith("noshader") or \
+                                shader.startswith("models/")):
+                            brush_shader = shader
+                            break
+                    if brush_shader.startswith("textures/system/"):
+                        continue
 
             for side in range(bsp_brush.n_brushsides):
                 brushside = bsp.lumps["brushsides"][

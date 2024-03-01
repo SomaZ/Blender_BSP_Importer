@@ -619,6 +619,8 @@ def import_bsp_file(import_settings):
             ob = bpy.data.objects.new(
                     name=mesh_name,
                     object_data=mesh)
+            modifier = ob.modifiers.new("Displace", type="DISPLACE")
+            modifier.strength = -4.0
             blender_objects.append(ob)
             bpy.context.collection.objects.link(ob)
     else:

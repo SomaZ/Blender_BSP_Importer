@@ -1313,6 +1313,10 @@ class quake_shader:
                     transparent = True
                 if "nonopaque" in shader.attributes["surfaceparm"]:
                     transparent = True
+            if "cull" in shader.attributes:
+                if (shader.attributes["cull"][0] == "twosided" or
+                    shader.attributes["cull"][0] == "none"):
+                    transparent = True
 
             if transparent:
                 node_BSDF.inputs["Alpha"].default_value = 0.0
