@@ -178,7 +178,7 @@ class BSP_READER:
         # check if we should pack lightmap tcs or not,
         # packing lightmap tcs is not supported for shader
         # based external lightmaps
-        num_internal_lm_ids = 0
+        num_internal_lm_ids = -1
         for face in self.lumps["surfaces"]:
             if self.lightmaps > 1:
                 current_max = max(face.lm_indexes)
