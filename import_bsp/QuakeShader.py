@@ -43,6 +43,7 @@ if bpy.app.version >= (4, 0, 0):
 else:
     EMISSION_KEY = "Emission"
 
+LIGHTING_NONE = -1
 LIGHTING_IDENTITY = 0
 LIGHTING_VERTEX = 1
 LIGHTING_LIGHTGRID = 3
@@ -75,7 +76,7 @@ class vanilla_shader_stage:
         stage.diffuse = ""
         stage.clamp = False
         stage.blend = BLEND_NONE
-        stage.lighting = LIGHTING_IDENTITY
+        stage.lighting = LIGHTING_NONE
         stage.color = [1.0, 1.0, 1.0]
         stage.alpha = ALPHA_UNDEFINED
         stage.alpha_value = 1.0
@@ -339,7 +340,7 @@ class quake_shader:
         return node
 
     def get_rgbGen_node(shader, rgbGen):
-        if rgbGen == 0:
+        if rgbGen == LIGHTING_IDENTITY or rgbGen == LIGHTING_NONE:
             return None
         if rgbGen == LIGHTING_VERTEX:
             return shader.get_node_by_name("vertexColor")
@@ -913,9 +914,8 @@ class quake_shader:
             for stage in shader.stages:
                 if (stage.tcGen == TCGEN_LM and
                    stage.diffuse.startswith("maps/")):
-                    image = bpy.data.images.get(
-                        BlenderImage.remove_file_extension(stage.diffuse))
-                    if image is None:
+                    image = BlenderImage.load_file(stage.diffuse, VFS)
+                    if image is not None:
                         node_lm.image = image
         else:
             node_lm.image = lm_image
@@ -1041,10 +1041,10 @@ class quake_shader:
                         shader_type = "ADD"
                         shader.mat.blend_method = "BLEND"
                     if (shader.is_vertex_lit and
-                       stage.lighting is LIGHTING_IDENTITY):
+                       stage.lighting is LIGHTING_NONE):
                         stage.lighting = LIGHTING_VERTEX
                     if (shader.is_grid_lit and
-                       stage.lighting is LIGHTING_IDENTITY):
+                       stage.lighting is LIGHTING_NONE):
                         stage.lighting = LIGHTING_LIGHTGRID
 
                 if stage.blend.endswith("gl_zero") and not stage.skip_alpha:

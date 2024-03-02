@@ -56,6 +56,11 @@ if "QuakeLight" in locals():
 else:
     from . import QuakeLight
 
+if "BlenderImage" in locals():
+    importlib.reload(BlenderImage)
+else:
+    from . import BlenderImage
+
 
 def create_meshes_from_models(models):
     if models is None:
@@ -276,7 +281,10 @@ def set_custom_properties(import_settings, blender_obj, bsp_obj):
             rna_ui[property] = descr_dict
         else:
             id_props = blender_obj.id_properties_ui(property)
-            id_props.update(description=property_desc)
+            if id_props is None:
+                continue
+            if property_desc != "":
+                id_props.update(description=str(property_desc))
             if property_subtype != "NONE":
                 id_props.update(subtype=property_subtype)
 
@@ -302,7 +310,7 @@ def set_custom_properties(import_settings, blender_obj, bsp_obj):
     if spawnflag & 512 > 1:
         blender_obj.q3_dynamic_props.b512 = True
 
-    if bsp_obj.mesh_name != "box" and not class_model_forced:
+    if bsp_obj.mesh_name is not None and bsp_obj.mesh_name != "box" and not class_model_forced:
         blender_obj.q3_dynamic_props.model = bsp_obj.mesh_name
         blender_obj["model"] = bsp_obj.mesh_name
     if bsp_obj.model2 != "":
@@ -585,15 +593,18 @@ def set_blender_clip_spaces(clip_start, clip_end):
 def import_bsp_file(import_settings):
 
     # initialize virtual file system
+    print("initialize virtual file system")
     VFS = Q3VFS()
     for base_path in import_settings.base_paths:
         VFS.add_base(base_path)
     VFS.build_index()
 
     # read bsp data
+    print("read bsp data")
     bsp_file = BSP(VFS, import_settings)
 
     # prepare for packing internal lightmaps
+    print("prepare for packing internal lightmaps")
     bsp_file.lightmap_size = bsp_file.compute_packed_lightmap_size()
 
     # profiler = cProfile.Profile()
@@ -624,7 +635,9 @@ def import_bsp_file(import_settings):
             blender_objects.append(ob)
             bpy.context.collection.objects.link(ob)
     else:
+        print("get bsp entity objects")
         bsp_objects = bsp_file.get_bsp_entity_objects()
+        print("create blender objects")
         blender_objects = create_blender_objects(
             VFS,
             import_settings,
@@ -633,6 +646,7 @@ def import_bsp_file(import_settings):
             bsp_file)
 
     # get clip data and gridsize
+    print("get clip data and gridsize")
     clip_end = 40000
     if bsp_objects is not None and "worldspawn" in bsp_objects:
         worldspawn_object = bsp_objects["worldspawn"]
@@ -648,8 +662,10 @@ def import_bsp_file(import_settings):
                                                1.0 / float(grid_size[1]),
                                                1.0 / float(grid_size[2])]
     # apply clip data
+    print("apply clip data")
     set_blender_clip_spaces(4.0, clip_end)
 
+    print("get bsp images")
     bsp_images = bsp_file.get_bsp_images()
     for image in bsp_images:
         old_image = bpy.data.images.get(image.name)
@@ -666,20 +682,16 @@ def import_bsp_file(import_settings):
         new_image.use_fake_user = True
 
     # handle external lightmaps
+    print("handle external lightmaps")
     if bsp_file.num_internal_lm_ids >= 0 and bsp_file.external_lm_files:
         tmp_folder = bpy.app.tempdir.replace("\\", "/")
         external_lm_lump = []
         width, height = None, None
         for file_name in bsp_file.external_lm_files:
-            os.makedirs(tmp_folder + os.path.dirname(file_name), exist_ok=True)
-            f = open(tmp_folder + file_name, "wb")
-            try:
-                f.write(VFS.get(file_name))
-            except Exception:
-                print("Couldn't write temp file: " + file_name)
-            f.close()
-
-            tmp_image = bpy.data.images.load(tmp_folder + file_name)
+            tmp_image = BlenderImage.load_file(file_name, VFS)
+            if tmp_image is None:
+                print("Could not load:", file_name)
+                continue
             if not width:
                 width = tmp_image.size[0]
             if not height:
