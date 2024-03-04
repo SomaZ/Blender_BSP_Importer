@@ -691,29 +691,17 @@ class ID3Model:
                         self.material_names.index(material))
 
     def pack_lightmap_uvs(self, bsp):
-        layer_name = "LightmapUV"
-        for uv_id, uv_set in enumerate(self.uv_layers[layer_name].indexed):
-            lightmap_id = self.vertex_lightmap_id.indexed[uv_id]
-            if bsp.lightmaps > 1:
-                lightmap_id = lightmap_id[0]
-
-            if bsp.deluxemapping and lightmap_id >= 0:
-                lightmap_id = lightmap_id // 2
-
-            self.uv_layers[layer_name].indexed[uv_id] = pack_lm_tc(
-                uv_set,
-                lightmap_id,
-                bsp.internal_lightmap_size,
-                bsp.lightmap_size
-            )
+        layer_names = ["LightmapUV"]
         for i in range(2, bsp.lightmaps+1):
-            layer_name = "LightmapUV"+str(i)
+            layer_names.append("LightmapUV"+str(i))
+
+        for style_index, layer_name in enumerate(layer_names):
             for uv_id, uv_set in enumerate(self.uv_layers[layer_name].indexed):
                 lightmap_id = self.vertex_lightmap_id.indexed[uv_id]
                 if bsp.lightmaps > 1:
-                    lightmap_id = lightmap_id[i-1]
+                    lightmap_id = lightmap_id[style_index]
 
-                if bsp.deluxemapping:
+                if bsp.deluxemapping and lightmap_id >= 0:
                     lightmap_id = lightmap_id // 2
 
                 self.uv_layers[layer_name].indexed[uv_id] = pack_lm_tc(
