@@ -268,6 +268,8 @@ class BSP_READER:
                 model.pack_lightmap_uvs(self)
             if self.import_settings.vert_lit_handling == Vert_lit_handling.PRIMITIVE_PACK:
                 model.pack_vertmap_uvs(self, self.import_settings)
+            elif self.import_settings.vert_lit_handling == Vert_lit_handling.UV_MAP:
+                model.copy_vertmap_uvs_from_diffuse(self)
             return model
 
         model = MODEL("*"+str(model_id))

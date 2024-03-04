@@ -784,3 +784,18 @@ class ID3Model:
                     import_settings.current_vert_pack_index += 1
             if len(face) == 4 and not lightmapped:
                 import_settings.current_vert_pack_index += 6
+
+    def copy_vertmap_uvs_from_diffuse(self, bsp):
+        lightmap_ids = self.vertex_lightmap_id.get_unindexed()
+        for face, ext_lm_tc in zip(self.indices, self.ext_lm_tc):
+            if len(face) > 4 or ext_lm_tc:
+                continue
+            for index in face:
+                lm_id = lightmap_ids[index]
+                if bsp.lightmaps > 1:
+                    lm_id = lightmap_ids[index][0]
+
+                if lm_id >= 0:
+                    continue
+
+                self.uv_layers["LightmapUV"].indexed[index] = self.uv_layers["UVMap"].indexed[index]
