@@ -786,7 +786,7 @@ class ID3Model:
                 import_settings.current_vert_pack_index += 6
 
     def copy_vertmap_uvs_from_diffuse(self, bsp):
-        lightmap_ids = self.vertex_lightmap_id.get_unindexed()
+        lightmap_ids = self.vertex_lightmap_id.get_indexed()
         for face, ext_lm_tc in zip(self.indices, self.ext_lm_tc):
             if len(face) > 4 or ext_lm_tc:
                 continue
