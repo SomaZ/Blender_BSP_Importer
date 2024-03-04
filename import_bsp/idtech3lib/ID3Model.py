@@ -175,6 +175,7 @@ class ID3Model:
 
         self.current_index = 0
         self.index_mapping = [-2 for i in range(len(bsp.lumps["drawverts"]))]
+        self.ext_lm_tc = []
 
         self.num_bsp_vertices = len(bsp.lumps["drawverts"])
         self.vertex_lightmap_id = self.VertexAttribute(self.indices)
@@ -295,6 +296,8 @@ class ID3Model:
         material_name = (
             shaders_lump[face.texture].name.decode("latin-1") +
             material_suffix)
+        
+        self.ext_lm_tc.append(face.texture in bsp.lightmap_tc_shaders)
 
         if material_name not in self.material_names:
             self.material_names.append(material_name)
@@ -755,9 +758,9 @@ class ID3Model:
         self.uv_layers["LightmapUV"].make_unindexed_list()
         lightmap_ids = self.vertex_lightmap_id.get_unindexed()
         current_index = 0
-        for face in self.indices:
+        for face, ext_lm_tc in zip(self.indices, self.ext_lm_tc):
             lightmapped = False
-            if len(face) > 4:
+            if len(face) > 4 or ext_lm_tc:
                 current_index += len(face)
                 continue
             for vert_id, index in enumerate(face):

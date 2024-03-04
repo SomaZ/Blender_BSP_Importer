@@ -7,6 +7,7 @@ from .FBSP import BSP_INFO as FBSP
 from .ID3Model import ID3Model as MODEL
 from .ID3Object import ID3Object as OBJECT
 from .ID3Image import ID3Image as IMAGE
+from .ID3Shader import get_material_dicts
 from math import floor, ceil
 from numpy import array, dot, sin, cos, sqrt, pi
 from struct import unpack
@@ -125,6 +126,7 @@ class BSP_READER:
         self.lerp_vertices = bsp_info.lerp_vertices
         self.lightmap_lumps = bsp_info.lightmap_lumps
         self.compute_lightmap_info(VFS)
+        self.find_shader_based_external_lightmaps(VFS)
 
     def set_entity_lump(self, entity_text):
         bsp_info = self.MAGIC_MAPPING[self.header.magic_nr]
@@ -235,6 +237,21 @@ class BSP_READER:
         if self.deluxemapping:
             packed_lightmap_size[1] = packed_lightmap_size[1] // 2
         return packed_lightmap_size
+    
+    def find_shader_based_external_lightmaps(self, VFS):
+        materials = []
+        material_id_matching = {}
+        for shader_id, shader in enumerate(self.lumps["shaders"]):
+            shader_name = shader.name.decode(encoding="latin-1").lower()
+            material_id_matching[shader_name] = shader_id
+            materials.append(shader_name)
+        material_dicts = get_material_dicts(VFS, self.import_settings, materials)
+        self.lightmap_tc_shaders = []
+        for material in material_dicts:
+            attributes, stages = material_dicts[material]
+            for stage in stages:
+                if "tcgen" in stage and stage["tcgen"] == "lightmap":
+                    self.lightmap_tc_shaders.append(material_id_matching[material])
 
     def get_bsp_entity_objects(self) -> dict:
         return OBJECT.get_entity_objects_from_bsp(self)
