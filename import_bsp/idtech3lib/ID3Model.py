@@ -34,6 +34,45 @@ def clamp_shift_tc(tc, min_tc, max_tc, u_shift, v_shift):
     return (u, v)
 
 
+def unwrap_vert_map(vert_id, vertmap_size, current_id):
+    id = int(floor(current_id/3.0))
+    even = id % 2 == 0
+    id += floor(id / 2)
+    current_x = id % (vertmap_size[0] - 1)
+    current_y = 2 * floor(id / (vertmap_size[0] - 1))
+    
+    eps_u = 0.005
+    if even:
+        eps_small = 0.495
+        eps_big = 1.505
+        if vert_id == 0:
+            return ((current_x + eps_small + eps_u) / vertmap_size[0], (current_y + eps_big) / vertmap_size[1])
+        elif vert_id == 1:
+            return ((current_x + eps_small + eps_u) / vertmap_size[0], (current_y + eps_small) / vertmap_size[1])
+        elif vert_id == 2:
+            return ((current_x + eps_big + eps_u) / vertmap_size[0], (current_y + eps_small) / vertmap_size[1])
+        #special case for patch surfaces
+        elif vert_id == 3:
+            return ((current_x + eps_big + eps_u) / vertmap_size[0], (current_y + eps_big) / vertmap_size[1])
+        else:
+            return (0.0, 0.0)
+    else:
+        eps_small = 0.505
+        eps_big = 1.505
+        current_x += 1
+        if vert_id == 0:
+            return ((current_x - eps_small - eps_u) / vertmap_size[0], (current_y + eps_big) / vertmap_size[1])
+        elif vert_id == 1:
+            return ((current_x + eps_small + eps_u) / vertmap_size[0], (current_y + eps_big) / vertmap_size[1])
+        elif vert_id == 2:
+            return ((current_x + eps_small + eps_u) / vertmap_size[0], (current_y + 0.49) / vertmap_size[1])
+        #special case for patch surfaces
+        elif vert_id == 3:
+            return ((current_x - eps_small - eps_u) / vertmap_size[0], (current_y + 0.49) / vertmap_size[1])
+        else:
+            return (0.0, 0.0)
+
+
 def pack_lm_tc(tc,
                lightmap_id,
                lightmap_size,
@@ -710,3 +749,35 @@ class ID3Model:
                     bsp.internal_lightmap_size,
                     bsp.lightmap_size
                 )
+
+    def pack_vertmap_uvs(self, bsp, import_settings):
+        # Breaks indexed uvs
+        self.uv_layers["LightmapUV"].make_unindexed_list()
+        lightmap_ids = self.vertex_lightmap_id.get_unindexed()
+        current_index = 0
+        for face in self.indices:
+            lightmapped = False
+            if len(face) > 4:
+                current_index += len(face)
+                continue
+            for vert_id, index in enumerate(face):
+                lm_id = lightmap_ids[current_index]
+                if bsp.lightmaps > 1:
+                    lm_id = lightmap_ids[current_index][0]
+
+                if lm_id >= 0:
+                    lightmapped = True
+                    current_index += 1
+                    continue
+
+                self.uv_layers["LightmapUV"].unindexed[current_index] = unwrap_vert_map(
+                    vert_id,
+                    (2048, 2048),
+                    import_settings.current_vert_pack_index
+                )
+
+                current_index += 1
+                if len(face) != 4:
+                    import_settings.current_vert_pack_index += 1
+            if len(face) == 4 and not lightmapped:
+                import_settings.current_vert_pack_index += 6

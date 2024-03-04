@@ -37,6 +37,11 @@ class Surface_Type(IntFlag):
             return cls.BAD
 
 
+class Vert_lit_handling(IntFlag):
+    KEEP = 0
+    UV_MAP = 1
+    PRIMITIVE_PACK = 2
+
 @dataclass
 class Import_Settings:
 
@@ -51,6 +56,8 @@ class Import_Settings:
     front_culling: bool = True
     surface_types: Surface_Type = Surface_Type.BAD
     entity_dict: dict = field(default_factory=dict)
+    vert_lit_handling: Vert_lit_handling = Vert_lit_handling.KEEP
+    current_vert_pack_index = 0
 
     def __post_init__(self):
         self.bsp_name = guess_map_name(self.file)

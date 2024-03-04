@@ -10,6 +10,7 @@ from .ID3Image import ID3Image as IMAGE
 from math import floor, ceil
 from numpy import array, dot, sin, cos, sqrt, pi
 from struct import unpack
+from .ImportSettings import Vert_lit_handling
 
 
 def normalize(vector):
@@ -248,6 +249,8 @@ class BSP_READER:
         if model.current_index > 0:
             if pack_lightmap_uvs:
                 model.pack_lightmap_uvs(self)
+            if self.import_settings.vert_lit_handling == Vert_lit_handling.PRIMITIVE_PACK:
+                model.pack_vertmap_uvs(self, self.import_settings)
             return model
 
         model = MODEL("*"+str(model_id))

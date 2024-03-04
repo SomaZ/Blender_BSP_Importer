@@ -93,6 +93,11 @@ if "Surface_Type" in locals():
 else:
     from .idtech3lib.ImportSettings import Surface_Type
 
+if "Vert_lit_handling" in locals():
+    importlib.reload(Vert_lit_handling)
+else:
+    from .idtech3lib.ImportSettings import Vert_lit_handling
+
 if "GamePacks" in locals():
     importlib.reload(GamePacks)
 else:
@@ -182,6 +187,14 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
             ('1024', "1024", "1024x1024", 1024),
             ('2048', "2048", "2048x2048", 2048),
         ])
+    vert_map_packing: EnumProperty(
+        name="Vertex lit unwrap",
+        description="Changes uv unwrapping for vertex lit surfaces",
+        default='Primitive',
+        items=[
+            ('Keep', 'Keep', "Do nothing with the vertex lit lightmap texture coordinates", 0),
+            ('Primitive', 'Primitive packing', "Tightly pack all vertex lit primitives", 1),
+        ])
 
     def execute(self, context):
         brush_imports = (
@@ -205,6 +218,11 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
 
         entity_dict = get_current_entity_dict(context)
 
+        stupid_dict = {
+            'Keep' : Vert_lit_handling.KEEP,
+            'Primitive' : Vert_lit_handling.PRIMITIVE_PACK
+        }
+
         # trace some things like paths and lightmap size
         import_settings = Import_Settings(
             file=self.filepath.replace("\\", "/"),
@@ -217,7 +235,8 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
             preset=self.preset,
             front_culling=False,
             surface_types=surface_types,
-            entity_dict=entity_dict
+            entity_dict=entity_dict,
+            vert_lit_handling=stupid_dict[self.vert_map_packing]
         )
 
         # scene information
