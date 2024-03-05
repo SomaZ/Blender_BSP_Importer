@@ -2159,6 +2159,9 @@ class FillAssetLibrary(bpy.types.Operator):
         asset_library_path = prefs.assetlibrary.replace("\\", "/")
 
         base_paths = get_base_paths(context)
+        if len(base_paths) == 0:
+            self.report({"ERROR"}, "No base path configured.")
+            return {'CANCELLED'}
         # initialize virtual file system
         VFS = Q3VFS()
         for base_path in base_paths:
