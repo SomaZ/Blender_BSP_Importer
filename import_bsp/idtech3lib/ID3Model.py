@@ -192,6 +192,8 @@ class ID3Model:
         self.index_mapping = [-2 for i in range(len(bsp.lumps["drawverts"]))]
         self.num_bsp_vertices = 0
 
+        self.ext_lm_tc = []
+
         self.MAX_GRID_SIZE = 65
         self.ctrlPoints = [[0 for x in range(self.MAX_GRID_SIZE)]
                            for y in range(self.MAX_GRID_SIZE)]
