@@ -194,7 +194,7 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
         items=[
             ('Keep', 'Keep', "Do nothing with the vertex lit lightmap texture coordinates", 0),
             ('Primitive', 'Primitive packing', "Tightly pack all vertex lit primitives", 1),
-            ('UVMap', 'Diffuse UV copy', "Copies the diffuse UVs for the vertex lit surfaces", 2),
+            ('UVMap', 'Diffuse UV copy', "Copies the diffuse UVs for the vertex lit surfaces at samplesize 32", 2),
         ])
 
     def execute(self, context):
