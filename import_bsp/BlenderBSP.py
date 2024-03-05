@@ -603,19 +603,6 @@ def import_bsp_file(import_settings):
     print("read bsp data")
     bsp_file = BSP(VFS, import_settings)
 
-    # prepare for packing internal lightmaps
-    print("prepare for packing internal lightmaps")
-    bsp_file.lightmap_size = bsp_file.compute_packed_lightmap_size()
-
-    # profiler = cProfile.Profile()
-    # profiler.enable()
-    # bsp_models = bsp_file.get_bsp_models()
-    # profiler.disable()
-    # profiler.print_stats()
-
-    # convert bsp data to blender data
-    # blender_meshes = create_meshes_from_models(bsp_models)
-
     # create blender objects
     blender_objects = []
     bsp_objects = None
@@ -634,16 +621,21 @@ def import_bsp_file(import_settings):
             modifier.strength = -4.0
             blender_objects.append(ob)
             bpy.context.collection.objects.link(ob)
-    else:
-        print("get bsp entity objects")
-        bsp_objects = bsp_file.get_bsp_entity_objects()
-        print("create blender objects")
-        blender_objects = create_blender_objects(
-            VFS,
-            import_settings,
-            bsp_objects,
-            {},  # blender_meshes,
-            bsp_file)
+        QuakeShader.init_shader_system(bsp_file)
+        QuakeShader.build_quake_shaders(VFS, import_settings, blender_objects)
+        return
+    
+    print("prepare for packing internal lightmaps")
+    bsp_file.lightmap_size = bsp_file.compute_packed_lightmap_size()
+    print("get bsp entity objects")
+    bsp_objects = bsp_file.get_bsp_entity_objects()
+    print("create blender objects")
+    blender_objects = create_blender_objects(
+        VFS,
+        import_settings,
+        bsp_objects,
+        {},  # blender_meshes,
+        bsp_file)
 
     # get clip data and gridsize
     print("get clip data and gridsize")
