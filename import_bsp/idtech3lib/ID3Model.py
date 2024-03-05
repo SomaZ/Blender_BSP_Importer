@@ -1,4 +1,4 @@
-from math import floor
+from math import floor, ceil, pi, sin, cos
 from .ID3Brushes import Plane, parse_brush
 from .ImportSettings import Surface_Type
 
@@ -790,28 +790,6 @@ class ID3Model:
         for face, ext_lm_tc in zip(self.indices, self.ext_lm_tc):
             if len(face) > 4 or ext_lm_tc:
                 continue
-
-            def distance3(pointA, pointB):
-                return (
-                        ((pointA[0] - pointB[0]) ** 2) +
-                        ((pointA[1] - pointB[1]) ** 2) +
-                        ((pointA[2] - pointB[2]) ** 2)
-                    ) ** 0.5
-            def distance2(pointA, pointB):
-                return (
-                        ((pointA[0] - pointB[0]) ** 2) +
-                        ((pointA[1] - pointB[1]) ** 2)
-                    ) ** 0.5
-            dist_pos = distance3(self.positions.indexed[face[0]], self.positions.indexed[face[1]])
-            dist_uv = distance2(self.uv_layers["UVMap"].indexed[face[0]], self.uv_layers["UVMap"].indexed[face[1]])
-            if dist_uv == 0:
-                dist_pos = distance3(self.positions.indexed[face[1]], self.positions.indexed[face[2]])
-                dist_uv = distance2(self.uv_layers["UVMap"].indexed[face[1]], self.uv_layers["UVMap"].indexed[face[2]])
-            if dist_uv == 0:
-                scale = 1.0
-            else:
-                scale = (dist_pos / dist_uv) / 32.0 / bsp.lightmap_size[0]
-
             for index in face:
                 lm_id = lightmap_ids[index]
                 if bsp.lightmaps > 1:
@@ -820,7 +798,4 @@ class ID3Model:
                 if lm_id >= 0:
                     continue
 
-                self.uv_layers["LightmapUV"].indexed[index] = (
-                    self.uv_layers["UVMap"].indexed[index][0] * scale,
-                    self.uv_layers["UVMap"].indexed[index][1] * scale
-                )
+                self.uv_layers["LightmapUV"].indexed[index] = self.uv_layers["UVMap"].indexed[index]
