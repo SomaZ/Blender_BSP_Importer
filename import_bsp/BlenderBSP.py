@@ -28,6 +28,7 @@ from .idtech3lib.ID3VFS import Q3VFS
 from .idtech3lib.BSP import BSP_READER as BSP
 from .idtech3lib import MAP
 from .idtech3lib import GamePacks
+from .idtech3lib import ID3Leafs
 from math import floor, atan, radians
 from numpy import dot, sqrt
 
@@ -618,6 +619,10 @@ def import_bsp_file(import_settings):
     # create blender objects
     blender_objects = []
     bsp_objects = None
+    if import_settings.preset == "LEAFS":
+        ID3Leafs.build_tree(bsp_file)
+        set_blender_clip_spaces(4.0, 40000.0)
+        return
     BRUSH_IMPORTS = ["BRUSHES", "SHADOW_BRUSHES"]
     if import_settings.preset in BRUSH_IMPORTS:
         bsp_models = bsp_file.get_bsp_models()

@@ -157,7 +157,7 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
         name="Import preset",
         description="You can select wether you want to import a bsp for "
         "editing, rendering, or previewing.",
-        default=Preset.PREVIEW.value,
+        default=Preset.LEAFS.value,
         items=[
             (Preset.PREVIEW.value, "Preview",
              "Builds eevee shaders, imports all misc_model_statics "
@@ -171,6 +171,8 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
              "Imports all Brushes", 3),
             (Preset.SHADOW_BRUSHES.value, "Shadow Brushes", "Imports "
              "Brushes as shadow casters", 4),
+            (Preset.LEAFS.value, "LEAFS", "Imports "
+             "BSP Leafs", 5),
         ])
     subdivisions: IntProperty(
         name="Patch subdivisions",
