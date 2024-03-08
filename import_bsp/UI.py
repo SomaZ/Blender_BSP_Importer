@@ -682,11 +682,16 @@ class Add_entity_definition(bpy.types.Operator):
     bl_idname = "q3.add_entity_definition"
     bl_label = "Update entity definition"
     bl_options = {"INTERNAL", "REGISTER"}
-    name: StringProperty()
+    name: StringProperty(
+        name="New Property",
+        default="",
+    )
 
     def execute(self, context):
         addon_name = __name__.split('.')[0]
         prefs = context.preferences.addons[addon_name].preferences
+        dict_path = bpy.utils.script_paths(
+            subdir="addons/import_bsp/gamepacks/")[0]
 
         new_entry = {"Color": [0.0, 0.5, 0.0],
                      "Mins": [-8, -8, -8],
@@ -701,7 +706,7 @@ class Add_entity_definition(bpy.types.Operator):
 
         entity_dict[self.name] = new_entry
         GamePacks.save_gamepack(
-            entity_dict, prefs.gamepack)
+            entity_dict, dict_path, prefs.gamepack)
         return {'FINISHED'}
 
 
@@ -709,11 +714,17 @@ class Add_key_definition(bpy.types.Operator):
     bl_idname = "q3.add_key_definition"
     bl_label = "Update entity definition"
     bl_options = {"INTERNAL", "REGISTER"}
-    name: StringProperty()
+    name: StringProperty(
+        name="New Property",
+        default="",
+    )
 
     def execute(self, context):
         addon_name = __name__.split('.')[0]
         prefs = context.preferences.addons[addon_name].preferences
+
+        dict_path = bpy.utils.script_paths(
+            subdir="addons/import_bsp/gamepacks/")[0]
 
         obj = bpy.context.active_object
 
@@ -721,11 +732,11 @@ class Add_key_definition(bpy.types.Operator):
             key = self.name
         else:
             scene = context.scene
-            if "id_tech_3_settings" in scene:
-                key = scene.id_tech_3_settings.new_prop_name
+            if "new_id_tech_3_prop_name" in scene:
+                key = scene.new_id_tech_3_prop_name
             else:
                 print("Couldn't find new property name :(\n")
-                return
+                return {'CANCELLED'}
 
         entity_dict = get_current_entity_dict(context)
 
@@ -738,6 +749,7 @@ class Add_key_definition(bpy.types.Operator):
                         "Description": "NOT DOCUMENTED YET"}
                     GamePacks.save_gamepack(
                         entity_dict,
+                        dict_path,
                         prefs.gamepack)
         return {'FINISHED'}
 
@@ -757,6 +769,9 @@ class Update_entity_definition(bpy.types.Operator):
     def execute(self, context):
         addon_name = __name__.split('.')[0]
         prefs = context.preferences.addons[addon_name].preferences
+
+        dict_path = bpy.utils.script_paths(
+            subdir="addons/import_bsp/gamepacks/")[0]
 
         obj = bpy.context.active_object
 
@@ -779,7 +794,9 @@ class Update_entity_definition(bpy.types.Operator):
                             type_save_matching[rna_ui[key]["subtype"]])
 
             GamePacks.save_gamepack(
-                entity_dict, prefs.gamepack)
+                entity_dict,
+                dict_path,
+                prefs.gamepack)
 
         return {'FINISHED'}
 
@@ -1289,7 +1306,7 @@ class Q3_PT_EditEntityPanel(bpy.types.Panel):
                                      ).name = prop.lower()
 
                 row = layout.row()
-                row.prop(context.scene.id_tech_3_settings, 'new_prop_name')
+                row.prop(context.scene, 'new_id_tech_3_prop_name')
                 row.operator("q3.add_key_definition",
                              text="", icon="PLUS").name = ""
 

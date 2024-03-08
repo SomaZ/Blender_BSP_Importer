@@ -251,6 +251,12 @@ def register():
         description=(
             "How many lightmaps are packed in one column of the lightmap atlas"
             ))
+    bpy.types.Scene.new_id_tech_3_prop_name = bpy.props.StringProperty(
+        name="New Property",
+        default="",
+        description=(
+            "Name for a new custom property"
+            ))
     
     addon_name = __name__.split('.')[0]
     prefs = bpy.context.preferences.addons[addon_name].preferences
