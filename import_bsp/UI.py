@@ -2413,12 +2413,12 @@ class FillAssetLibraryEntities(bpy.types.Operator):
             if mesh.name == "box" and entity_dict[entity]["Model"] == "box":
                 maxs = entity_dict[entity]["Maxs"]
                 mins = entity_dict[entity]["Mins"]
-                imported_obj.scale[0] = (maxs[0] - mins[0]) / 8.0
-                if imported_obj.scale[0] == 0:
-                    imported_obj.scale[0] = 1.0
+                imported_obj.delta_scale[0] = (maxs[0] - mins[0]) / 8.0
+                if imported_obj.delta_scale[0] == 0:
+                    imported_obj.delta_scale[0] = 1.0
                 else:
-                    imported_obj.scale[1] = (maxs[1] - mins[1]) / 8.0
-                    imported_obj.scale[2] = (maxs[2] - mins[2]) / 8.0
+                    imported_obj.delta_scale[1] = (maxs[1] - mins[1]) / 8.0
+                    imported_obj.delta_scale[2] = (maxs[2] - mins[2]) / 8.0
                     imported_obj.delta_location[0] = (maxs[0] + mins[0]) * 0.5
                     imported_obj.delta_location[1] = (maxs[1] + mins[1]) * 0.5
                     imported_obj.delta_location[2] = (maxs[2] + mins[2]) * 0.5

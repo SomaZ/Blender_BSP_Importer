@@ -258,12 +258,12 @@ def set_custom_properties(import_settings, blender_obj, bsp_obj):
         if bsp_obj.mesh_name == "box" and import_settings.entity_dict[classname]["Model"] == "box":
             maxs = import_settings.entity_dict[classname]["Maxs"]
             mins = import_settings.entity_dict[classname]["Mins"]
-            blender_obj.scale[0] = (maxs[0] - mins[0]) / 8.0
-            if blender_obj.scale[0] == 0:
-                blender_obj.scale[0] = 1.0
+            blender_obj.delta_scale[0] = (maxs[0] - mins[0]) / 8.0
+            if blender_obj.delta_scale[0] == 0:
+                blender_obj.delta_scale[0] = 1.0
             else:
-                blender_obj.scale[1] = (maxs[1] - mins[1]) / 8.0
-                blender_obj.scale[2] = (maxs[2] - mins[2]) / 8.0
+                blender_obj.delta_scale[1] = (maxs[1] - mins[1]) / 8.0
+                blender_obj.delta_scale[2] = (maxs[2] - mins[2]) / 8.0
                 blender_obj.delta_location[0] = (maxs[0] + mins[0]) * 0.5
                 blender_obj.delta_location[1] = (maxs[1] + mins[1]) * 0.5
                 blender_obj.delta_location[2] = (maxs[2] + mins[2]) * 0.5
