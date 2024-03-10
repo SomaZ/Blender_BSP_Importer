@@ -151,7 +151,7 @@ fragment_shader = '''
             default:
                 break;
         }
-        // TODO: Check color space?
+
         FragColor = color;
     }
 '''
@@ -177,6 +177,7 @@ def make_equirectangular_from_sky(VFS, sky_name):
 
         if image is not None:
             cube[index] = image
+            image.colorspace_settings.name = "Non-Color"
             if image.gl_load():
                 raise Exception()
             if biggest_h < image.size[1]:
@@ -263,6 +264,10 @@ def make_equirectangular_from_sky(VFS, sky_name):
         buffer.dimensions = equi_w * equi_h * 4
     image.pixels = [v for v in buffer]
     image.pack()
+
+    for side in cube:
+        side.colorspace_settings.name = "sRGB"
+
     return image
 
 
