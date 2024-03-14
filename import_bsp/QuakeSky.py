@@ -351,7 +351,7 @@ ets_fragment_shader = '''
 
         vec2 tex = vec2(atan(rd.z, rd.x) + PI, acos(-rd.y)) / vec2(2.0 * PI, PI);
         
-        FragColor = texture(equirect, tex);
+        FragColor = textureLod(equirect, tex, 0);
     }
 '''
 
