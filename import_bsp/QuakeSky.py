@@ -308,3 +308,126 @@ def add_sun(shader, function, sun_parms, i):
     QuakeLight.add_light(name, "SUN", intensity, color, light_vec, angle)
 
     return True
+
+
+ets_vertex_shader = '''
+    in int vertex_id;
+    out vec2 tc;
+
+    void main()
+    {
+        vec2 position = vec2(2.0 * float(vertex_id & 2) - 1.0, 4.0 * float(vertex_id & 1) - 1.0);
+	    gl_Position = vec4(position, 0.0, 1.0);
+        tc = gl_Position.xy;
+    }
+'''
+
+ets_fragment_shader = '''
+    uniform sampler2D equirect;
+    uniform int side;
+
+    in vec2 tc;
+    #define PI 3.14159265358979323846
+
+    out vec4 FragColor;
+
+    void main()
+    {
+        vec2 vector = tc;
+        // from http://www.codinglabs.net/article_physically_based_rendering.aspx
+
+        vec3 rd = normalize(vec3(vector.x, vector.y, -1.0));
+        
+        if (side == 0)
+            rd = normalize(vec3(1.0, vector.y, vector.x));
+        else if (side == 1)
+            rd = normalize(vec3(-1.0, vector.y, -vector.x));
+        else if (side == 2)
+            rd = normalize(vec3(-vector.y, 1.0, vector.x));
+        else if (side == 3)
+            rd = normalize(vec3(vector.y, -1.0, vector.x));
+        else if (side == 4)
+            rd = normalize(vec3(-vector.x, vector.y, 1.0));
+
+        vec2 tex = vec2(atan(rd.z, rd.x) + PI, acos(-rd.y)) / vec2(2.0 * PI, PI);
+        
+        FragColor = texture(equirect, tex);
+    }
+'''
+
+ets_shader = gpu.types.GPUShader(ets_vertex_shader, ets_fragment_shader)
+ets_batch = batch_for_shader(ets_shader, 'TRIS', {"vertex_id": (0, 1, 2)})
+
+def make_sky_from_equirect(image):
+    if image is None:
+        return None
+
+    image_colorspace_setting = image.colorspace_settings.name
+    image.colorspace_settings.name = "Non-Color"
+
+    image_names = [image.name + "_rt",
+                image.name + "_lf",
+                image.name + "_up",
+                image.name + "_dn",
+                image.name + "_ft",
+                image.name + "_bk"]
+    cube = [None for x in range(6)]
+
+    image_width = int(image.size[0] / 4)
+    image_height = int(image.size[1] / 2)
+
+    internal_format = "RGBA32F" if image.is_float else "RGBA8"
+
+    for i in range(len(cube)):
+        offscreen = gpu.types.GPUOffScreen(image_width, image_height, format = internal_format)
+        with offscreen.bind():
+            if bpy.app.version < (3, 0, 0):
+                import bgl
+                bgl.glClear(bgl.GL_COLOR_BUFFER_BIT)
+            else:
+                fb = gpu.state.active_framebuffer_get()
+                fb.clear(color=(0.0, 0.0, 0.0, 0.0))
+
+            with gpu.matrix.push_pop():
+                # reset matrices -> use normalized device coordinates [-1, 1]
+                gpu.matrix.load_matrix(Matrix.Identity(4))
+                gpu.matrix.load_projection_matrix(Matrix.Identity(4))
+
+                # now draw
+                ets_shader.bind()
+                if bpy.app.version < (3, 0, 0):
+                    bgl.glActiveTexture(bgl.GL_TEXTURE0)
+                    bgl.glBindTexture(bgl.GL_TEXTURE_2D, image.bindcode)
+                    ets_shader.uniform_int("equirect", 0)
+                else:
+                    ets_shader.uniform_sampler("equirect", gpu.texture.from_image(image))
+
+                ets_shader.uniform_int("side", i)
+                ets_batch.draw(ets_shader)
+
+            if bpy.app.version < (3, 0, 0):
+                buffer = bgl.Buffer(bgl.GL_FLOAT, image_width * image_height * 4)
+                bgl.glReadBuffer(bgl.GL_BACK)
+                bgl.glReadPixels(0, 0, image_width, image_height,
+                                bgl.GL_RGBA, bgl.GL_FLOAT, buffer)
+            else:
+                buffer = fb.read_color(0, 0, image_width, image_height, 4, 0, 'FLOAT')
+
+        offscreen.free()
+
+        out_image = bpy.data.images.get(image_names[i])
+        if out_image is None:
+            out_image = bpy.data.images.new(
+                image_names[i],
+                width=image_width,
+                height=image_height,
+                float_buffer=image.is_float)
+        out_image.scale(image_width, image_height)
+
+        if bpy.app.version >= (3, 0, 0):
+            buffer.dimensions = image_width * image_height * 4
+        out_image.pixels = [v for v in buffer]
+        cube[i] = out_image
+
+    image.colorspace_settings.name = image_colorspace_setting
+    return cube

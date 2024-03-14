@@ -221,6 +221,8 @@ classes = (Gamepacks.Open_gamepack,
            UI.Pack_Lightmap_Images,
            UI.FillAssetLibrary,
            UI.FillAssetLibraryEntities,
+           UI.Q3_OP_Equi_to_box,
+           UI.Q3_PT_Imagepanel
            )
 
 

@@ -35,6 +35,11 @@ if "TAN" in locals():
 else:
     from . import TAN
 
+if "QuakeSky" in locals():
+    importlib.reload(QuakeSky)
+else:
+    from . import QuakeSky
+
 if "QuakeShader" in locals():
     importlib.reload(QuakeShader)
 else:
@@ -2450,3 +2455,25 @@ class FillAssetLibraryEntities(bpy.types.Operator):
         for line in log:
             print(line)
         return {'FINISHED'}
+
+
+class Q3_OP_Equi_to_box(bpy.types.Operator):
+    bl_idname = "q3.equi_to_box"
+    bl_label = "Make skybox from equirectangular"
+    def execute(self, context):
+        image = context.edit_image
+        QuakeSky.equirect_to_sky.make_sky_from_equirect(image)
+        return {"FINISHED"}
+
+
+class Q3_PT_Imagepanel(bpy.types.Panel):
+    bl_idname = "Q3_PT_Imagepanel"
+    bl_label = "ID3 Image"
+    bl_space_type = "IMAGE_EDITOR"
+    bl_region_type = "UI"
+    bl_category = "ID3 Mapping"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.label(text = context.edit_image.name)
+        layout.operator("q3.equi_to_box")
