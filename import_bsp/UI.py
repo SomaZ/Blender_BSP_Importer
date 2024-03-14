@@ -2475,5 +2475,7 @@ class Q3_PT_Imagepanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.label(text = context.edit_image.name)
-        layout.operator("q3.equi_to_box")
+        image = context.edit_image
+        layout.label(text = image.name)
+        if image.source == "FILE" or image.source == "GENERATED":
+            layout.operator("q3.equi_to_box")
