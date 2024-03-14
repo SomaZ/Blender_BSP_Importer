@@ -2462,7 +2462,7 @@ class Q3_OP_Equi_to_box(bpy.types.Operator):
     bl_label = "Make skybox from equirectangular"
     def execute(self, context):
         image = context.edit_image
-        QuakeSky.equirect_to_sky.make_sky_from_equirect(image)
+        QuakeSky.make_sky_from_equirect(image)
         return {"FINISHED"}
 
 
