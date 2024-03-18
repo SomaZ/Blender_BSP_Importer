@@ -155,7 +155,10 @@ class surface_factory:
             mesh = obj.to_mesh()
             if not self.individual:
                 mesh.transform(obj.matrix_world)
-            mesh.calc_normals_split()
+
+            if bpy.app.version < (4, 1, 0):
+                mesh.calc_normals_split()
+
             mesh.calc_loop_triangles()
 
             for triangle in mesh.loop_triangles:
@@ -218,7 +221,10 @@ class surface_factory:
             mesh = obj.to_mesh()
             if not self.individual:
                 mesh.transform(obj.matrix_world)
-            mesh.calc_normals_split()
+
+            if bpy.app.version < (4, 1, 0):
+                mesh.calc_normals_split()
+
             meshes.append(mesh)
         for surface_descriptor in self.surface_descriptors:
             for map in surface_descriptor.vertex_mapping:
@@ -899,7 +905,9 @@ def ImportTAN(VFS,
                 mesh.polygons.foreach_set(
                     "material_index", face_material_index)
 
-                mesh.use_auto_smooth = True
+                if bpy.app.version < (4, 1, 0):
+                    mesh.use_auto_smooth = True
+
                 for poly in mesh.polygons:
                     poly.use_smooth = True
                 mesh.vertices.foreach_set("normal", unpack_list(vertex_nor))
@@ -944,7 +952,9 @@ def ImportTAN(VFS,
 
         mesh.polygons.foreach_set("material_index", face_material_index)
 
-        mesh.use_auto_smooth = True
+        if bpy.app.version < (4, 1, 0):
+            mesh.use_auto_smooth = True
+
         for poly in mesh.polygons:
             poly.use_smooth = True
         mesh.vertices.foreach_set("normal", unpack_list(vertex_nor))

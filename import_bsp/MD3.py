@@ -652,7 +652,9 @@ def ImportMD3(VFS,
                 mesh.polygons.foreach_set(
                     "material_index", face_material_index)
 
-                mesh.use_auto_smooth = True
+                if bpy.app.version < (4, 1, 0):
+                    mesh.use_auto_smooth = True
+
                 for poly in mesh.polygons:
                     poly.use_smooth = True
                 mesh.vertices.foreach_set("normal", unpack_list(vertex_nor))
@@ -705,7 +707,9 @@ def ImportMD3(VFS,
 
         mesh.polygons.foreach_set("material_index", face_material_index)
 
-        mesh.use_auto_smooth = True
+        if bpy.app.version < (4, 1, 0):
+            mesh.use_auto_smooth = True
+
         for poly in mesh.polygons:
             poly.use_smooth = True
         mesh.vertices.foreach_set("normal", unpack_list(vertex_nor))

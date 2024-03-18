@@ -1,3 +1,5 @@
+import bpy
+
 class Vertex_map:
     def __init__(self, object_id, mesh, vertex_id, loop_id):
         self.mesh = mesh
@@ -116,7 +118,10 @@ class Surface_factory:
             mesh = obj.to_mesh()
             if not self.individual:
                 mesh.transform(obj.matrix_world)
-            mesh.calc_normals_split()
+
+            if bpy.app.version < (4, 1, 0):
+                mesh.calc_normals_split()
+
             mesh.calc_loop_triangles()
 
             for triangle in mesh.loop_triangles:
@@ -193,7 +198,10 @@ class Surface_factory:
             mesh = obj.to_mesh()
             if not self.individual:
                 mesh.transform(obj.matrix_world)
-            mesh.calc_normals_split()
+
+            if bpy.app.version < (4, 1, 0):
+                mesh.calc_normals_split()
+
             meshes.append(mesh)
         for surface_descriptor in self.surface_descriptors:
             for map in surface_descriptor.vertex_mapping:

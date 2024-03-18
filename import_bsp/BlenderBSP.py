@@ -82,7 +82,9 @@ def create_meshes_from_models(models):
             mesh.materials.append(mat)
         mesh.polygons.foreach_set("material_index", model.material_id)
 
-        mesh.use_auto_smooth = True
+        if bpy.app.version < (4, 1, 0):
+            mesh.use_auto_smooth = True
+
         for poly, smooth in zip(mesh.polygons, model.face_smooth):
             poly.use_smooth = smooth
         unindexed_normals = model.vertex_normals.get_unindexed()
