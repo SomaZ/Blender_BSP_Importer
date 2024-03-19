@@ -1505,8 +1505,10 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                         is not None]
 
         meshes = [obj.to_mesh() for obj in objs]
-        for mesh in meshes:
-            mesh.calc_normals_split()
+
+        if bpy.app.version < (4, 1, 0):
+            for mesh in meshes:
+                mesh.calc_normals_split()
 
         if (self.patch_colors or
            self.patch_normals or
