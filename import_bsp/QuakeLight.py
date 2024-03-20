@@ -186,7 +186,7 @@ def storeLighmaps(bsp,
             lm_x = row % lm_size[0]
             lm_y = colum % lm_size[1]
 
-            if not internal and flip:
+            if internal or (not internal and flip):
                 lm_y = lm_size[1]-1 - lm_y
 
             pixel_id = int(lm_x + (lm_y * lm_size[0]))
