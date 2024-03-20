@@ -1559,9 +1559,9 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                             patched_vertices[bsp_vert_index] = True
                             bsp_vert = bsp.lumps["drawverts"][bsp_vert_index]
                             if self.patch_tcs:
-                                
                                 bsp_vert.texcoord[:] = (
                                     mesh.uv_layers["UVMap"].data[loop].uv)
+                                bsp_vert.texcoord[1] = 1.0 - bsp_vert.texcoord[1]
                             if self.patch_lm_tcs:
                                 bsp_vert.lm1coord[:] = (
                                     mesh.uv_layers["LightmapUV"].data[loop].uv)
@@ -1868,19 +1868,23 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                 bsp_vert.lm1coord,
                                 lightmap_size,
                                 packed_lightmap_size)
+                            bsp_vert.lm1coord[1] = 1.0 - bsp_vert.lm1coord[1]
                             if bsp.lightmaps == 4:
                                 Helpers.unpack_lm_tc(
                                     bsp_vert.lm2coord,
                                     lightmap_size,
                                     packed_lightmap_size)
+                                bsp_vert.lm2coord[1] = 1.0 - bsp_vert.lm2coord[1]
                                 Helpers.unpack_lm_tc(
                                     bsp_vert.lm3coord,
                                     lightmap_size,
                                     packed_lightmap_size)
+                                bsp_vert.lm3coord[1] = 1.0 - bsp_vert.lm3coord[1]
                                 Helpers.unpack_lm_tc(
                                     bsp_vert.lm4coord,
                                     lightmap_size,
                                     packed_lightmap_size)
+                                bsp_vert.lm4coord[1] = 1.0 - bsp_vert.lm4coord[1]
             self.report({"INFO"}, "Successful")
         # get number of lightmaps
         n_lightmaps = 0
