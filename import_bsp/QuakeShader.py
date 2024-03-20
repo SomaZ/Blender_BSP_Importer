@@ -902,8 +902,8 @@ class quake_shader:
         if vt_image is None:
             vt_image = bpy.data.images.new(
                 "$vertmap_bake",
-                width=lm_size,
-                height=lm_size,
+                width=2048,
+                height=2048,
                 float_buffer=True)
 
         node_lm = shader.nodes.new(type='ShaderNodeTexImage')
