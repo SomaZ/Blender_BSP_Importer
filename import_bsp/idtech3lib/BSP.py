@@ -428,11 +428,11 @@ class BSP_READER:
         self.lightgrid_origin = lightgrid_origin
 
         maxs = [self.lightgrid_size[0] *
-                int(world_maxs[0] / self.lightgrid_size[0]),
+                floor(world_maxs[0] / self.lightgrid_size[0]),
                 self.lightgrid_size[1] *
-                int(world_maxs[1] / self.lightgrid_size[1]),
+                floor(world_maxs[1] / self.lightgrid_size[1]),
                 self.lightgrid_size[2] *
-                int(world_maxs[2] / self.lightgrid_size[2])]
+                floor(world_maxs[2] / self.lightgrid_size[2])]
 
         lightgrid_dimensions = [(maxs[0] - lightgrid_origin[0]) /
                                 self.lightgrid_size[0] + 1,
