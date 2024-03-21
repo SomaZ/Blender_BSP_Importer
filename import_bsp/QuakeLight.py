@@ -186,7 +186,7 @@ def storeLighmaps(bsp,
             lm_x = row % lm_size[0]
             lm_y = colum % lm_size[1]
 
-            if internal or (not internal and flip):
+            if (internal and not hdr) or flip:
                 lm_y = lm_size[1]-1 - lm_y
 
             pixel_id = int(lm_x + (lm_y * lm_size[0]))
@@ -199,7 +199,7 @@ def storeLighmaps(bsp,
                 local_pixels[4 * pixel + 2])
             lightmaps[lightmap_id][pixel_id*color_components + 3] = 1.0
 
-    if internal:
+    if internal and not hdr:
         # clear lightmap lump
         bsp.lumps["lightmaps"].clear()
 
@@ -253,7 +253,7 @@ def storeLighmaps(bsp,
             image.pixels = lightmaps[lightmap]
             image.save_render(image.filepath_raw, scene=bpy.context.scene)
 
-    if internal:
+    if internal and not hdr:
         return True, "Lightmaps succesfully added to BSP"
     else:
         return True, "Lightmap images succesfully created"
