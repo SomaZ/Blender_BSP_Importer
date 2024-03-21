@@ -1440,8 +1440,9 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
         default='sRGB',
         items=[
             ('sRGB', "sRGB", "sRGB", 0),
-            ('2.0', "2.0", "2.0", 1),
-            ('4.0', "4.0", "4.0", 2)
+            ('1.0', "1.0", "1.0", 1),
+            ('2.0', "2.0", "2.0", 2),
+            ('4.0', "4.0", "4.0", 3)
         ])
     overbright_bits: EnumProperty(
         name="Overbright Bits",
