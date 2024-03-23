@@ -38,7 +38,7 @@ Blender versions 2.93 to 4.1 are supported right now
 
 ## How to install:
 
- - Download the addon zip file (see attachments below)
+ - Download the addon zip file
  - Open Blender
  - Go to 'Edit -> Preferences -> Add-ons'
  - Click the 'Install...' button on the top right and navigate to the zip you downloaded, then click 'Install Add-on'
