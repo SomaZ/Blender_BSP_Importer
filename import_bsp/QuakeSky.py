@@ -18,10 +18,12 @@ import gpu
 from gpu_extras.batch import batch_for_shader
 from mathutils import Matrix, Vector
 
-vertex_shader = '''
+vertex_header = '''
     in int vertex_id;
     out vec2 tc;
+'''
 
+vertex_shader = '''
     void main()
     {
         const vec2 positions[] = vec2[3](
@@ -41,7 +43,7 @@ vertex_shader = '''
     }
 '''
 
-fragment_shader = '''
+fragment_header = '''
     uniform sampler2D tex_up;
     uniform sampler2D tex_dn;
     uniform sampler2D tex_ft;
@@ -51,6 +53,10 @@ fragment_shader = '''
     uniform float clamp_value;
 
     in vec2 tc;
+    out vec4 FragColor;
+'''
+
+fragment_shader = '''
     #define PI 3.14159265358979323846
     #define UP 0
     #define DN 1
@@ -58,8 +64,6 @@ fragment_shader = '''
     #define BK 3
     #define LF 4
     #define RT 5
-
-    out vec4 FragColor;
 
     void main()
     {
@@ -156,7 +160,31 @@ fragment_shader = '''
     }
 '''
 
-shader = gpu.types.GPUShader(vertex_shader, fragment_shader)
+if bpy.app.version < (3, 5, 0):
+    shader = gpu.types.GPUShader(
+        vertex_header+vertex_shader,
+        fragment_header+fragment_shader)
+else:
+    shader_sky_info = gpu.types.GPUShaderCreateInfo()
+    shader_sky_info.vertex_in(0, 'INT', "vertex_id")
+    shader_sky_info.sampler(0, 'FLOAT_2D', "tex_up")
+    shader_sky_info.sampler(1, 'FLOAT_2D', "tex_dn")
+    shader_sky_info.sampler(2, 'FLOAT_2D', "tex_ft")
+    shader_sky_info.sampler(3, 'FLOAT_2D', "tex_bk")
+    shader_sky_info.sampler(4, 'FLOAT_2D', "tex_lf")
+    shader_sky_info.sampler(5, 'FLOAT_2D', "tex_rt")
+    shader_sky_info.push_constant('FLOAT', "clamp_value")
+
+    shader_sky_interface = gpu.types.GPUStageInterfaceInfo("shader_sky_interface")    
+    shader_sky_interface.smooth('VEC2', "tc")
+    shader_sky_info.vertex_out(shader_sky_interface)
+
+    shader_sky_info.fragment_out(0, 'VEC4', 'FragColor')
+    shader_sky_info.vertex_source(vertex_shader)
+    shader_sky_info.fragment_source(fragment_shader)
+
+    shader = gpu.shader.create_from_info(shader_sky_info)
+
 batch = batch_for_shader(shader, 'TRIS', {"vertex_id": (0, 1, 2)})
 
 
@@ -309,11 +337,11 @@ def add_sun(shader, function, sun_parms, i):
 
     return True
 
-
-ets_vertex_shader = '''
+ets_vertex_header = '''
     in int vertex_id;
     out vec2 tc;
-
+'''
+ets_vertex_shader = '''
     void main()
     {
         vec2 position = vec2(2.0 * float(vertex_id & 2) - 1.0, 4.0 * float(vertex_id & 1) - 1.0);
@@ -322,15 +350,15 @@ ets_vertex_shader = '''
     }
 '''
 
-ets_fragment_shader = '''
+ets_fragment_header = '''
     uniform sampler2D equirect;
     uniform int side;
-
     in vec2 tc;
-    #define PI 3.14159265358979323846
-
     out vec4 FragColor;
+'''
 
+ets_fragment_shader = '''
+    #define PI 3.14159265358979323846
     void main()
     {
         vec2 vector = tc;
@@ -355,7 +383,26 @@ ets_fragment_shader = '''
     }
 '''
 
-ets_shader = gpu.types.GPUShader(ets_vertex_shader, ets_fragment_shader)
+if bpy.app.version < (3, 5, 0):
+    ets_shader = gpu.types.GPUShader(
+        ets_vertex_header+ets_vertex_shader,
+        ets_fragment_header+ets_fragment_shader)
+else:
+    ets_info = gpu.types.GPUShaderCreateInfo()
+    ets_info.vertex_in(0, 'INT', "vertex_id")
+    ets_info.sampler(0, 'FLOAT_2D', "equirect")
+    ets_info.push_constant('INT', "side")
+
+    ets_interface = gpu.types.GPUStageInterfaceInfo("ets_interface")    
+    ets_interface.smooth('VEC2', "tc")
+    ets_info.vertex_out(ets_interface)
+
+    ets_info.fragment_out(0, 'VEC4', 'FragColor')
+    ets_info.vertex_source(ets_vertex_shader)
+    ets_info.fragment_source(ets_fragment_shader)
+
+    ets_shader = gpu.shader.create_from_info(ets_info)
+
 ets_batch = batch_for_shader(ets_shader, 'TRIS', {"vertex_id": (0, 1, 2)})
 
 def make_sky_from_equirect(image):
