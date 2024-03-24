@@ -460,11 +460,33 @@ class Export_ID3_MD3(bpy.types.Operator, ExportHelper):
             ('OBJECTS', "From Objects",
              "Simply export objects. There will be no optimization", 1),
         ])
+    limits: EnumProperty(
+        name="Limits",
+        description="Choose limits to enforce on export",
+        default='LEGACY',
+        items=[
+            ('LEGACY', "Legacy",
+             "999 vertices per md3 surface, max of 32 surfaces. "
+             "Perfect for Quake 3 era engines.", 0),
+            ('MODERN', "Modern",
+             "65534 vertices per md3 surface, max of 64 surfaces.", 1),
+            ('STUPID', "Extreme",
+             "8191999 vertices per md3 surface, max of 100 surfaces.", 2),
+        ])
 
     def execute(self, context):
         objects = context.scene.objects
         if self.only_selected:
             objects = context.selected_objects
+
+        max_vertices = 1000
+        max_surfaces = 32
+        if self.limits == "MODERN":
+            max_vertices = 65535
+            max_surfaces = 64
+        elif self.limits == "STUPID":
+            max_vertices = 8192000
+            max_surfaces = 100
 
         frame_list = range(self.start_frame, max(
             self.end_frame, self.start_frame) + 1)
@@ -473,7 +495,9 @@ class Export_ID3_MD3(bpy.types.Operator, ExportHelper):
             objects,
             frame_list,
             self.individual,
-            self.preset == 'MATERIALS')
+            self.preset == 'MATERIALS',
+            max_vertices,
+            max_surfaces)
         if status[0]:
             return {'FINISHED'}
         else:
@@ -517,7 +541,7 @@ class Export_ID3_TIK(bpy.types.Operator, ExportHelper):
         default='TAN',
         items=[
             ('TAN', ".tan", "Exports a tan model", 0),
-            ('SKB', ".skb", "Exports a skb model", 1),
+            #('SKB', ".skb", "Exports a skb model", 1),
         ])
     preset: EnumProperty(
         name="Surfaces",

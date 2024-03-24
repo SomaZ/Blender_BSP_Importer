@@ -759,9 +759,14 @@ def ImportMD3Object(VFS, file_path, import_tags, per_object_import=False, import
             objs.append(ob)
     return objs
 
-MD3_SHADER_MAX_VERTEXES = 1000
 
-def ExportMD3(file_path, objects, frame_list, individual, material_merge=True):
+def ExportMD3(file_path,
+              objects,
+              frame_list,
+              individual,
+              material_merge=True,
+              MD3_SHADER_MAX_VERTEXES=1000,
+              MAX_SURFACES=32):
     return_status = [False, "Unknown Error"]
     model_name = guess_model_name(file_path)
 
@@ -778,7 +783,8 @@ def ExportMD3(file_path, objects, frame_list, individual, material_merge=True):
         eval_mesh_objects,
         individual,
         material_merge,
-        MD3_SHADER_MAX_VERTEXES)
+        MD3_SHADER_MAX_VERTEXES,
+        MAX_SURFACES)
 
     if not sf.valid:
         return_status[1] = sf.status
@@ -786,8 +792,8 @@ def ExportMD3(file_path, objects, frame_list, individual, material_merge=True):
 
     surface_descriptors = sf.surface_descriptors
 
-    if sf.num_surfaces > 32:
-        return_status[1] = "Can't export this model because it's too detailed"
+    if sf.num_surfaces > MAX_SURFACES:
+        return_status[1] = "Can't export this model because it's too detailed for the chosen limits"
         return return_status
 
     # check for vertices lying outside of md3 position range

@@ -6,11 +6,12 @@ class Vertex_map:
         self.obj_id = object_id
         self.vert = vertex_id
         self.loop = loop_id
-        self.position = mesh.vertices[vertex_id].co.copy()
-        self.normal = mesh.vertices[vertex_id].normal.copy()
+        self.position = mesh.vertices[vertex_id].co.copy().freeze()
+        self.normal = mesh.vertices[vertex_id].normal.copy().freeze()
         if mesh.has_custom_normals:
-            self.normal = mesh.loops[loop_id].normal.copy()
-        self.tc = mesh.uv_layers.active.data[loop_id].uv.copy()
+            self.normal = mesh.loops[loop_id].normal.copy().freeze()
+        self.tc = mesh.uv_layers.active.data[loop_id].uv.copy().freeze()
+        self.hash_value = hash((self.position, self.normal, self.tc))
 
     def set_mesh(self, mesh):
         self.mesh = mesh
@@ -20,6 +21,7 @@ class Surface_descriptor:
     def __init__(self, material, obj_name):
         self.current_index = 0
         self.vertex_mapping = []
+        self.vertex_hashes = {}
         self.triangles = []
         self.material = material
         self.obj_name = obj_name
@@ -34,30 +36,17 @@ class Surface_descriptor:
         new_map = None
 
         reused_vertices = 0
-
-        triangle_descriptor = []
-        for index, zipped in enumerate(zip(in_triangle.vertices,
-                                           in_triangle.loops)):
-            tri = zipped[0]
-            loo = zipped[1]
-            vert_pos = in_mesh.vertices[tri].co.copy()
-            vert_nor = in_mesh.vertices[tri].normal.copy()
-            if in_mesh.has_custom_normals:
-                vert_nor = in_mesh.loops[loo].normal.copy()
-            vert_tc = in_mesh.uv_layers.active.data[loo].uv.copy()
-            triangle_descriptor.append((vert_pos, vert_nor, vert_tc))
-
-        # check for duplicates
-        for id, map in enumerate(self.vertex_mapping):
-            for index, tri_vert in enumerate(triangle_descriptor):
-                if (tri_vert[0] == map.position) and (
-                        tri_vert[1] == map.normal) and (
-                        tri_vert[2] == map.tc):
-                    # vertex already in the surface
-                    if new_triangle[index] is None:
-                        new_triangle[index] = id
-                        reused_vertices += 1
-                        break
+        vertices = []
+        for index, (tri, loo) in enumerate(zip(in_triangle.vertices,
+                                               in_triangle.loops)):
+            vert_map = Vertex_map(in_obj_id, in_mesh, tri, loo)
+            vertices.append(vert_map)
+            if vert_map.hash_value not in self.vertex_hashes:
+                continue
+            # vertex already in the surface
+            if new_triangle[index] is None:
+                new_triangle[index] = self.vertex_hashes[vert_map.hash_value]
+                reused_vertices += 1
 
         if 3-reused_vertices + len(self.vertex_mapping) >= SHADER_MAX_VERTEXES:
             return False
@@ -65,11 +54,9 @@ class Surface_descriptor:
         # add new vertices
         for id, index in enumerate(new_triangle):
             if index is None:
-                new_vert = in_triangle.vertices[id]
-                new_loop = in_triangle.loops[id]
-                new_mesh = in_mesh
-                new_map = Vertex_map(in_obj_id, new_mesh, new_vert, new_loop)
+                new_map = vertices[id]
                 self.vertex_mapping.append(new_map)
+                self.vertex_hashes[new_map.hash_value] = self.current_index
                 new_triangle[id] = self.current_index
                 self.current_index += 1
 
@@ -182,6 +169,10 @@ class Surface_factory:
 
         for mat in surfaces:
             for i in range(len(surfaces[mat])):
+                # skip empty surfaces
+                if surfaces[mat][i].current_index == 0:
+                    self.num_surfaces -= 1
+                    continue
                 self.surface_descriptors.append(surfaces[mat][i])
 
         self.valid = True
