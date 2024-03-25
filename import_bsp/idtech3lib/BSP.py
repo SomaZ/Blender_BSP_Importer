@@ -193,6 +193,10 @@ class BSP_READER:
         self.num_internal_lm_ids = num_internal_lm_ids
         self.lm_packable = num_internal_lm_ids > 0
 
+        if num_internal_lm_ids == 0 and len(self.external_lm_files) == 2:
+            self.deluxemapping = True
+            return
+
         # check if the map utilizes deluxemapping
         if num_internal_lm_ids <= 0:
             self.deluxemapping = False
