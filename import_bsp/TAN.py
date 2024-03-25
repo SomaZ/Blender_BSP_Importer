@@ -340,16 +340,18 @@ class TAN:
             self.off_verts = array[9]
             self.off_end = array[10]
 
-            print("\tname " + str(self.name))
-            print("\t\tn_frames " + str(self.n_frames))
-            print("\t\tn_verts " + str(self.n_verts))
-            print("\t\tn_model_verts " + str(self.n_model_verts))
-            print("\t\tn_tris " + str(self.n_tris))
-            print("\t\toff_tris " + str(self.off_tris))
-            print("\t\toff_collapse " + str(self.off_collapse))
-            print("\t\toff_tcs " + str(self.off_tcs))
-            print("\t\toff_verts " + str(self.off_verts))
-            print("\t\toff_end " + str(self.off_end))
+            debug = False
+            if debug is True:
+                print("\tname " + str(self.name))
+                print("\t\tn_frames " + str(self.n_frames))
+                print("\t\tn_verts " + str(self.n_verts))
+                print("\t\tn_model_verts " + str(self.n_model_verts))
+                print("\t\tn_tris " + str(self.n_tris))
+                print("\t\toff_tris " + str(self.off_tris))
+                print("\t\toff_collapse " + str(self.off_collapse))
+                print("\t\toff_tcs " + str(self.off_tcs))
+                print("\t\toff_verts " + str(self.off_verts))
+                print("\t\toff_end " + str(self.off_end))
 
             self.triangles = tan_array(
                 self.triangle, [self.off_tris, self.n_tris])
@@ -716,28 +718,31 @@ def ImportTAN(VFS,
         ofsEnd = struct.unpack("<i", byte_array[offset:offset+4])[0]
         offset += 4
 
-        print("numFrames: " + str(numFrames))
-        print("numTags: " + str(numTags))
-        print("numSurfaces: " + str(numSurfaces))
-        print("total_time: " + str(total_time))
-        print("total_delta: " + str(total_delta))
+        debug = False
+        if debug is True:
+            print("numFrames: " + str(numFrames))
+            print("numTags: " + str(numTags))
+            print("numSurfaces: " + str(numSurfaces))
+            print("total_time: " + str(total_time))
+            print("total_delta: " + str(total_delta))
 
-        print("ofsFrames: " + str(ofsFrames))
-        for i in range(16):
-            print("ofsTags" + str(i) + ": " + str(ofsTags[i]))
-        print("ofsSurfaces: " + str(ofsSurfaces))
-        print("ofsEnd: " + str(ofsEnd))
+            print("ofsFrames: " + str(ofsFrames))
+            for i in range(16):
+                print("ofsTags" + str(i) + ": " + str(ofsTags[i]))
+            print("ofsSurfaces: " + str(ofsSurfaces))
+            print("ofsEnd: " + str(ofsEnd))
 
         frames = lump(tan.frame)
         frames.set_offset_count([ofsFrames, numFrames])
         frames.read_from_bytearray(byte_array)
-        for frame_id, frame in enumerate(frames.data):
-            print("\tFrame Nr " + str(frame_id))
-            print("\t\tMINs: " + str(frame.min_bounds))
-            print("\t\tMAXs: " + str(frame.max_bounds))
-            print("\t\tOrigin: " + str(frame.offset))
-            print("\t\tRadius: " + str(frame.radius))
-            print("\t\tScale: " + str(frame.scale))
+        if debug is True:
+            for frame_id, frame in enumerate(frames.data):
+                print("\tFrame Nr " + str(frame_id))
+                print("\t\tMINs: " + str(frame.min_bounds))
+                print("\t\tMAXs: " + str(frame.max_bounds))
+                print("\t\tOrigin: " + str(frame.offset))
+                print("\t\tRadius: " + str(frame.radius))
+                print("\t\tScale: " + str(frame.scale))
 
         surface_lumps = []
         for surface_lump in range(numSurfaces):
@@ -853,7 +858,8 @@ def ImportTAN(VFS,
         # vertex groups
         surfaces = {}
         for surface_id, surface in enumerate(surface_lumps):
-            print("\tSurface Nr " + str(surface_id))
+            if debug is True:
+                print("\tSurface Nr " + str(surface_id))
             n_indices = 0
             surface_indices = []
             for vertex, tc in zip(surface.data[0].vertices.data,
@@ -881,8 +887,9 @@ def ImportTAN(VFS,
                 face_tcs.append(vertex_tc[triangle_indices[2]])
                 face_material_index.append(shaderindex)
 
-            print("\t\tnumTriangles: " +
-                  str(len(surface.data[0].triangles.data)))
+            if debug is True:
+                print("\t\tnumTriangles: " +
+                    str(len(surface.data[0].triangles.data)))
 
             if material_mapping is not None and (
                     surface.data[0].name.lower() in material_mapping):
@@ -1052,8 +1059,6 @@ def ExportTAN(file_path,
     tag_data = {}
     for surf in surface_descriptors:
         new_surface = TAN.surface.from_surface_descriptor(surf)
-        print("Scale_offset")
-        print(frame.scale, frame.offset)
         new_surface.apply_scale_offset(frame.scale, frame.offset)
         surfaces.append(new_surface)
 
@@ -1204,10 +1209,10 @@ def ImportTIK(VFS,
         if "idle" in dict["animations"]:
             model_to_load = dict["animations"]["idle"]
         else:
-            print("Idle animation not found in .tik file")
+            print("Idle animation not found in .tik file", file_path)
             return None
     else:
-        print("Animations not found in .tik file")
+        print("Animations not found in .tik file", file_path)
         return None
 
     base_path = file_path.split("/models/")[0] + "/"
@@ -1240,10 +1245,10 @@ def ImportTIKObject(VFS,
         if "idle" in dict["animations"]:
             model_to_load = dict["animations"]["idle"]
         else:
-            print("Idle animation not found in .tik file")
+            print("Idle animation not found in .tik file", file_path)
             return None
     else:
-        print("Animations not found in .tik file")
+        print("Animations not found in .tik file", file_path)
         return None
 
     base_path = file_path.split("/models/")[0] + "/"

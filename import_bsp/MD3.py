@@ -484,16 +484,18 @@ def ImportMD3(VFS,
         ofsEnd = struct.unpack("<i", byte_array[offset:offset+4])[0]
         offset += 4
 
-        print("flags: " + str(flags))
-        print("numFrames: " + str(numFrames))
-        print("numTags: " + str(numTags))
-        print("numSurfaces: " + str(numSurfaces))
-        print("numSkins: " + str(numSkins))
+        debug = False
+        if debug is True:
+            print("flags: " + str(flags))
+            print("numFrames: " + str(numFrames))
+            print("numTags: " + str(numTags))
+            print("numSurfaces: " + str(numSurfaces))
+            print("numSkins: " + str(numSkins))
 
-        print("ofsFrames: " + str(ofsFrames))
-        print("ofsTags: " + str(ofsTags))
-        print("ofsSurfaces: " + str(ofsSurfaces))
-        print("ofsEnd: " + str(ofsEnd))
+            print("ofsFrames: " + str(ofsFrames))
+            print("ofsTags: " + str(ofsTags))
+            print("ofsSurfaces: " + str(ofsSurfaces))
+            print("ofsEnd: " + str(ofsEnd))
 
         surface_lumps = []
         for surface_lump in range(numSurfaces):
@@ -545,11 +547,12 @@ def ImportMD3(VFS,
         frames = lump(md3.frame)
         frames.set_offset_count([ofsFrames, numFrames])
         frames.read_from_bytearray(byte_array)
-        for frame_id, frame in enumerate(frames.data):
-            print("\tFrame Nr " + str(frame_id))
-            print("\t\tName: " + str(frame.name))
-            print("\t\tLocal Origin: " + str(frame.local_origin))
-            print("\t\tRadius: " + str(frame.radius))
+        if debug is True:
+            for frame_id, frame in enumerate(frames.data):
+                print("\tFrame Nr " + str(frame_id))
+                print("\t\tName: " + str(frame.name))
+                print("\t\tLocal Origin: " + str(frame.local_origin))
+                print("\t\tRadius: " + str(frame.radius))
 
         if import_tags:
             tag_lump = lump(md3.tag)
@@ -600,7 +603,8 @@ def ImportMD3(VFS,
         # vertex groups
         surfaces = {}
         for surface_id, surface in enumerate(surface_lumps):
-            print("\tSurface Nr " + str(surface_id))
+            if debug is True:
+                print("\tSurface Nr " + str(surface_id))
             n_indices = 0
             surface_indices = []
             for vertex, tc in zip(surface.data[0].vertices.data,
@@ -628,11 +632,12 @@ def ImportMD3(VFS,
                 face_tcs.append(vertex_tc[triangle_indices[2]])
                 face_material_index.append(shaderindex)
 
-            print("\t\tnumTriangles: " +
-                  str(len(surface.data[0].triangles.data)))
-            print("\t\tnumShaders: " + str(len(surface.data[0].shaders.data)))
-            for shader_id, shader in enumerate(surface.data[0].shaders.data):
-                print("\t\t\t" + str(shader_id) + ": " + str(shader.name))
+            if debug is True:
+                print("\t\tnumTriangles: " +
+                    str(len(surface.data[0].triangles.data)))
+                print("\t\tnumShaders: " + str(len(surface.data[0].shaders.data)))
+                for shader_id, shader in enumerate(surface.data[0].shaders.data):
+                    print("\t\t\t" + str(shader_id) + ": " + str(shader.name))
 
             surfaces[surface.data[0].name] = unpack_list(surface_indices)
             face_shaders.append(surface.data[0].shaders.data[0])
