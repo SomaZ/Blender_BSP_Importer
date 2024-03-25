@@ -153,8 +153,8 @@ def load_mesh(VFS, mesh_name, zoffset, bsp):
                 VFS,
                 mesh_name,
                 zoffset)[0]
-        except Exception:
-            print("Could not get model for mesh ", mesh_name)
+        except Exception as e:
+            print("Could not get model for mesh ", mesh_name, e)
             return blender_mesh, vertex_groups
     elif mesh_name.endswith(".tik"):
         try:
@@ -162,8 +162,8 @@ def load_mesh(VFS, mesh_name, zoffset, bsp):
                 VFS,
                 "models/{}".format(mesh_name),
                 zoffset)[0]
-        except Exception:
-            print("Could not get model for mesh ", mesh_name)
+        except Exception as e:
+            print("Could not get model for mesh ", mesh_name, e)
             return blender_mesh, vertex_groups
     elif mesh_name.startswith("*") and bsp is not None:
         model_id = None
@@ -177,8 +177,8 @@ def load_mesh(VFS, mesh_name, zoffset, bsp):
             new_blender_mesh = create_meshes_from_models([
                 bsp.get_bsp_model(model_id)])
             blender_mesh, vertex_groups = next(iter(new_blender_mesh.values()))
-        except Exception:
-            print("Could not get model for mesh ", mesh_name)
+        except Exception as e:
+            print("Could not get model for mesh ", mesh_name, e)
             return blender_mesh, vertex_groups
     elif mesh_name == "box":
         blender_mesh = bpy.data.meshes.get("box")
