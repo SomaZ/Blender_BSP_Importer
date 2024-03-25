@@ -22,7 +22,7 @@ def parse(line):
     try:
         key, value = line.split(' ', 1)
         key = key.strip("\t ")
-        value = value.strip("\t ")
+        value = value.strip("\t ").split("//")[0]
     except Exception:
         key = line
         value = ""
