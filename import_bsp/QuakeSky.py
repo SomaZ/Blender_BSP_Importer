@@ -294,6 +294,8 @@ def make_equirectangular_from_sky(VFS, sky_name):
     image.pack()
 
     for side in cube:
+        if side is None:
+            continue
         side.colorspace_settings.name = "sRGB"
 
     return image

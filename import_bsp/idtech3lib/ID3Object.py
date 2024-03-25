@@ -177,7 +177,7 @@ class ID3Object:
         lump = bsp.lumps["entities"]
         stringdata = []
         for i in lump:
-            stringdata.append(i.char.decode("ascii"))
+            stringdata.append(i.char.decode("latin-1"))
 
         entities_string = "".join(stringdata)
         return ImportEntitiesText(entities_string)
