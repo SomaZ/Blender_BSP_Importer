@@ -1215,8 +1215,7 @@ def ImportTIK(VFS,
         print("Animations not found in .tik file", file_path)
         return None
 
-    base_path = file_path.split("/models/")[0] + "/"
-    model_path = base_path + current_path + model_to_load
+    model_path = current_path + model_to_load
     if not model_path.endswith(".tan"):
         print("Only .tan models are currently supported. Tried loading: " +
               dict["setup"]["path"] + dict["animations"]["idle"])
@@ -1250,9 +1249,8 @@ def ImportTIKObject(VFS,
     else:
         print("Animations not found in .tik file", file_path)
         return None
-
-    base_path = file_path.split("/models/")[0] + "/"
-    model_path = base_path + current_path + model_to_load
+    
+    model_path = current_path + model_to_load
     if not model_path.endswith(".tan"):
         print("Only .tan models are currently supported. Tried loading: " +
               dict["setup"]["path"] + dict["animations"]["idle"])
