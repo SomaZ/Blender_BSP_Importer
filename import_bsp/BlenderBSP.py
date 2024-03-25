@@ -677,15 +677,17 @@ def import_bsp_file(import_settings):
         old_image = bpy.data.images.get(image.name)
         if old_image != None:
             old_image.name = image.name + "_prev.000"
-
-        new_image = bpy.data.images.new(
-            image.name,
-            width=image.width,
-            height=image.height,
-            alpha=image.num_components == 4)
-        new_image.pixels = image.get_rgba()
-        new_image.alpha_mode = 'CHANNEL_PACKED'
-        new_image.use_fake_user = True
+        try:
+            new_image = bpy.data.images.new(
+                image.name,
+                width=image.width,
+                height=image.height,
+                alpha=image.num_components == 4)
+            new_image.pixels = image.get_rgba()
+            new_image.alpha_mode = 'CHANNEL_PACKED'
+            new_image.use_fake_user = True
+        except Exception:
+            print("Couldn't retreve image from bsp:", image.name)
 
     # handle external lightmaps
     print("handle external lightmaps")
