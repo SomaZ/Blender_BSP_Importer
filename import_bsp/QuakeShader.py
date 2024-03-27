@@ -185,7 +185,11 @@ class vanilla_shader_stage:
             stage.lighting = LIGHTING_CONST
             color = filter(None, lighting.strip("`'\r\n\t").replace(
                 "(", "").replace(")", "").replace("const ", "").split())
-            stage.color = [float(component) for component in color]
+            try:
+                stage.color = [float(component) for component in color]
+            except Exception:
+                stage.color = [1.0, 1.0, 1.0]
+                print("rgbGen const with no proper values found")
         else:
             stage.lighting = LIGHTING_IDENTITY
             print("didn't parse rgbGen: ", lighting)
@@ -408,11 +412,21 @@ class quake_shader:
                         new_out_node.inputs["Vector"])
                 out_node = new_out_node
 
-                values = arguments.split()
-                out_node.inputs["Scale"].default_value[0] = float(values[0])
-                out_node.inputs["Scale"].default_value[1] = float(values[1])
-                out_node.inputs["Location"].default_value[1] = - \
-                    float(values[1])
+                ags = arguments.split()
+                if ags[0] == "fromentity":
+                    print("tcMod scale fromentity is not supported")
+                elif len(ags) > 1:
+                    out_node.inputs["Scale"].default_value[0] = float(ags[0])
+                    out_node.inputs["Scale"].default_value[1] = float(ags[1])
+                    out_node.inputs["Location"].default_value[1] = -float(ags[1])
+                elif len(ags) == 1:
+                    print("tcMod scale with too few arguments")
+                    out_node.inputs["Scale"].default_value[0] = float(ags[0])
+                    out_node.inputs["Scale"].default_value[1] = float(ags[0])
+                    out_node.inputs["Location"].default_value[1] = -float(ags[0])
+                else:
+                    print("tcMod scale with no arguments")
+                
             elif tcMod == "rotate":
                 time_node = shader.get_node_by_name("shaderTime")
                 new_out_node = shader.nodes.new(type="ShaderNodeGroup")
@@ -423,7 +437,12 @@ class quake_shader:
                     shader.current_x_location - 200,
                     shader.current_y_location)
                 ags = arguments.split()
-                new_out_node.inputs["Degrees"].default_value = float(ags[0])
+                if ags[0] == "fromentity":
+                    print("tcMod rotate fromentity is not supported")
+                elif len(ags) >= 1:
+                    new_out_node.inputs["Degrees"].default_value = float(ags[0])
+                else:
+                    print("tcMod rotate with no arguments")
                 shader.links.new(
                     time_node.outputs["Time"],
                     new_out_node.inputs["Time"])
@@ -443,8 +462,17 @@ class quake_shader:
                     shader.current_x_location - 200,
                     shader.current_y_location)
                 ags = arguments.split()
-                new_out_node.inputs["Arguments"].default_value = [
-                    float(ags[0]), float(ags[1]), 0.0]
+                if ags[0] == "fromentity":
+                    print("tcMod scroll fromentity is not supported")
+                elif len(ags) > 1:
+                    new_out_node.inputs["Arguments"].default_value = [
+                        float(ags[0]), float(ags[1]), 0.0]
+                elif len(ags) == 1:
+                    print("tcMod scroll with too few arguments")
+                    new_out_node.inputs["Arguments"].default_value = [
+                        float(ags[0]), float(ags[0]), 0.0]
+                else:
+                    print("tcMod scroll with no arguments")
                 shader.links.new(
                     time_node.outputs["Time"],
                     new_out_node.inputs["Time"])
@@ -780,8 +808,12 @@ class quake_shader:
             elif "q3map_lightrgb" in shader.attributes:
                 color = shader.attributes["q3map_lightrgb"][0].split()
                 if len(color) >= 2:
-                    color = QuakeLight.SRGBToLinear(
-                        (float(color[0]), float(color[1]), float(color[2])))
+                    try:
+                        color = QuakeLight.SRGBToLinear(
+                            (float(color[0]), float(color[1]), float(color[2])))
+                    except Exception:
+                        print("q3map_lightrgb with no proper values found")
+                        color = [1.0, 1.0, 1.0]
                     node_light = shader.nodes.new(type='ShaderNodeRGB')
                     node_light.outputs[0].default_value = (
                         color[0], color[1], color[2], 1.0)
@@ -801,9 +833,14 @@ class quake_shader:
                         shader.links.new(
                             node_light.outputs[0], new_node.inputs[0])
                     if "q3map_surfacelight" in shader.attributes:
-                        new_node.inputs[1].default_value = (
-                            float(shader.attributes["q3map_surfacelight"][0]) /
-                            1000.0)
+                        try:
+                            new_node.inputs[1].default_value = (
+                                float(shader.attributes["q3map_surfacelight"][0]) /
+                                1000.0)
+                        except Exception:
+                            print("Could not set q3map_surfacelight to",
+                                  shader.attributes["q3map_surfacelight"][0],
+                                  "\nq3map_surfacelight assumes a float input")
                     if bpy.app.version >= (4, 0, 0):
                         node_BSDF.inputs["Emission Strength"].default_value = 1.0
                 if (shader.mat.blend_method != "OPAQUE" and
@@ -827,9 +864,14 @@ class quake_shader:
                         shader.links.new(
                             node_light.outputs[0], new_node.inputs[0])
                     if "q3map_surfacelight" in shader.attributes:
-                        new_node.inputs[1].default_value = (
-                            float(shader.attributes["q3map_surfacelight"][0]) /
-                            1000.0)
+                        try:
+                            new_node.inputs[1].default_value = (
+                                float(shader.attributes["q3map_surfacelight"][0]) /
+                                1000.0)
+                        except Exception:
+                            print("Could not set q3map_surfacelight to",
+                                  shader.attributes["q3map_surfacelight"][0],
+                                  "\nq3map_surfacelight assumes a float input")
                 else:
                     node_Emiss.inputs["Color"].default_value = (
                         0.0, 0.0, 0.0, 1.0)
@@ -1222,8 +1264,12 @@ class quake_shader:
             shader_type = "BLEND"
             node_val = shader.nodes.new(type="ShaderNodeValue")
             if "qer_trans" in shader.attributes:
-                node_val.outputs[0].default_value = float(
-                    shader.attributes["qer_trans"][0])
+                try:
+                    node_val.outputs[0].default_value = float(
+                        shader.attributes["qer_trans"][0])
+                except Exception:
+                    print("qer_trans with no proper value found")
+                    node_val.outputs[0].default_value = 0.5
             else:
                 node_val.outputs[0].default_value = 0.8
             alpha_out = node_val.outputs[0]
@@ -1298,8 +1344,12 @@ class quake_shader:
                 node_img.outputs["Color"], node_BSDF.inputs["Base Color"])
 
         if "qer_trans" in shader.attributes:
-            node_BSDF.inputs["Alpha"].default_value = float(
-                shader.attributes["qer_trans"][0])
+            try:
+                node_BSDF.inputs["Alpha"].default_value = float(
+                    shader.attributes["qer_trans"][0])
+            except Exception:
+                print("qer_trans with no proper value found")
+                node_BSDF.inputs["Alpha"].default_value = 0.5
 
         if (import_settings.preset == 'RENDERING' or
            import_settings.preset == "SHADOW_BRUSHES"):
