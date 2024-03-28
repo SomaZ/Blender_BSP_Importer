@@ -423,6 +423,8 @@ def create_blender_light(import_settings, bsp_object, objects):
             target_origin = objects[properties["target"]].position
             vector = bsp_object.position - target_origin
             sqr_length = dot(vector, vector)
+            if (sqr_length == 0.0):
+                sqr_length = 1.0
             radius = 64.0
             if "radius" in properties:
                 radius = float(properties["radius"])
