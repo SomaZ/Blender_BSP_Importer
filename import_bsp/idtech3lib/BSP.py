@@ -424,21 +424,18 @@ class BSP_READER:
 
         self.lightgrid_size = array(self.lightgrid_size, dtype='float32')
 
+        if (self.lightgrid_size[0] == 0.0 or
+            self.lightgrid_size[1] == 0.0 or
+            self.lightgrid_size[2] == 0.0):
+            return images
+
         lightgrid_origin = [self.lightgrid_size[0] *
                             ceil(world_mins[0] / self.lightgrid_size[0]),
                             self.lightgrid_size[1] *
                             ceil(world_mins[1] / self.lightgrid_size[1]),
                             self.lightgrid_size[2] *
                             ceil(world_mins[2] / self.lightgrid_size[2])]
-
-        self.lightgrid_origin = lightgrid_origin
-
-        self.lightgrid_origin = array(self.lightgrid_origin, dtype='float32')
-
-        if (self.lightgrid_size[0] == 0 or
-            self.lightgrid_size[1] == 0 or
-            self.lightgrid_size[2] == 0):
-            return images
+        self.lightgrid_origin = array(lightgrid_origin, dtype='float32')
 
         maxs = [self.lightgrid_size[0] *
                 floor(world_maxs[0] / self.lightgrid_size[0]),
@@ -451,9 +448,9 @@ class BSP_READER:
         lightgrid_dimensions = (
             (maxs - self.lightgrid_origin) / self.lightgrid_size) + array((1.0, 1.0, 1.0))
         
-        if (lightgrid_dimensions[0] == 0 or
-            lightgrid_dimensions[1] == 0 or
-            lightgrid_dimensions[2] == 0):
+        if (lightgrid_dimensions[0] == 0.0 or
+            lightgrid_dimensions[1] == 0.0 or
+            lightgrid_dimensions[2] == 0.0):
             return images
 
         self.lightgrid_inverse_dim = [1.0 / lightgrid_dimensions[0],
