@@ -37,9 +37,7 @@ def ImportEntitiesText(entities_string):
                 value = value.split(" ")
                 # oh man.... Problem in t1_rail
                 try:
-                    value[0] = float(value[0])
-                    value[1] = float(value[1])
-                    value[2] = float(value[2])
+                    value = tuple(map(float, value))
                 except Exception:
                     if is_float(value[0]):
                         value = [float(value[0]), float(value[0]), float(value[0])]
