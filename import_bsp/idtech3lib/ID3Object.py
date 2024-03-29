@@ -37,6 +37,8 @@ def ImportEntitiesText(entities_string):
                 value = value.split(" ")
                 # oh man.... Problem in t1_rail
                 try:
+                    if len(value) < 3:
+                        raise Exception("Not enought values for vector input")
                     value = tuple(map(float, value))
                 except Exception:
                     if is_float(value[0]):
