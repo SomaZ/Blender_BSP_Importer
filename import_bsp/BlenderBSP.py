@@ -633,8 +633,9 @@ def import_bsp_file(import_settings):
             ob = bpy.data.objects.new(
                     name=mesh_name,
                     object_data=mesh)
-            modifier = ob.modifiers.new("Displace", type="DISPLACE")
-            modifier.strength = -4.0
+            if import_settings.preset == "SHADOW_BRUSHES":
+                modifier = ob.modifiers.new("Displace", type="DISPLACE")
+                modifier.strength = -4.0
             blender_objects.append(ob)
             bpy.context.collection.objects.link(ob)
         QuakeShader.init_shader_system(bsp_file)
