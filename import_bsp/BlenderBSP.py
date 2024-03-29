@@ -655,27 +655,27 @@ def import_bsp_file(import_settings):
     print("handle fog volumes")
     bsp_fogs = bsp_file.get_bsp_fogs()
     fog_meshes = create_meshes_from_models(bsp_fogs)
-    for mesh_name in fog_meshes:
-            mesh, vertex_groups = fog_meshes[mesh_name]
-            if mesh is None:
-                mesh = bpy.data.meshes.new(mesh_name)
-            ob = bpy.data.objects.new(
-                    name=mesh_name,
-                    object_data=mesh)
-            # Give the volume a slight push so cycles doesnt z-fight...
-            modifier = ob.modifiers.new("Displace", type="DISPLACE")
-            blender_objects.append(ob)
-            bpy.context.collection.objects.link(ob)
+    if fog_meshes is not None:
+        for mesh_name in fog_meshes:
+                mesh, vertex_groups = fog_meshes[mesh_name]
+                if mesh is None:
+                    mesh = bpy.data.meshes.new(mesh_name)
+                ob = bpy.data.objects.new(
+                        name=mesh_name,
+                        object_data=mesh)
+                # Give the volume a slight push so cycles doesnt z-fight...
+                modifier = ob.modifiers.new("Displace", type="DISPLACE")
+                blender_objects.append(ob)
+                bpy.context.collection.objects.link(ob)
 
     print("get clip data and gridsize")
     clip_end = 40000
     if bsp_objects is not None and "worldspawn" in bsp_objects:
         worldspawn_object = bsp_objects["worldspawn"]
         custom_parameters = worldspawn_object.custom_parameters
-
-        if ("distancecull" in custom_parameters and
-           import_settings.preset == "PREVIEW"):
-            clip_end = float(custom_parameters["distancecull"])
+        #if ("distancecull" in custom_parameters and
+        #   import_settings.preset == "PREVIEW"):
+        #    clip_end = float(custom_parameters["distancecull"])
         if "gridsize" in custom_parameters:
             grid_size = custom_parameters["gridsize"]
             bsp_file.lightgrid_size = grid_size

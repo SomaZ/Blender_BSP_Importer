@@ -1421,7 +1421,6 @@ class quake_shader:
             print("Fogparms with no proper values found")
             color = [1.0, 1.0, 1.0]
             density = 0.000001
-        print("Fogparms:", shader.attributes["fogparms"])
         node_Voulme = shader.nodes.new(type="ShaderNodeVolumePrincipled")
 
         node_Voulme.inputs["Color"].default_value = [*color, 1.0]

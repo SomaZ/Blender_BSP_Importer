@@ -265,6 +265,11 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
         else:
             context.scene.render.engine = "BLENDER_EEVEE"
 
+        context.scene.eevee.volumetric_start = 4
+        context.scene.eevee.volumetric_end = 100000
+        context.scene.cycles.volume_preview_step_rate = 128
+        context.scene.cycles.volume_step_rate = 64
+
         for line in import_settings.log:
             print(line)
 

@@ -295,8 +295,8 @@ class BSP_READER:
         models = []
         for i in range(len(self.lumps["fogs"])):
             current_fog = self.lumps["fogs"][i]
-
-            model = MODEL("*FOG_"+str(i))
+            fog_name = current_fog.name.decode("latin-1")
+            model = MODEL("{}_{}".format(fog_name, i))
             model.init_bsp_brush_data(self)
 
             # global fog
@@ -305,7 +305,7 @@ class BSP_READER:
                 model.add_bsp_bounds_mesh(
                     self, world.mins,
                     world.maxs,
-                    current_fog.name.decode("latin-1"))
+                    fog_name)
             else:
                 model.add_bsp_brush(self, current_fog.brush, self.import_settings)
 
