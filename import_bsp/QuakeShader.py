@@ -37,6 +37,7 @@ else:
 
 from .idtech3lib import ID3Shader
 from .idtech3lib.Parsing import *
+from math import sqrt, log
 
 if bpy.app.version >= (4, 0, 0):
     EMISSION_KEY = "Emission Color"
@@ -271,6 +272,7 @@ class quake_shader:
         shader.is_vertex_lit = False
         shader.is_grid_lit = False
         shader.is_brush = False
+        shader.is_fog = False
         shader.name = name
         shader.texture = name
         shader.mat = material
@@ -308,6 +310,9 @@ class quake_shader:
         if not (index == -1):
             split_name = shader.name.split(".")
             shader.texture = split_name[0]
+            
+            if split_name[1].endswith("fog"):
+                shader.is_fog = True
 
             if split_name[1].endswith("vertex"):
                 shader.is_vertex_lit = True
@@ -1397,8 +1402,43 @@ class quake_shader:
             shader.mat.shadow_method = 'NONE'
             shader.mat.blend_method = "BLEND"
 
+    def finish_fog_shader(shader, VFS, import_settings):
+        shader.nodes.clear()
+        node_output = shader.nodes.new(type='ShaderNodeOutputMaterial')
+        node_output.name = "Output"
+        node_output.location = (3400, 0)
+        if "fogparms" not in shader.attributes:
+            return
+        ags = shader.attributes["fogparms"][0].replace("(", "").replace(")", "").strip().split()
+        if len(ags) < 4:
+            print("Fogparms not parsed:", shader.attributes["fogparms"])
+            return
+        try:
+            color = QuakeLight.SRGBToLinear(
+                (float(ags[0]), float(ags[1]), float(ags[2])))
+            density = sqrt(-log(1.0 / 255.0)) / float(ags[3])
+        except Exception:
+            print("Fogparms with no proper values found")
+            color = [1.0, 1.0, 1.0]
+            density = 0.000001
+        print("Fogparms:", shader.attributes["fogparms"])
+        node_Voulme = shader.nodes.new(type="ShaderNodeVolumePrincipled")
+
+        node_Voulme.inputs["Color"].default_value = [*color, 1.0]
+        node_Voulme.inputs["Density"].default_value = density
+
+        node_Voulme.inputs["Emission Strength"].default_value = density
+        node_Voulme.inputs["Emission Color"].default_value = [*color, 1.0]
+
+        node_Voulme.name = "Out_Volume"
+        node_Voulme.location = (3000, 0)
+        shader.links.new(
+            node_Voulme.outputs["Volume"], node_output.inputs[1])
+
     def finish_shader(shader, VFS, import_settings):
-        if shader.is_brush:
+        if shader.is_fog:
+            shader.finish_fog_shader(VFS, import_settings)
+        elif shader.is_brush:
             shader.finish_brush_shader(VFS, import_settings)
         elif (import_settings.preset != 'RENDERING' and
               import_settings.preset != 'BRUSHES'):

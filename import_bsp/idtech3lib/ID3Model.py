@@ -513,6 +513,113 @@ class ID3Model:
                                    model_indices,
                                    face,
                                    force_nodraw)
+            
+    def add_bsp_brush(self, bsp, brush_id, import_settings):
+        bsp_brush = bsp.lumps["brushes"][brush_id]
+        brush_shader = ""
+        planes = []
+
+        if import_settings.preset == "SHADOW_BRUSHES":
+            brush_shader = (
+                bsp.lumps["shaders"]
+                [bsp_brush.texture].name.decode("latin-1"))
+            if brush_shader.startswith("noshader"):
+                return
+            if brush_shader.startswith("models/"):
+                return
+            if brush_shader.startswith("textures/system/"):
+                for side in range(bsp_brush.n_brushsides):
+                    brushside = bsp.lumps["brushsides"][
+                        bsp_brush.brushside + side]
+                    bsp_plane = bsp.lumps["planes"][brushside.plane]
+                    shader = (
+                        bsp.lumps["shaders"]
+                        [brushside.texture].name.decode("latin-1"))
+                    if not (shader.startswith("textures/system/") or \
+                            shader.startswith("noshader") or \
+                            shader.startswith("models/")):
+                        brush_shader = shader
+                        break
+                if brush_shader.startswith("textures/system/"):
+                    return
+
+        for side in range(bsp_brush.n_brushsides):
+            brushside = bsp.lumps["brushsides"][
+                bsp_brush.brushside + side]
+            bsp_plane = bsp.lumps["planes"][brushside.plane]
+
+            if import_settings.preset == "SHADOW_BRUSHES":
+                shader = brush_shader
+            else:
+                shader = (
+                    bsp.lumps["shaders"]
+                    [brushside.texture].name.decode("latin-1"))
+
+            planes.append(Plane(
+                tuple(bsp_plane.normal),
+                bsp_plane.distance,
+                shader))
+
+        points, uvs, faces, mats = parse_brush(planes)
+
+        indices = []
+        for i in range(len(points)):
+            indices.append(len(self.index_mapping))
+            self.index_mapping.append(-2)
+
+        for index, (point, uv) in zip(indices, (zip(points, uvs))):
+            self.index_mapping[index] = self.current_index
+            self.current_index += 1
+            self.positions.add_indexed(point)
+            self.vertex_normals.add_unindexed((0.0, 0.0, 0.0))
+            self.uv_layers["UVMap"].add_unindexed(uv)
+
+        for face, material in zip(faces, mats):
+            # add vertices to model
+            self.indices.append(
+                [self.index_mapping[indices[index]] for index in face])
+
+            if material not in self.material_names:
+                self.material_names.append(material)
+
+            self.face_smooth.append(False)
+            self.material_id.append(
+                self.material_names.index(material))
+            
+    def add_bsp_bounds_mesh(self, bsp, mins, maxs, material):
+
+        min_max_planes = [
+            Plane([-1.0, 0.0, 0.0], -mins[0], material),
+            Plane([0.0, -1.0, 0.0], -mins[1], material),
+            Plane([0.0, 0.0, -1.0], -mins[2], material),
+            Plane([1.0, 0.0, 0.0],  maxs[0], material),
+            Plane([0.0, 1.0, 0.0],  maxs[1], material),
+            Plane([0.0, 0.0, 1.0],  maxs[2], material)]
+        points, uvs, faces, mats  = parse_brush(min_max_planes)
+
+        indices = []
+        for i in range(len(points)):
+            indices.append(len(self.index_mapping))
+            self.index_mapping.append(-2)
+
+        for index, (point, uv) in zip(indices, (zip(points, uvs))):
+            self.index_mapping[index] = self.current_index
+            self.current_index += 1
+            self.positions.add_indexed(point)
+            self.vertex_normals.add_unindexed((0.0, 0.0, 0.0))
+            self.uv_layers["UVMap"].add_unindexed(uv)
+
+        for face, material in zip(faces, mats):
+            # add vertices to model
+            self.indices.append(
+                [self.index_mapping[indices[index]] for index in face])
+
+            if material not in self.material_names:
+                self.material_names.append(material)
+
+            self.face_smooth.append(False)
+            self.material_id.append(
+                self.material_names.index(material))
 
     def add_bsp_model(self, bsp, model_id, import_settings):
 
@@ -569,76 +676,7 @@ class ID3Model:
 
         for i in range(bsp_model.n_brushes):
             brush_id = first_brush + i
-            bsp_brush = bsp.lumps["brushes"][brush_id]
-            brush_shader = ""
-            planes = []
-
-            if import_settings.preset == "SHADOW_BRUSHES":
-                brush_shader = (
-                    bsp.lumps["shaders"]
-                    [bsp_brush.texture].name.decode("latin-1"))
-                if brush_shader.startswith("noshader"):
-                    continue
-                if brush_shader.startswith("models/"):
-                    continue
-                if brush_shader.startswith("textures/system/"):
-                    for side in range(bsp_brush.n_brushsides):
-                        brushside = bsp.lumps["brushsides"][
-                            bsp_brush.brushside + side]
-                        bsp_plane = bsp.lumps["planes"][brushside.plane]
-                        shader = (
-                            bsp.lumps["shaders"]
-                            [brushside.texture].name.decode("latin-1"))
-                        if not (shader.startswith("textures/system/") or \
-                                shader.startswith("noshader") or \
-                                shader.startswith("models/")):
-                            brush_shader = shader
-                            break
-                    if brush_shader.startswith("textures/system/"):
-                        continue
-
-            for side in range(bsp_brush.n_brushsides):
-                brushside = bsp.lumps["brushsides"][
-                    bsp_brush.brushside + side]
-                bsp_plane = bsp.lumps["planes"][brushside.plane]
-
-                if import_settings.preset == "SHADOW_BRUSHES":
-                    shader = brush_shader
-                else:
-                    shader = (
-                        bsp.lumps["shaders"]
-                        [brushside.texture].name.decode("latin-1"))
-
-                planes.append(Plane(
-                    tuple(bsp_plane.normal),
-                    bsp_plane.distance,
-                    shader))
-
-            points, uvs, faces, mats = parse_brush(planes)
-
-            indices = []
-            for i in range(len(points)):
-                indices.append(len(self.index_mapping))
-                self.index_mapping.append(-2)
-
-            for index, (point, uv) in zip(indices, (zip(points, uvs))):
-                self.index_mapping[index] = self.current_index
-                self.current_index += 1
-                self.positions.add_indexed(point)
-                self.vertex_normals.add_unindexed((0.0, 0.0, 0.0))
-                self.uv_layers["UVMap"].add_unindexed(uv)
-
-            for face, material in zip(faces, mats):
-                # add vertices to model
-                self.indices.append(
-                    [self.index_mapping[indices[index]] for index in face])
-
-                if material not in self.material_names:
-                    self.material_names.append(material)
-
-                self.face_smooth.append(False)
-                self.material_id.append(
-                    self.material_names.index(material))
+            self.add_bsp_brush(bsp, brush_id, import_settings)
 
         special_imports = ["SHADOW_BRUSHES", "EDITING"]
         if import_settings.preset in special_imports:

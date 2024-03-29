@@ -608,14 +608,12 @@ def set_blender_clip_spaces(clip_start, clip_end):
 
 def import_bsp_file(import_settings):
 
-    # initialize virtual file system
     print("initialize virtual file system")
     VFS = Q3VFS()
     for base_path in import_settings.base_paths:
         VFS.add_base(base_path)
     VFS.build_index()
 
-    # read bsp data
     print("read bsp data")
     bsp_file = BSP(VFS, import_settings)
 
@@ -653,8 +651,22 @@ def import_bsp_file(import_settings):
         bsp_objects,
         {},  # blender_meshes,
         bsp_file)
+    
+    print("handle fog volumes")
+    bsp_fogs = bsp_file.get_bsp_fogs()
+    fog_meshes = create_meshes_from_models(bsp_fogs)
+    for mesh_name in fog_meshes:
+            mesh, vertex_groups = fog_meshes[mesh_name]
+            if mesh is None:
+                mesh = bpy.data.meshes.new(mesh_name)
+            ob = bpy.data.objects.new(
+                    name=mesh_name,
+                    object_data=mesh)
+            # Give the volume a slight push so cycles doesnt z-fight...
+            modifier = ob.modifiers.new("Displace", type="DISPLACE")
+            blender_objects.append(ob)
+            bpy.context.collection.objects.link(ob)
 
-    # get clip data and gridsize
     print("get clip data and gridsize")
     clip_end = 40000
     if bsp_objects is not None and "worldspawn" in bsp_objects:
@@ -670,7 +682,7 @@ def import_bsp_file(import_settings):
             bsp_file.lightgrid_inverse_size = [1.0 / float(grid_size[0]),
                                                1.0 / float(grid_size[1]),
                                                1.0 / float(grid_size[2])]
-    # apply clip data
+
     print("apply clip data")
     set_blender_clip_spaces(4.0, clip_end)
 
@@ -692,7 +704,6 @@ def import_bsp_file(import_settings):
         except Exception:
             print("Couldn't retreve image from bsp:", image.name)
 
-    # handle external lightmaps
     print("handle external lightmaps")
     if bsp_file.num_internal_lm_ids >= 0 and bsp_file.external_lm_files:
         tmp_folder = bpy.app.tempdir.replace("\\", "/")
