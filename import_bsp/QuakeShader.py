@@ -623,7 +623,9 @@ class quake_shader:
         out_None = None
         shader_atts = shader.attributes
         # we dont want the system shaders and "those" skys
-        if shader.is_system_shader or "skyparms" in shader_atts:
+        if (shader.is_system_shader or 
+            "skyparms" in shader_atts or 
+            "fogparms" in shader_atts):
             shader.nodes.clear()
             node_output = shader.nodes.new(type='ShaderNodeOutputMaterial')
             node_output.name = "Output"
@@ -1009,8 +1011,9 @@ class quake_shader:
         alpha_out = None
         shader_type = "BLEND"
 
-        if shader.is_system_shader:
-            if import_settings.preset != 'EDITING':  # not editing preset
+        if (shader.is_system_shader or 
+            "fogparms" in shader.attributes):
+            if import_settings.preset != 'EDITING' or "fogparms" in shader.attributes:
                 shader.nodes.clear()
                 node_output = shader.nodes.new(type='ShaderNodeOutputMaterial')
                 node_output.name = "Output"
