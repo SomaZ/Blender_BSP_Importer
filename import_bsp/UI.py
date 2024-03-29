@@ -2513,5 +2513,12 @@ class Q3_PT_Imagepanel(bpy.types.Panel):
         layout = self.layout
         image = context.edit_image
         layout.label(text = image.name)
-        if image.source == "FILE" or image.source == "GENERATED":
+        lightmap_names = (
+            "$lightmap",
+            "$lightmap_bake",
+        )
+        if image.name in lightmap_names:
+            layout.prop(context.scene, 'id_tech_3_lightmaps_per_row')
+            layout.prop(context.scene, 'id_tech_3_lightmaps_per_column')
+        elif image.source == "FILE" or image.source == "GENERATED":
             layout.operator("q3.equi_to_box")
