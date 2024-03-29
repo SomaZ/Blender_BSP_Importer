@@ -701,6 +701,7 @@ def import_bsp_file(import_settings):
             new_image.pixels = image.get_rgba()
             new_image.alpha_mode = 'CHANNEL_PACKED'
             new_image.use_fake_user = True
+            new_image.pack()
         except Exception:
             print("Couldn't retreve image from bsp:", image.name)
 
