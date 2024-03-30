@@ -658,7 +658,8 @@ def ImportTAN(VFS,
               material_mapping,
               import_tags=False,
               animations=None,
-              per_object_import=False):
+              per_object_import=False,
+              tiki_scale=1.0):
     """ Returns a list of meshes from tan surfaces.
     If per_object_import is false, all surfaces are
     merged together and a list with one mesh is returned.
@@ -926,6 +927,7 @@ def ImportTAN(VFS,
 
                 mesh.validate()
                 mesh.update()
+                mesh["Tiki_Scale"] = tiki_scale
                 meshes.append(mesh)
 
                 vertex_pos = []
@@ -972,6 +974,7 @@ def ImportTAN(VFS,
 
         mesh.validate()
         mesh.update()
+        mesh["Tiki_Scale"] = tiki_scale
 
     return [mesh]
 
@@ -981,18 +984,22 @@ def ImportTANObject(VFS,
                     material_mapping,
                     import_tags,
                     per_object_import=False,
-                    import_animations=True):
+                    import_animations=True,
+                    tiki_scale=1.0):
     animations = []
     meshes = ImportTAN(VFS,
                        file_path,
                        material_mapping,
                        import_tags,
                        animations if import_animations else None,
-                       per_object_import)
+                       per_object_import,
+                       tiki_scale)
     objs = []
     for id, mesh in enumerate(meshes):
         if mesh is not None:
             ob = bpy.data.objects.new(mesh.name, mesh)
+            if "Tiki_Scale" in mesh:
+                ob.scale = (mesh["Tiki_Scale"], mesh["Tiki_Scale"], mesh["Tiki_Scale"])
             bpy.context.collection.objects.link(ob)
             if import_animations and animations[id] is not None:
                 ob.shape_key_add(name=str(0))
@@ -1200,11 +1207,17 @@ def ImportTIK(VFS,
     material_mapping = None
     current_path = ""
     model_to_load = ""
+    tiki_scale = 1.0
     if "setup" in dict:
         if "material_mapping" in dict["setup"]:
             material_mapping = dict["setup"]["material_mapping"]
         if "path" in dict["setup"]:
             current_path = dict["setup"]["path"]
+        if "scale" in dict["setup"]:
+            try:
+                tiki_scale = float(dict["setup"]["scale"])
+            except Exception:
+                tiki_scale = 1.0
     if "animations" in dict:
         if "idle" in dict["animations"]:
             model_to_load = dict["animations"]["idle"]
@@ -1224,7 +1237,8 @@ def ImportTIK(VFS,
                      material_mapping,
                      import_tags,
                      animations,
-                     per_object_import)
+                     per_object_import,
+                     tiki_scale)
 
 
 def ImportTIKObject(VFS,
@@ -1235,11 +1249,17 @@ def ImportTIKObject(VFS,
     material_mapping = None
     current_path = ""
     model_to_load = ""
+    tiki_scale = 1.0
     if "setup" in dict:
         if "material_mapping" in dict["setup"]:
             material_mapping = dict["setup"]["material_mapping"]
         if "path" in dict["setup"]:
             current_path = dict["setup"]["path"]
+        if "scale" in dict["setup"]:
+            try:
+                tiki_scale = float(dict["setup"]["scale"])
+            except Exception:
+                tiki_scale = 1.0
     if "animations" in dict:
         if "idle" in dict["animations"]:
             model_to_load = dict["animations"]["idle"]
@@ -1258,7 +1278,9 @@ def ImportTIKObject(VFS,
                            model_path,
                            material_mapping,
                            import_tags,
-                           per_object_import)
+                           per_object_import,
+                           True,
+                           tiki_scale)
 
 
 def ExportTIK_TAN(file_path,

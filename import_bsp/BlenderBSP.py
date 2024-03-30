@@ -562,7 +562,11 @@ def create_blender_objects(VFS, import_settings, objects, meshes, bsp):
 
         if not blender_mesh.name.startswith("*"):
             blender_obj.rotation_euler = obj.rotation
-            blender_obj.scale = obj.scale
+            if "Tiki_Scale" in blender_mesh:
+                new_scale = (blender_mesh["Tiki_Scale"], blender_mesh["Tiki_Scale"], blender_mesh["Tiki_Scale"])
+                blender_obj.scale = new_scale
+            else:
+                blender_obj.scale = obj.scale
 
         bpy.context.collection.objects.link(blender_obj)
         object_list.append(blender_obj)
