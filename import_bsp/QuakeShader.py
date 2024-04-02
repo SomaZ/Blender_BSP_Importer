@@ -306,15 +306,16 @@ class quake_shader:
         shader.current_x_location = 200
         shader.current_y_location = 800
 
-        index = name.find('.')
+        index = name.rfind('.')
         if not (index == -1):
             split_name = shader.name.split(".")
             shader.texture = split_name[0]
             
-            if split_name[1].endswith("fog"):
+            if name.endswith(".fog"):
+                shader.texture = shader.name[:-len(".fog")]
                 shader.is_fog = True
 
-            if split_name[1].endswith("vertex"):
+            if name.endswith(".vertex"):
                 shader.is_vertex_lit = True
 
             if split_name[1].endswith("grid"):
@@ -324,10 +325,10 @@ class quake_shader:
                 if (len(split_name) > 1) and not (split_name[1] == ""):
                     shader.zoffset = split_name[1]
 
-            if split_name[1].endswith("brush"):
+            if name.endswith(".brush"):
                 shader.is_brush = True
 
-            if split_name[1].endswith("nodraw"):
+            if name.endswith(".nodraw"):
                 shader.is_system_shader = True
 
         node_output = shader.nodes.new(type='ShaderNodeOutputMaterial')
@@ -1407,20 +1408,42 @@ class quake_shader:
         node_output = shader.nodes.new(type='ShaderNodeOutputMaterial')
         node_output.name = "Output"
         node_output.location = (3400, 0)
+        color = [1.0, 1.0, 1.0]
+        depth = 16384.0
+        density_scale = 1.0
         if "fogparms" not in shader.attributes:
-            return
-        ags = shader.attributes["fogparms"][0].replace("(", "").replace(")", "").strip().split()
-        if len(ags) < 4:
-            print("Fogparms not parsed:", shader.attributes["fogparms"])
-            return
+            split_name = shader.texture.replace("'", "").replace('"', "").split()
+            if len(split_name) == 1:
+                density_scale = split_name[0]
+            elif len(split_name) == 2:
+                density_scale = split_name[0]
+                color[0] = split_name[1]
+            elif len(split_name) == 3:
+                density_scale = split_name[0]
+                color[0] = split_name[1]
+                color[1] = split_name[2]
+            elif len(split_name) == 4:
+                density_scale = split_name[0]
+                color[:] = split_name[1:]
+            elif len(split_name) > 4:
+                density_scale = split_name[0]
+                color[:] = split_name[1:-1]
+        else:
+            ags = shader.attributes["fogparms"][0].replace("(", "").replace(")", "").strip().split()
+            if len(ags) < 4:
+                print("Fogparms not parsed:", shader.attributes["fogparms"])
+                return
+            color = ags[:3]
+            depth = ags[3]
+
         try:
             color = QuakeLight.SRGBToLinear(
-                (float(ags[0]), float(ags[1]), float(ags[2])))
-            density = sqrt(-log(1.0 / 255.0)) / float(ags[3])
+                (float(color[0]), float(color[1]), float(color[2])))
+            density = float(density_scale) * (sqrt(-log(1.0 / 255.0)) / float(depth))
         except Exception:
             print("Fogparms with no proper values found")
             color = [1.0, 1.0, 1.0]
-            density = 0.000001
+            density = 0.000011
         node_Voulme = shader.nodes.new(type="ShaderNodeVolumePrincipled")
 
         node_Voulme.inputs["Color"].default_value = [*color, 1.0]
