@@ -20,6 +20,13 @@ class Surface_Type(IntFlag):
     FLARE = 8
     FAKK_TERRAIN = 16
     BRUSH = 32
+    ALL = (BRUSH |
+           PLANAR |
+           PATCH |
+           TRISOUP |
+           FAKK_TERRAIN |
+           FLARE
+           )
 
     @classmethod
     def bsp_value(cls, value):
@@ -47,12 +54,12 @@ class Import_Settings:
 
     file: str = ""
     bsp_name: str = ""
-    base_paths: list[str] = field(default_factory=list)
-    shader_dirs: tuple[str] = "shaders/", "scripts/"
+    base_paths: list() = field(default_factory=list)
+    shader_dirs: tuple() = "shaders/", "scripts/"
     preset: Preset = Preset.PREVIEW
-    min_atlas_size: tuple[int, int] = 128, 128
+    min_atlas_size: tuple() = 128, 128
     subdivisions: int = 2
-    log: list[str] = field(default_factory=list)
+    log: list() = field(default_factory=list)
     front_culling: bool = True
     surface_types: Surface_Type = Surface_Type.BAD
     entity_dict: dict = field(default_factory=dict)

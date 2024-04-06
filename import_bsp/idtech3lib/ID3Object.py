@@ -15,9 +15,10 @@ def ImportEntitiesText(entities_string):
     obj_dict = {}
     targets = {}
 
-    for line in entities_string.splitlines():
+    for line_num, line in enumerate(entities_string.splitlines()):
         if l_open(line):
             ent = {}
+            ent["first_line"] = line_num
         elif l_close(line):
             entities.append(ent)
             if "targetname" in ent:

@@ -131,7 +131,7 @@ class BSP_READER:
     def set_entity_lump(self, entity_text):
         bsp_info = self.MAGIC_MAPPING[self.header.magic_nr]
         self.lumps["entities"] = [bsp_info.lumps["entities"]
-                                  (char=bytes(c, "ascii"))
+                                  (char=bytes(c, "latin-1"))
                                   for c in entity_text]
 
     def to_bytes(self):
@@ -216,7 +216,7 @@ class BSP_READER:
                         self.deluxemapping = False
                         break
 
-    def compute_packed_lightmap_size(self) -> list[float]:
+    def compute_packed_lightmap_size(self) -> list():
         if not self.lm_packable:
             return self.internal_lightmap_size
 
@@ -282,7 +282,7 @@ class BSP_READER:
             return model
         return None
 
-    def get_bsp_models(self) -> list[MODEL]:
+    def get_bsp_models(self) -> list():
         models = []
         for i in range(len(self.lumps["models"])):
             model = self.get_bsp_model(i)
@@ -291,7 +291,7 @@ class BSP_READER:
 
         return models
     
-    def get_bsp_fogs(self) -> list[MODEL]:
+    def get_bsp_fogs(self) -> list():
         models = []
         for i in range(len(self.lumps["fogs"])):
             current_fog = self.lumps["fogs"][i]

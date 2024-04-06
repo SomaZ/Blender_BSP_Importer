@@ -1,5 +1,5 @@
 from ctypes import (LittleEndianStructure,
-                    c_char, c_float, c_int, c_short, c_ubyte, sizeof)
+                    c_char, c_float, c_int, c_uint, c_short, c_ubyte, sizeof)
 from numpy import array
 from .Helpers import normalize, avg_ivec3, avg_vec2, avg_vec3
 
@@ -20,8 +20,8 @@ class BSP_ENTITY(LittleEndianStructure):
 class BSP_SHADER(LittleEndianStructure):
     _fields_ = [
         ("name", c_char * 64),
-        ("flags", c_int),
-        ("contents", c_int),
+        ("flags", c_uint),
+        ("contents", c_uint),
     ]
 
 

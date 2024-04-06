@@ -158,6 +158,12 @@ class ID3Model:
         self.vertex_groups["Lightmapped"] = set()
         self.vertex_data_layers["BSP_VERT_INDEX"] = (
             self.VertexAttribute(self.indices))
+        self.vertex_data_layers["BSP_SHADER_INDEX"] = (
+            self.VertexAttribute(self.indices))
+        self.vertex_data_layers["BSP_SURFACE_INDEX"] = (
+            self.VertexAttribute(self.indices))
+        self.vertex_data_layers["BSP_FOG_INDEX"] = (
+            self.VertexAttribute(self.indices))
         self.vertex_colors["Color"] = (
             self.VertexAttribute(self.indices))
         self.vertex_colors["Alpha"] = (
@@ -219,7 +225,7 @@ class ID3Model:
         drawverts_lump.append(vert)
         return new_bsp_index
 
-    def add_bsp_vertex_data(self, bsp, bsp_indices, lm_ids=None):
+    def add_bsp_vertex_data(self, bsp, bsp_indices, face=None):
         drawverts_lump = bsp.lumps["drawverts"]
 
         model_indices = []
@@ -251,6 +257,15 @@ class ID3Model:
                     else:
                         self.vertex_data_layers["BSP_VERT_INDEX"].add_indexed(
                             -2)
+                if "BSP_SURFACE_INDEX" in self.vertex_data_layers:
+                    self.vertex_data_layers["BSP_SURFACE_INDEX"].add_indexed(
+                        bsp.lumps["surfaces"].index(face))
+                if "BSP_SHADER_INDEX" in self.vertex_data_layers:
+                    self.vertex_data_layers["BSP_SHADER_INDEX"].add_indexed(
+                        face.texture)
+                if "BSP_FOG_INDEX" in self.vertex_data_layers:
+                    self.vertex_data_layers["BSP_FOG_INDEX"].add_indexed(
+                        face.effect)
 
                 for i in range(2, bsp.lightmaps+1):
                     if i <= 4:
@@ -270,8 +285,8 @@ class ID3Model:
                     self.vertex_colors["Alpha"].add_indexed(alpha)
 
                 # store lightmap ids for atlasing purposes
-                if "LightmapUV" in self.uv_layers:
-                    self.vertex_lightmap_id.add_indexed(lm_ids)
+                if "LightmapUV" in self.uv_layers and face:
+                    self.vertex_lightmap_id.add_indexed(face.lm_indexes)
             model_indices.append(self.index_mapping[index])
         self.indices.append(model_indices)
 
@@ -329,7 +344,7 @@ class ID3Model:
                     face.vertex + self.get_bsp_vertex_offset(
                         bsp, index + 1)
                 )
-            self.add_bsp_vertex_data(bsp, bsp_indices, face.lm_indexes)
+            self.add_bsp_vertex_data(bsp, bsp_indices, face)
 
             model_indices = (
                 self.index_mapping[bsp_indices[0]],
@@ -495,13 +510,20 @@ class ID3Model:
             # end of row?
             if ((patch_face_index+1) % (width+1) == 0):
                 continue
-            bsp_indices = [
-                bsp_index_list[patch_face_index + 1],
-                bsp_index_list[patch_face_index + width + 2],
-                bsp_index_list[patch_face_index + width + 1],
-                bsp_index_list[patch_face_index]]
+            if import_settings.front_culling:
+                bsp_indices = [
+                    bsp_index_list[patch_face_index + 1],
+                    bsp_index_list[patch_face_index ],
+                    bsp_index_list[patch_face_index + width + 1],
+                    bsp_index_list[patch_face_index + width + 2]]
+            else:
+                bsp_indices = [
+                    bsp_index_list[patch_face_index + 1],
+                    bsp_index_list[patch_face_index + width + 2],
+                    bsp_index_list[patch_face_index + width + 1],
+                    bsp_index_list[patch_face_index]]
 
-            self.add_bsp_vertex_data(bsp, bsp_indices, face.lm_indexes)
+            self.add_bsp_vertex_data(bsp, bsp_indices, face)
 
             model_indices = (
                 self.index_mapping[bsp_indices[0]],
@@ -571,7 +593,7 @@ class ID3Model:
             self.index_mapping[index] = self.current_index
             self.current_index += 1
             self.positions.add_indexed(point)
-            self.vertex_normals.add_unindexed((0.0, 0.0, 0.0))
+            self.vertex_normals.add_indexed((0.0, 0.0, 0.0))
             self.uv_layers["UVMap"].add_unindexed(uv)
 
         for face, material in zip(faces, mats):
@@ -606,7 +628,7 @@ class ID3Model:
             self.index_mapping[index] = self.current_index
             self.current_index += 1
             self.positions.add_indexed(point)
-            self.vertex_normals.add_unindexed((0.0, 0.0, 0.0))
+            self.vertex_normals.add_indexed((0.0, 0.0, 0.0))
             self.uv_layers["UVMap"].add_unindexed(uv)
 
         for face, material in zip(faces, mats):
@@ -672,7 +694,6 @@ class ID3Model:
                 self.add_bsp_patch(bsp, face, import_settings)
 
         self.uv_layers["UVMap"].make_unindexed_list()
-        self.vertex_normals.make_unindexed_list()
 
         for i in range(bsp_model.n_brushes):
             brush_id = first_brush + i

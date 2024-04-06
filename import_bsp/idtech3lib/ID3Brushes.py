@@ -10,6 +10,7 @@ from numpy import (cross,
                    cos,
                    round_)
 from itertools import combinations
+from dataclasses import field
 
 
 QUAKE_BASE_AXIS = {
@@ -27,7 +28,7 @@ def normalize(vector):
 
 
 class Plane():
-    normal: list[float, float, float] = [0.0, 0.0, 0.0]
+    normal: list() = field(default_factory=list)
     distance: float = 0.0
     material: str = "NoShader_wtf"
     tex_info: dict = {}
