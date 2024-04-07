@@ -1556,6 +1556,12 @@ def build_quake_shaders(VFS, import_settings, object_list):
 
         for current_shader in current_shaders:
             current_shader.attributes = attributes
+            if current_shader.mat is None:
+                continue
+            if "first_line" in attributes:
+                current_shader.mat["first_line"] = attributes["first_line"]
+            if "shader_file" in attributes:
+                current_shader.mat["shader_file"] = attributes["shader_file"]
 
         for stage in stages:
             for current_shader in current_shaders:

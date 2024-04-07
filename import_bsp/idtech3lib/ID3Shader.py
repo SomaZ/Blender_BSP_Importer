@@ -31,7 +31,7 @@ def get_material_dicts(VFS, import_settings, material_list):
         attributes = {}
         stages = []
         is_open = 0
-        for line in lines:
+        for line_num, line in enumerate(lines):
             # trim line
             line = l_format(line)
             # skip empty lines or comments
@@ -43,6 +43,8 @@ def get_material_dicts(VFS, import_settings, material_list):
                 if is_open == 0:
                     if line in material_list:
                         current_shader = line
+                        attributes["first_line"] = line_num + 1
+                        attributes["shader_file"] = shader_file
                 # shader attributes
                 elif is_open == 1 and current_shader:
                     key, value = parse(line)
