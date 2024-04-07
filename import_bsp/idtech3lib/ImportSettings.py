@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from .Parsing import guess_map_name
 from enum import Enum, IntFlag
-
+from typing import List, Tuple
 
 class Preset(Enum):
     PREVIEW = "PREVIEW"
@@ -54,12 +54,12 @@ class Import_Settings:
 
     file: str = ""
     bsp_name: str = ""
-    base_paths: list() = field(default_factory=list)
-    shader_dirs: tuple() = "shaders/", "scripts/"
+    base_paths: List[str] = field(default_factory=list)
+    shader_dirs: Tuple[str] = ("shaders/", "scripts/")
     preset: Preset = Preset.PREVIEW
-    min_atlas_size: tuple() = 128, 128
+    min_atlas_size: Tuple[int, int] = (128, 128)
     subdivisions: int = 2
-    log: list() = field(default_factory=list)
+    log: List[str] = field(default_factory=list)
     front_culling: bool = True
     surface_types: Surface_Type = Surface_Type.BAD
     entity_dict: dict = field(default_factory=dict)

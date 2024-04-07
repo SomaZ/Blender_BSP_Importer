@@ -28,7 +28,7 @@ def normalize(vector):
 
 
 class Plane():
-    normal: list() = field(default_factory=list)
+    normal: list = field(default_factory=list)
     distance: float = 0.0
     material: str = "NoShader_wtf"
     tex_info: dict = {}

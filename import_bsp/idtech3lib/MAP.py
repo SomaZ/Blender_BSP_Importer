@@ -3,6 +3,7 @@ from .ID3Brushes import Plane
 from .ID3Object import ID3Object
 from .ID3Model import ID3Model as MODEL
 from .ID3Model import Map_Vertex as Vertex
+from typing import List, Tuple
 
 
 PROP_LEN = {
@@ -29,14 +30,13 @@ def is_float(value):
 
 @dataclass
 class Map_surface:
-    materials: list[str] = field(default_factory=list)
+    materials: List[str] = field(default_factory=list)
     type: str = "BRUSH"
 
-    planes: list[Plane] = field(default_factory=list)
-    uv_vecs: list[list] = field(default_factory=list)
+    planes: List[Plane] = field(default_factory=list)
 
-    patch_layout: tuple = (0, 0)
-    ctrl_points: list[Vertex] = field(default_factory=list)
+    patch_layout: Tuple[int, int] = (0, 0)
+    ctrl_points: List[Vertex] = field(default_factory=list)
 
 
 def get_entity_brushes(entity, material_sizes, import_settings) -> MODEL:
@@ -50,7 +50,7 @@ def get_entity_brushes(entity, material_sizes, import_settings) -> MODEL:
     return None
 
 
-def parse_surface_data(surface_info_lines):
+def parse_surface_data(surface_info_lines) -> Map_surface:
     surface = Map_surface()
     if "patchdef2" in surface_info_lines:
         surface.type = "PATCH"
@@ -96,7 +96,7 @@ def parse_surface_data(surface_info_lines):
     return surface
 
 
-def read_map_file(byte_array):
+def read_map_file(byte_array) -> dict:
     lines = byte_array.decode(encoding="latin-1").splitlines()
     entities = {}
     is_open = False

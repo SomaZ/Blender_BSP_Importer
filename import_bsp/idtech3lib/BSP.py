@@ -11,6 +11,7 @@ from .ID3Shader import get_material_dicts
 from math import floor, ceil
 from numpy import array, dot, sin, cos, sqrt, pi
 from struct import unpack
+from typing import List, Tuple
 from .ImportSettings import Vert_lit_handling
 
 
@@ -216,7 +217,7 @@ class BSP_READER:
                         self.deluxemapping = False
                         break
 
-    def compute_packed_lightmap_size(self) -> list():
+    def compute_packed_lightmap_size(self) -> Tuple[int, int]:
         if not self.lm_packable:
             return self.internal_lightmap_size
 
@@ -240,7 +241,7 @@ class BSP_READER:
                 break
         if self.deluxemapping:
             packed_lightmap_size[1] = packed_lightmap_size[1] // 2
-        return packed_lightmap_size
+        return tuple(map(int, packed_lightmap_size))
     
     def find_shader_based_external_lightmaps(self, VFS):
         materials = []
@@ -282,7 +283,7 @@ class BSP_READER:
             return model
         return None
 
-    def get_bsp_models(self) -> list():
+    def get_bsp_models(self) -> List[MODEL]:
         models = []
         for i in range(len(self.lumps["models"])):
             model = self.get_bsp_model(i)
@@ -291,7 +292,7 @@ class BSP_READER:
 
         return models
     
-    def get_bsp_fogs(self) -> list():
+    def get_bsp_fogs(self) -> List[MODEL]:
         models = []
         for i in range(len(self.lumps["fogs"])):
             current_fog = self.lumps["fogs"][i]
@@ -322,7 +323,7 @@ class BSP_READER:
             deluxe,
             internal=True,
             color_components=3
-            ):
+            ) -> List[float]:
         num_columns = self.lightmap_size[0] / self.internal_lightmap_size[0]
 
         numPixels = self.lightmap_size[0] * \
@@ -366,7 +367,7 @@ class BSP_READER:
 
         return pixels
 
-    def get_bsp_images(self):
+    def get_bsp_images(self) -> List[IMAGE]:
         pack_lightmaps = (
             self.lightmap_size[0] != self.internal_lightmap_size[0] or
             self.lightmap_size[1] != self.internal_lightmap_size[1]
