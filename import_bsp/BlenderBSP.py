@@ -238,8 +238,9 @@ def set_custom_properties(import_settings, blender_obj, bsp_obj):
                 blender_obj.delta_location[1] = (maxs[1] + mins[1]) * 0.5
                 blender_obj.delta_location[2] = (maxs[2] + mins[2]) * 0.5
 
+    skip_properties = ("surfaces", "first_line")
     for property in bsp_obj.custom_parameters:
-        if property == "surfaces":
+        if property in skip_properties:
             continue
         blender_obj[property] = bsp_obj.custom_parameters[property]
 
