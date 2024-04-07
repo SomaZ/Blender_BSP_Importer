@@ -259,8 +259,8 @@ class quake_shader:
         shader.nodes.clear()
         shader.links = shader.mat.node_tree.links
         #   "name"          : Position
-        shader.static_nodes = {"tcLightmap": [-400.0, 0.0],
-                               "tcNormal": [-400.0, -100.0],
+        shader.static_nodes = {"tcNormal": [-400.0, 10.0],
+                               "tcLightmap": [-400.0, -100.0],
                                "tcEnvironment": [-400.0, -200.0],
                                "vertexColor": [-400.0, 400.0],
                                "vertexAlpha": [-400.0, 200.0],
@@ -268,7 +268,7 @@ class quake_shader:
                                "gridColor": [-400.0, 600.0],
                                "shaderTime": [-800.0, 0.0],
                                "BaseReflectionVector": [-400.0, 600.0],
-                               "EmissionScaleNode": [-400.0, -600.0],
+                               "EmissionScaleNode": [2600.0, -600.0],
                                }
 
         shader.zoffset = 0
@@ -781,6 +781,8 @@ class quake_shader:
                                                                     stage,
                                                                     out_Color,
                                                                     out_Alpha)
+                shader.current_x_location += 300
+                shader.current_y_location -= 600
                 added_stages += 1
 
             node_light = None
@@ -935,7 +937,7 @@ class quake_shader:
                 float_buffer=True)
 
         node_lm = shader.nodes.new(type='ShaderNodeTexImage')
-        node_lm.location = 700, 0
+        node_lm.location = 0, -400
         node_lm.name = "Baking Image"
         if shader.is_vertex_lit:
             node_lm.image = vt_image
