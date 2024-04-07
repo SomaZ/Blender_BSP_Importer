@@ -32,17 +32,41 @@ bl_info = {
     "category": "Import-Export"
 }
 
-if "bpy" not in locals():
-    import bpy
-if "UI" in locals():
-    importlib.reload(UI)
+if "bpy" in locals():
+    # Just do all the reloading here
+    if "BlenderBSP" in locals():
+        importlib.reload(BlenderBSP)
+    if "BlenderEntities" in locals():
+        importlib.reload(BlenderEntities)
+    if "BlenderImage" in locals():
+        importlib.reload(BlenderImage)
+    if "BlenderSurfaceFactory" in locals():
+        importlib.reload(BlenderSurfaceFactory)
+    if "Gamepacks" in locals():
+        importlib.reload(Gamepacks)
+    if "GridIcoSphere" in locals():
+        importlib.reload(GridIcoSphere)
+    if "MD3" in locals():
+        importlib.reload(MD3)
+    if "QuakeLight" in locals():
+        importlib.reload(QuakeLight)
+    if "QuakeShader" in locals():
+        importlib.reload(QuakeShader)
+    if "QuakeSky" in locals():
+        importlib.reload(QuakeSky)
+    if "ShaderNodes" in locals():
+        importlib.reload(ShaderNodes)
+    if "TAN" in locals():
+        importlib.reload(TAN)
+    if "UI" in locals():
+        importlib.reload(UI)
 else:
-    from . import UI
-if "Gamepacks" in locals():
-    importlib.reload(Gamepacks)
-else:
-    from . import Gamepacks
+    from . import BlenderBSP, BlenderEntities, BlenderImage, BlenderSurfaceFactory
+    from . import Gamepacks, GridIcoSphere, MD3, QuakeLight, QuakeShader
+    from . import QuakeSky, ShaderNodes, TAN
 
+import bpy
+from . import UI
 
 panel_cls = [
     (UI.Q3_PT_ShaderPanel, "ID3 Shaders"),

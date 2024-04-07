@@ -1,17 +1,5 @@
-import imp
-
-if "bpy" not in locals():
-    import bpy
-
-if "BlenderImage" in locals():
-    imp.reload(BlenderImage)
-else:
-    from . import BlenderImage
-
-if "QuakeLight" in locals():
-    imp.reload(QuakeLight)
-else:
-    from . import QuakeLight
+import bpy
+from . import BlenderImage, QuakeLight
 
 import math
 import gpu

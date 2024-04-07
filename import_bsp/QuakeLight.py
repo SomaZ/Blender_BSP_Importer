@@ -1,20 +1,9 @@
 import bpy
-from math import floor, ceil, pi, sin, cos, pow, atan2, sqrt, acos
-
-if "GridIcoSphere" in locals():
-    import importlib
-    importlib.reload(GridIcoSphere)
-else:
-    from . import GridIcoSphere
-
-if "struct" not in locals():
-    import struct
-
-import bgl
-import gpu
-from gpu_extras.batch import batch_for_shader
-from mathutils import Vector
 import os
+import struct
+from mathutils import Vector
+from math import floor, ceil, pi, pow, atan2, sqrt, acos
+from . import GridIcoSphere
 
 
 def toSRGB(value):

@@ -16,50 +16,18 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import importlib
-import os
-
-import cProfile
-
-if "bpy" not in locals():
-    import bpy
+import bpy
 
 from .idtech3lib.ID3VFS import Q3VFS
 from .idtech3lib.BSP import BSP_READER as BSP
-from .idtech3lib import MAP
-from .idtech3lib import GamePacks
-from math import floor, atan, radians
+from .idtech3lib import GamePacks, MAP
+from math import atan, radians
 from numpy import dot, sqrt
 
-if "Entities" in locals():
-    importlib.reload(BlenderEntities)
-else:
-    from . import BlenderEntities
+from . import BlenderImage, QuakeShader, QuakeLight
+from . import MD3, TAN
 
-if "QuakeShader" in locals():
-    importlib.reload(QuakeShader)
-else:
-    from . import QuakeShader
-
-if "MD3" in locals():
-    importlib.reload(MD3)
-else:
-    from . import MD3
-
-if "TAN" in locals():
-    importlib.reload(TAN)
-else:
-    from . import TAN
-
-if "QuakeLight" in locals():
-    importlib.reload(QuakeLight)
-else:
-    from . import QuakeLight
-
-if "BlenderImage" in locals():
-    importlib.reload(BlenderImage)
-else:
-    from . import BlenderImage
+#import cProfile
 
 
 def create_meshes_from_models(models):

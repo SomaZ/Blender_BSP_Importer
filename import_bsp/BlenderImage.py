@@ -1,10 +1,8 @@
 # -*- coding: UTF-8 -*-
-
-if "bpy" not in locals():
-    import bpy
-
-from .idtech3lib.ID3Image import loadFtx_from_bytearray
+import bpy
 import os
+from .idtech3lib.ID3Image import loadFtx_from_bytearray
+
 
 # move file extension from first array to second one
 # when the format is supported

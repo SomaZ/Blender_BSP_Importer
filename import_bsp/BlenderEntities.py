@@ -1,6 +1,5 @@
 import bpy
-import importlib
-from math import radians, pow, sqrt, atan, degrees
+from math import degrees
 from mathutils import Vector
 
 

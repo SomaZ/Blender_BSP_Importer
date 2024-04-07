@@ -5,110 +5,22 @@
 #       material names with new zoffset
 # ----------------------------------------------------------------------------#
 
-import importlib
+import bpy
+from bpy_extras.io_utils import ImportHelper, ExportHelper
+from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
+from bpy.types import PropertyGroup
 
-if "bpy" not in locals():
-    import bpy
-
-if "ImportHelper" not in locals():
-    from bpy_extras.io_utils import ImportHelper
-if "ExportHelper" not in locals():
-    from bpy_extras.io_utils import ExportHelper
-
-if "BspHelper" in locals():
-    importlib.reload(Helpers)
-else:
-    from .idtech3lib import Helpers
-
-if "Entities" in locals():
-    importlib.reload(BlenderEntities)
-else:
-    from . import BlenderEntities
-
-if "MD3" in locals():
-    importlib.reload(MD3)
-else:
-    from . import MD3
-
-if "TAN" in locals():
-    importlib.reload(TAN)
-else:
-    from . import TAN
-
-if "QuakeSky" in locals():
-    importlib.reload(QuakeSky)
-else:
-    from . import QuakeSky
-
-if "QuakeShader" in locals():
-    importlib.reload(QuakeShader)
-else:
-    from . import QuakeShader
-
-if "QuakeLight" in locals():
-    importlib.reload(QuakeLight)
-else:
-    from . import QuakeLight
-
-if "StringProperty" not in locals():
-    from bpy.props import StringProperty
-
-if "BoolProperty" not in locals():
-    from bpy.props import BoolProperty
-
-if "EnumProperty" not in locals():
-    from bpy.props import EnumProperty
-
-if "IntProperty" not in locals():
-    from bpy.props import IntProperty
-
-if "PropertyGroup" not in locals():
-    from bpy.types import PropertyGroup
-
-if "Q3VFS" in locals():
-    importlib.reload(Q3VFS)
-else:
-    from .idtech3lib.ID3VFS import Q3VFS
-
-if "os" not in locals():
-    import os
-
-if "BlenderBSP" in locals():
-    importlib.reload(BlenderBSP)
-else:
-    from . import BlenderBSP
-
-if "Import_Settings" in locals():
-    importlib.reload(Import_Settings)
-else:
-    from .idtech3lib.ImportSettings import Import_Settings
-
-if "Preset" in locals():
-    importlib.reload(Preset)
-else:
-    from .idtech3lib.ImportSettings import Preset
-
-if "Parsing" in locals():
-    importlib.reload(Parsing)
-else:
-    from .idtech3lib import Parsing
-
-if "Surface_Type" in locals():
-    importlib.reload(Surface_Type)
-else:
-    from .idtech3lib.ImportSettings import Surface_Type
-
-if "Vert_lit_handling" in locals():
-    importlib.reload(Vert_lit_handling)
-else:
-    from .idtech3lib.ImportSettings import Vert_lit_handling
-
-if "GamePacks" in locals():
-    importlib.reload(GamePacks)
-else:
-    from .idtech3lib import GamePacks
-
+import os
 import uuid
+
+from . import BlenderBSP, BlenderEntities
+from . import MD3, TAN
+from . import QuakeShader, QuakeSky, QuakeLight
+
+from .idtech3lib import Helpers, Parsing, GamePacks
+from .idtech3lib.ID3VFS import Q3VFS
+from .idtech3lib.ImportSettings import *
+
 
 def get_base_paths(context, import_file_path = None):
     addon_name = __name__.split('.')[0]

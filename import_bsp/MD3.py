@@ -1,22 +1,13 @@
-import importlib
-
-if "struct" not in locals():
-    import struct
-
-if "bpy" not in locals():
-    import bpy
-
-if "BlenderImage" in locals():
-    importlib.reload(BlenderImage)
-else:
-    from . import BlenderImage
-
-from .idtech3lib.Parsing import guess_model_name, fillName
-from .BlenderSurfaceFactory import Surface_factory
-
+import bpy
+import struct
 from math import pi, sin, cos, atan2, acos, sqrt
 from mathutils import Matrix
 from bpy_extras.io_utils import unpack_list
+
+from . import BlenderImage
+from .BlenderSurfaceFactory import Surface_factory
+from .idtech3lib.Parsing import guess_model_name, fillName
+
 
 FLOAT = 4
 HALF = 2

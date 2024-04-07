@@ -9,35 +9,13 @@
 # TODO:  fix tcGen Environment cause right now the
 # reflection vector is not correct
 # ----------------------------------------------------------------------------#
+import bpy
+from math import sqrt, log
 
-import importlib
-
-if "bpy" not in locals():
-    import bpy
-
-if "ShaderNodes" in locals():
-    importlib.reload(ShaderNodes)
-else:
-    from . import ShaderNodes
-
-if "QuakeSky" in locals():
-    importlib.reload(QuakeSky)
-else:
-    from . import QuakeSky
-
-if "BlenderImage" in locals():
-    importlib.reload(BlenderImage)
-else:
-    from . import BlenderImage
-
-if "QuakeLight" in locals():
-    importlib.reload(QuakeLight)
-else:
-    from . import QuakeLight
-
+from . import BlenderImage, ShaderNodes, QuakeLight, QuakeSky
 from .idtech3lib import ID3Shader
 from .idtech3lib.Parsing import *
-from math import sqrt, log
+
 
 if bpy.app.version >= (4, 0, 0):
     EMISSION_KEY = "Emission Color"

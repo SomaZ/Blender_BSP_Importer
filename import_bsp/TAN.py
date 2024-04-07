@@ -1,17 +1,11 @@
-if "struct" not in locals():
-    import struct
-
-if "bpy" not in locals():
-    import bpy
-
-if "os" not in locals():
-    import os
-
-from .idtech3lib.Parsing import guess_model_name, fillName, parse
-
+import bpy
+import os
+import struct
 from math import pi, sin, cos, atan2, acos, sqrt
 from mathutils import Matrix
 from bpy_extras.io_utils import unpack_list
+from .idtech3lib.Parsing import guess_model_name, fillName, parse
+
 
 FLOAT = 4
 HALF = 2
