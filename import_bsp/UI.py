@@ -15,7 +15,7 @@ import uuid
 
 from . import BlenderBSP, BlenderEntities
 from . import MD3, TAN
-from . import QuakeShader, QuakeSky, QuakeLight
+from . import QuakeShader, QuakeSky, QuakeLight, ShaderNodes
 
 from .idtech3lib import Helpers, Parsing, GamePacks
 from .idtech3lib.ID3VFS import Q3VFS
@@ -2434,3 +2434,169 @@ class Q3_PT_Imagepanel(bpy.types.Panel):
             layout.prop(context.scene, 'id_tech_3_lightmaps_per_column')
         elif image.source == "FILE" or image.source == "GENERATED":
             layout.operator("q3.equi_to_box")
+
+
+class Q3_OP_Quick_emission_mat(bpy.types.Operator):
+    bl_idname = "q3.quick_emission_mat"
+    bl_label = "Make material emissive"
+    def execute(self, context):
+        mat = context.material
+        if mat is None:
+            return {"CANCELLED"}
+        if mat.use_nodes is False:
+            return {"CANCELLED"}
+        nt = mat.node_tree
+        nodes = nt.nodes
+        for node in nodes:
+            if node.type != "BSDF_PRINCIPLED":
+                continue
+            
+            mix_node = nt.nodes.new(type="ShaderNodeMix")
+            mix_node.data_type = "RGBA"
+            mix_node.blend_type = 'MULTIPLY'
+            mix_node.clamp_result = True
+            mix_node.inputs[0].default_value = 1.0
+            mix_node.location[0] += 2400
+            mix_node.location[1] -= 300
+
+            vm_node = nt.nodes.new(type="ShaderNodeVectorMath")
+            vm_node.operation = "DOT_PRODUCT"
+            vm_node.inputs[1].default_value = (0.333, 0.333, 0.333)
+            vm_node.location[0] += 2000
+            vm_node.location[1] -= 300
+
+            m_node = nt.nodes.new(type="ShaderNodeMath")
+            m_node.name = "Threshold Node"
+            m_node.operation = "GREATER_THAN"
+            m_node.use_clamp = True
+            m_node.location[0] += 2200
+            m_node.location[1] -= 300
+
+            nt.links.new(vm_node.outputs["Value"], m_node.inputs["Value"])
+            nt.links.new(m_node.outputs["Value"], mix_node.inputs["B"])
+
+            input = node.inputs["Base Color"]
+            for link in input.links:
+                nt.links.new(link.from_node.outputs[0], vm_node.inputs[0])
+                nt.links.new(link.from_node.outputs[0], mix_node.inputs["A"])
+
+            if bpy.app.version >= (4, 0, 0):
+                EMISSION_KEY = "Emission Color"
+            else:
+                EMISSION_KEY = "Emission"
+
+            # emission scale node
+            scale_node = nodes.get("EmissionScaleNode")
+            if scale_node is None:
+                scale_node = nodes.new(type="ShaderNodeGroup")
+                scale_node.node_tree = ShaderNodes.Emission_Node.get_node_tree(None)
+                scale_node.location[0] += 2700
+                scale_node.location[1] -= 300
+                scale_node.name = "EmissionScaleNode"
+            nt.links.new(mix_node.outputs["Result"], scale_node.inputs["Color"])
+            nt.links.new(scale_node.outputs[0], node.inputs[EMISSION_KEY])
+            if bpy.app.version >= (4, 0, 0):
+                node.inputs["Emission Strength"].default_value = 1.0
+
+        return {"FINISHED"}
+
+
+class Q3_OP_Quick_simple_mat(bpy.types.Operator):
+    bl_idname = "q3.quick_simple_mat"
+    bl_label = "Make simple material"
+    def execute(self, context):
+        mat = context.material
+        if mat is None:
+            return {"CANCELLED"}
+        if mat.use_nodes is False:
+            return {"CANCELLED"}
+        nt = mat.node_tree
+        nodes = nt.nodes
+        for node in nodes:
+            if node.type == "BUMP":
+                nodes.remove(node)
+        for node in nodes:
+            if node.type != "BSDF_PRINCIPLED":
+                continue
+            node.inputs["Roughness"].default_value = 0.5
+            node.name = "Main Material"
+
+            bump_node = nt.nodes.new(type="ShaderNodeBump")
+            bump_node.name = "Bump Node"
+            bump_node.location = node.location
+            bump_node.location[0] -= 400.0
+            
+            input = node.inputs["Base Color"]
+            for link in input.links:
+                nt.links.new(link.from_node.outputs[0], bump_node.inputs["Height"])
+                nt.links.new(bump_node.outputs["Normal"], node.inputs["Normal"])
+                bump_node.inputs["Distance"].default_value = 8.0
+        return {"FINISHED"}
+
+
+class Q3_OP_Quick_transparent_mat(bpy.types.Operator):
+    bl_idname = "q3.quick_transparent_mat"
+    bl_label = "Make current material transparent"
+    def execute(self, context):
+        mat = context.material
+        if mat is None:
+            return {"CANCELLED"}
+        if mat.use_nodes is False:
+            return {"CANCELLED"}
+        mat.blend_method = 'CLIP'
+        mat.shadow_method = 'CLIP'
+        nt = mat.node_tree
+        # materials can have multiple out nodes for eevee and cycles
+        out_nodes = [node for node in nt.nodes if node.type == "OUTPUT_MATERIAL"]
+        tp_nodes = [node for node in nt.nodes if node.type == "BSDF_TRANSPARENT"]
+        if len(tp_nodes) == 0:
+            tp_nodes.append(nt.nodes.new(type="ShaderNodeBsdfTransparent"))
+        tp_nodes[0].inputs[0].default_value = (1.0, 1.0, 1.0, 1.0)
+        for out in out_nodes:
+            # link the output of the mix node with the current material output
+            nt.links.new(tp_nodes[0].outputs[0], out.inputs[0])
+        return {"FINISHED"}
+
+
+class Q3_PT_Materialpanel(bpy.types.Panel):
+    bl_idname = "Q3_PT_Materialpanel"
+    bl_label = "ID3 Shader"
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_category = "MATERIAL"
+
+    def draw(self, context):
+        layout = self.layout
+        mat = context.material
+        if mat is None:
+            return
+        layout.label(text = mat.name.split(".")[0])
+        if "shader_file" in mat:
+            layout.label(
+                text = "found in: {} line: {}".format(
+                    mat["shader_file"],
+                    mat["first_line"]
+                )
+            )
+        else:
+            layout.label(
+                text = "is not an explicit shader."
+            )
+        layout.separator()
+        layout.operator("q3.quick_transparent_mat")
+        layout.separator()
+        layout.operator("q3.quick_simple_mat")
+        if "Main Material" in mat.node_tree.nodes:
+            roughness = mat.node_tree.nodes["Main Material"].inputs["Roughness"]
+            layout.prop(roughness, "default_value", text="Roughness")
+        if "Bump Node" in mat.node_tree.nodes:
+            bump = mat.node_tree.nodes["Bump Node"].inputs["Distance"]
+            layout.prop(bump, "default_value", text="Bump Distance")
+        layout.separator()
+        layout.operator("q3.quick_emission_mat")
+        if "Threshold Node" in mat.node_tree.nodes:
+            threshold = mat.node_tree.nodes["Threshold Node"].inputs[1]
+            layout.prop(threshold, "default_value", text="Emission Threshold")
+        if "EmissionScaleNode" in mat.node_tree.nodes:
+            light = mat.node_tree.nodes["EmissionScaleNode"].inputs["Light"]
+            layout.prop(light, "default_value", text="Light scale")
