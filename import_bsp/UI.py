@@ -2563,7 +2563,7 @@ class Q3_PT_Materialpanel(bpy.types.Panel):
     bl_label = "ID3 Shader"
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
-    bl_category = "MATERIAL"
+    bl_context = "material"
 
     def draw(self, context):
         layout = self.layout
