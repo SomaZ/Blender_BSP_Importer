@@ -935,8 +935,6 @@ def createLightGridTextures():
         weight = 0.0
         for i in range(20):
             dot = max(0.0, Vector.dot(normals[i], avg_vec))
-            if dot > 0.0:
-                dot = sqrt(sqrt(dot))
             direct_color += color_samples[i] * dot
             weight += max(0.0, Vector.dot(normals[i], avg_vec))
 
@@ -946,10 +944,7 @@ def createLightGridTextures():
         ambient_color = Vector((0.0, 0.0, 0.0))
         for i in range(20):
             dot = max(0.0, Vector.dot(normals[i], avg_vec))
-            if dot > 0.0:
-                dot = sqrt(sqrt(dot))
-            ambient_color += color_samples[i]
-            ambient_color -= color_samples[i] * dot
+            ambient_color += color_samples[i] * (1.0 - dot)
         ambient_color /= 20.0
 
         ambient_pixels.append(ambient_color[0])
