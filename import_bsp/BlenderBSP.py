@@ -604,6 +604,12 @@ def import_bsp_file(import_settings):
             ob = bpy.data.objects.new(
                     name=mesh_name,
                     object_data=mesh)
+            for vert_group in vertex_groups:
+                vg = ob.vertex_groups.get(vert_group)
+                if vg is None:
+                    vg = ob.vertex_groups.new(name=vert_group)
+                vg.add(list(vertex_groups[vert_group]), 1.0, 'ADD')
+
             if import_settings.preset == "SHADOW_BRUSHES":
                 modifier = ob.modifiers.new("Displace", type="DISPLACE")
                 modifier.strength = -4.0

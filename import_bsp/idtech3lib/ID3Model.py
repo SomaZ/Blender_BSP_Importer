@@ -156,6 +156,7 @@ class ID3Model:
 
     def init_bsp_face_data(self, bsp):
         self.vertex_groups["Lightmapped"] = set()
+        self.vertex_groups["Patch mesh"] = set()
         self.vertex_data_layers["BSP_VERT_INDEX"] = (
             self.VertexAttribute(self.indices))
         self.vertex_data_layers["BSP_SHADER_INDEX"] = (
@@ -194,6 +195,7 @@ class ID3Model:
     def init_bsp_brush_data(self, bsp):
         self.uv_layers["UVMap"] = (
             self.VertexAttribute(self.indices))
+        self.vertex_groups["Patch mesh"] = set()
         self.current_index = 0
         self.index_mapping = [-2 for i in range(len(bsp.lumps["drawverts"]))]
         self.num_bsp_vertices = 0
@@ -207,6 +209,7 @@ class ID3Model:
     def init_map_brush_data(self):
         self.uv_layers["UVMap"] = (
             self.VertexAttribute(self.indices))
+        self.vertex_groups["Patch mesh"] = set()
         self.current_index = 0
         self.index_mapping = []
         self.num_bsp_vertices = 0
@@ -536,6 +539,11 @@ class ID3Model:
                                    face,
                                    force_nodraw)
             
+            # meh ugly hack
+            if "Patch mesh" in self.vertex_groups:
+                for index in model_indices:
+                    self.vertex_groups["Patch mesh"].add(index)
+            
     def add_bsp_brush(self, bsp, brush_id, import_settings):
         bsp_brush = bsp.lumps["brushes"][brush_id]
         brush_shader = ""
@@ -748,6 +756,11 @@ class ID3Model:
             self.face_smooth.append(True)
             self.material_id.append(
                 self.material_names.index(mat_name))
+            
+            # meh ugly hack
+            if "Patch mesh" in self.vertex_groups:
+                for index in [self.index_mapping[indices[index]] for index in face]:
+                    self.vertex_groups["Patch mesh"].add(index)
 
     def add_map_entity_brushes(self, entity, material_sizes, import_settings):
         if entity is None:
