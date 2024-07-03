@@ -1899,17 +1899,66 @@ class Prepare_Lightmap_Baking(bpy.types.Operator):
     bl_options = {"INTERNAL", "REGISTER"}
 
     def execute(self, context):
-        bpy.context.view_layer.objects.active = None
-        for obj in bpy.context.scene.objects:
+
+        if context.object.mode == "EDIT":
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+        context.view_layer.objects.active = None
+        for obj in context.scene.objects:
             obj.select_set(False)
-            if obj.type == "MESH":
-                mesh = obj.data
-                if mesh.name.startswith("*") and (
-                        obj.name in bpy.context.view_layer.objects):
-                    bpy.context.view_layer.objects.active = obj
-                    obj.select_set(True)
-                    if "LightmapUV" in mesh.uv_layers:
-                        mesh.uv_layers["LightmapUV"].active = True
+            if obj.type != "MESH":
+                continue
+
+            mesh = obj.data
+            if not (mesh.name.startswith("*") and (
+                    obj.name in context.view_layer.objects)):
+                continue
+
+            context.view_layer.objects.active = obj
+            obj.select_set(True)
+            if "LightmapUV" in mesh.uv_layers:
+                mesh.uv_layers["LightmapUV"].active = True
+
+            group_map = {
+                group.name: group.index for group in obj.vertex_groups}
+            if "Lightmapped" not in group_map:
+                continue
+            lightmapped_indices = [vertex.index
+                                   for vertex in mesh.vertices
+                                   if group_map["Lightmapped"] in
+                                   [vg.group for vg in vertex.groups]]
+            for poly in mesh.polygons:
+                lightmapped = False
+                if poly.vertices[0] in lightmapped_indices:
+                    lightmapped = True
+                    for vert in poly.vertices:
+                        if vert not in lightmapped_indices:
+                            lightmapped = False
+                            break
+                mat_name = mesh.materials[poly.material_index].name
+                if mat_name.endswith(".vertex") == (not lightmapped):
+                    continue
+
+                new_mat = None
+                if mat_name.endswith(".vertex"):
+                    new_mat = bpy.data.materials.get(mat_name[:-len(".vertex")])
+                    if new_mat is None:
+                        new_mat = mesh.materials[poly.material_index].copy()
+                        new_mat.name = mat_name[:-len(".vertex")]
+                        if "Baking Image" in new_mat.node_tree.nodes:
+                            new_mat.node_tree.nodes["Baking Image"].image = bpy.data.images.get("$lightmap_bake")
+                else:
+                    new_mat = bpy.data.materials.get(mat_name+".vertex")
+                    if new_mat is None:
+                        new_mat = mesh.materials[poly.material_index].copy()
+                        new_mat.name = mat_name+".vertex"
+                        if "Baking Image" in new_mat.node_tree.nodes:
+                            new_mat.node_tree.nodes["Baking Image"].image = bpy.data.images.get("$vertmap_bake")
+                if new_mat is None:
+                    continue
+                if new_mat.name not in mesh.materials:
+                    mesh.materials.append(new_mat)
+                poly.material_index = mesh.materials.find(new_mat.name)
 
         for mat in bpy.data.materials:
             node_tree = mat.node_tree
