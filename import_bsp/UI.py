@@ -175,7 +175,7 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
         elif self.preset == "RENDERING":
             context.scene.render.engine = "CYCLES"
         else:
-            context.scene.render.engine = "BLENDER_EEVEE"
+            context.scene.render.engine = "BLENDER_EEVEE_NEXT" if bpy.app.version >= (4, 2, 0) else "BLENDER_EEVEE"
 
         context.scene.eevee.volumetric_start = 4
         context.scene.eevee.volumetric_end = 100000
