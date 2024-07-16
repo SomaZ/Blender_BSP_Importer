@@ -831,7 +831,7 @@ class quake_shader:
                                   "\nq3map_surfacelight assumes a float input")
                     if bpy.app.version >= (4, 0, 0):
                         node_BSDF.inputs["Emission Strength"].default_value = 1.0
-                if (shader.mat.blend_method != "OPAQUE" and
+                if (shader_type != "OPAQUE" and
                    out_Alpha is not None and
                    "portal" not in shader.attributes):
                     shader.links.new(out_Alpha, node_BSDF.inputs["Alpha"])
@@ -1306,7 +1306,7 @@ class quake_shader:
                 shader.links.new(color_out, node_BSDF.inputs[EMISSION_KEY])
                 if bpy.app.version >= (4, 0, 0):
                         node_BSDF.inputs["Emission Strength"].default_value = 1.0
-            if shader.mat.blend_method != "OPAQUE" and alpha_out is not None:
+            if shader_type != "OPAQUE" and alpha_out is not None:
                 shader.links.new(alpha_out, node_BSDF.inputs["Alpha"])
             shader_out = node_BSDF.outputs["BSDF"]
 
