@@ -44,3 +44,7 @@ Blender versions 2.93 to 4.1 are supported right now
  - Click the 'Install...' button on the top right and navigate to the zip you downloaded, then click 'Install Add-on'
  - Tick the checkbox next to 'Import-Export: Import id Tech 3 BSP' to enable the addon
  - Optionally add your base path and mod paths in the addons preferences
+
+## Attributions
+
+- Virtual file system support by Alexander @cagelight Sago 
