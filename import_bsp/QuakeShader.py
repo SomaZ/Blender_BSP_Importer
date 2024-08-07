@@ -811,6 +811,7 @@ class quake_shader:
                 added_stages += 1
 
             node_light = None
+            normal_img = None
             if "q3map_lightimage" in shader.attributes:
                 img = BlenderImage.load_file(
                     shader.attributes["q3map_lightimage"][0], VFS)
@@ -830,7 +831,19 @@ class quake_shader:
                     node_light = shader.nodes.new(type='ShaderNodeRGB')
                     node_light.outputs[0].default_value = (
                         color[0], color[1], color[2], 1.0)
-
+            if "q3map_normalimage" in shader.attributes:
+                normal_img = BlenderImage.load_file(
+                    shader.attributes["q3map_normalimage"][0], VFS)
+                if normal_img is not None:
+                    normal_img.colorspace_settings.name = "Non-Color"
+                    node_normalimage = shader.nodes.new(type='ShaderNodeTexImage')
+                    node_normalimage.image = normal_img
+                    node_normalimage.location = 1700, 0
+                    node_normalmap = shader.nodes.new(type='ShaderNodeNormalMap')
+                    node_normalmap.uv_map = "UVMap"
+                    node_normalmap.location = 2000, 0
+                    shader.links.new(
+                        node_normalimage.outputs["Color"], node_normalmap.inputs["Color"])
             if out_Color is not None:
                 node_BSDF = shader.nodes.new(type="ShaderNodeBsdfPrincipled")
                 node_BSDF.location = (3000, 0)
@@ -863,6 +876,8 @@ class quake_shader:
                 shader.links.new(
                     node_BSDF.outputs["BSDF"],
                     shader.nodes["Output"].inputs[0])
+                if normal_img is not None:
+                    shader.links.new(node_normalmap.outputs["Normal"], node_BSDF.inputs["Normal"])
             else:
                 shader.mat.blend_method = "BLEND"
                 node_Emiss = shader.nodes.new(type="ShaderNodeEmission")
