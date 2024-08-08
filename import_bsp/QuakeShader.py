@@ -604,6 +604,7 @@ class quake_shader:
         out_Color = None
         out_Alpha = None
         out_Glow = None
+        out_Normal = None
         out_None = None
         shader_atts = shader.attributes
         # we dont want the system shaders and "those" skys
@@ -805,6 +806,20 @@ class quake_shader:
                     node_light = shader.nodes.new(type='ShaderNodeRGB')
                     node_light.outputs[0].default_value = (
                         color[0], color[1], color[2], 1.0)
+            if "q3map_normalimage" in shader.attributes:
+                normal_img = BlenderImage.load_file(
+                    shader.attributes["q3map_normalimage"][0], VFS)
+                if normal_img is not None:
+                    normal_img.colorspace_settings.name = "Non-Color"
+                    node_normalimage = shader.nodes.new(type='ShaderNodeTexImage')
+                    node_normalimage.image = normal_img
+                    node_normalimage.location = 1700, 0
+                    node_normalmap = shader.nodes.new(type='ShaderNodeNormalMap')
+                    node_normalmap.uv_map = "UVMap"
+                    node_normalmap.location = 2000, 0
+                    shader.links.new(
+                        node_normalimage.outputs["Color"], node_normalmap.inputs["Color"])
+                    out_Normal = node_normalmap.outputs["Normal"]
 
             if out_Color is not None:
                 node_BSDF = shader.nodes.new(type="ShaderNodeBsdfPrincipled")
@@ -838,6 +853,8 @@ class quake_shader:
                 shader.links.new(
                     node_BSDF.outputs["BSDF"],
                     shader.nodes["Output"].inputs[0])
+                if out_Normal is not None:
+                    shader.links.new(out_Normal, node_BSDF.inputs["Normal"])
             else:
                 shader.mat.blend_method = "BLEND"
                 node_Emiss = shader.nodes.new(type="ShaderNodeEmission")
@@ -995,6 +1012,7 @@ class quake_shader:
 
         color_out = None
         alpha_out = None
+        normal_out = None
         shader_type = "BLEND"
 
         if (shader.is_system_shader or 
@@ -1173,6 +1191,21 @@ class quake_shader:
                 shader.current_y_location -= 600
                 n_stages += 1
 
+            if "q3map_normalimage" in shader.attributes:
+                normal_img = BlenderImage.load_file(
+                    shader.attributes["q3map_normalimage"][0], VFS)
+                if normal_img is not None:
+                    normal_img.colorspace_settings.name = "Non-Color"
+                    node_normalimage = shader.nodes.new(type='ShaderNodeTexImage')
+                    node_normalimage.image = normal_img
+                    node_normalimage.location = 1700, 400
+                    node_normalmap = shader.nodes.new(type='ShaderNodeNormalMap')
+                    node_normalmap.uv_map = "UVMap"
+                    node_normalmap.location = 2000, 400
+                    shader.links.new(
+                        node_normalimage.outputs["Color"], node_normalmap.inputs["Color"])
+                    normal_out = node_normalmap.outputs["Normal"]
+
             if color_out is None:
                 print(shader.name + " shader is not supported right now")
 
@@ -1308,6 +1341,8 @@ class quake_shader:
                         node_BSDF.inputs["Emission Strength"].default_value = 1.0
             if shader_type != "OPAQUE" and alpha_out is not None:
                 shader.links.new(alpha_out, node_BSDF.inputs["Alpha"])
+            if normal_out is not None:
+                shader.links.new(normal_out, node_BSDF.inputs["Normal"])
             shader_out = node_BSDF.outputs["BSDF"]
 
         shader.links.new(shader_out, shader.nodes["Output"].inputs[0])
