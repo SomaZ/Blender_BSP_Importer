@@ -1214,7 +1214,7 @@ class quake_shader:
                     node_channelflip = shader.nodes.new(type="ShaderNodeGroup")
                     node_channelflip.node_tree = (
                         ShaderNodes.Normal_Channel_Flip_Node.get_node_tree(None))
-                    node_channelflip.location = 1800, 0
+                    node_channelflip.location = 1800, 400
                     node_channelflip.width = 300
                     node_channelflip.label = "Green Channel Flip"
                     shader.links.new(
@@ -1225,7 +1225,7 @@ class quake_shader:
                     node_normalmap.uv_map = "UVMap"
                     node_normalmap.location = 2200, 400
                     shader.links.new(
-                        node_normalimage.outputs["Color"], node_normalmap.inputs["Color"])
+                        node_channelflip.outputs[0], node_normalmap.inputs["Color"])
                     normal_out = node_normalmap.outputs["Normal"]
 
             if color_out is None:
