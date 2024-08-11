@@ -175,6 +175,7 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
 
         # scene information
         context.scene.id_tech_3_importer_preset = self.preset
+        context.scene.id_tech_3_normal_map_option = self.normal_map_option
         if self.preset not in brush_imports:
             context.scene.id_tech_3_file_path = self.filepath
 
@@ -1052,6 +1053,8 @@ class Q3_PT_ShaderPanel(bpy.types.Panel):
         row.operator("q3mapping.reload_preview_shader")
         row = layout.row()
         row.operator("q3mapping.reload_render_shader")
+        row = layout.row()
+        row.prop(scene, "id_tech_3_normal_map_option", text="Normal Map Import")
         layout.separator()
 
         lg_group = bpy.data.node_groups.get("LightGrid")
@@ -2146,6 +2149,7 @@ class Reload_preview_shader(bpy.types.Operator):
         import_settings = Import_Settings(
             base_paths=get_base_paths(context, context.scene.id_tech_3_file_path),
             preset=Preset.PREVIEW.value,
+            normal_map_option=context.scene.id_tech_3_normal_map_option,
         )
 
         # initialize virtual file system
@@ -2170,6 +2174,7 @@ class Reload_render_shader(bpy.types.Operator):
         import_settings = Import_Settings(
             base_paths=get_base_paths(context, context.scene.id_tech_3_file_path),
             preset=Preset.RENDERING.value,
+            normal_map_option=context.scene.id_tech_3_normal_map_option,
         )
 
         # initialize virtual file system
