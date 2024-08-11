@@ -831,19 +831,30 @@ class quake_shader:
                     node_light = shader.nodes.new(type='ShaderNodeRGB')
                     node_light.outputs[0].default_value = (
                         color[0], color[1], color[2], 1.0)
-            if "q3map_normalimage" in shader.attributes:
+            if "q3map_normalimage" in shader.attributes and import_settings.normal_map_option != "SKIP":
                 normal_img = BlenderImage.load_file(
                     shader.attributes["q3map_normalimage"][0], VFS)
                 if normal_img is not None:
                     normal_img.colorspace_settings.name = "Non-Color"
                     node_normalimage = shader.nodes.new(type='ShaderNodeTexImage')
                     node_normalimage.image = normal_img
-                    node_normalimage.location = 1700, 0
+                    node_normalimage.location = 1500, 0
+
+                    node_channelflip = shader.nodes.new(type="ShaderNodeGroup")
+                    node_channelflip.node_tree = (
+                        ShaderNodes.Normal_Channel_Flip_Node.get_node_tree(None))
+                    node_channelflip.location = 1800, 0
+                    node_channelflip.width = 300
+                    node_channelflip.label = "Green Channel Flip"
+                    shader.links.new(
+                        node_normalimage.outputs["Color"], node_channelflip.inputs[0])
+                    node_channelflip.mute = (import_settings.normal_map_option != "DIRECTX")
+
                     node_normalmap = shader.nodes.new(type='ShaderNodeNormalMap')
                     node_normalmap.uv_map = "UVMap"
-                    node_normalmap.location = 2000, 0
+                    node_normalmap.location = 2200, 0
                     shader.links.new(
-                        node_normalimage.outputs["Color"], node_normalmap.inputs["Color"])
+                        node_channelflip.outputs[0], node_normalmap.inputs["Color"])
                     out_Normal = node_normalmap.outputs["Normal"]
 
             if out_Color is not None:
@@ -1218,17 +1229,28 @@ class quake_shader:
                 shader.current_y_location -= 600
                 n_stages += 1
 
-            if "q3map_normalimage" in shader.attributes:
+            if "q3map_normalimage" in shader.attributes and import_settings.normal_map_option != "SKIP":
                 normal_img = BlenderImage.load_file(
                     shader.attributes["q3map_normalimage"][0], VFS)
                 if normal_img is not None:
                     normal_img.colorspace_settings.name = "Non-Color"
                     node_normalimage = shader.nodes.new(type='ShaderNodeTexImage')
                     node_normalimage.image = normal_img
-                    node_normalimage.location = 1700, 400
+                    node_normalimage.location = 1500, 400
+
+                    node_channelflip = shader.nodes.new(type="ShaderNodeGroup")
+                    node_channelflip.node_tree = (
+                        ShaderNodes.Normal_Channel_Flip_Node.get_node_tree(None))
+                    node_channelflip.location = 1800, 0
+                    node_channelflip.width = 300
+                    node_channelflip.label = "Green Channel Flip"
+                    shader.links.new(
+                        node_normalimage.outputs["Color"], node_channelflip.inputs[0])
+                    node_channelflip.mute = (import_settings.normal_map_option != "DIRECTX")
+
                     node_normalmap = shader.nodes.new(type='ShaderNodeNormalMap')
                     node_normalmap.uv_map = "UVMap"
-                    node_normalmap.location = 2000, 400
+                    node_normalmap.location = 2200, 400
                     shader.links.new(
                         node_normalimage.outputs["Color"], node_normalmap.inputs["Color"])
                     normal_out = node_normalmap.outputs["Normal"]

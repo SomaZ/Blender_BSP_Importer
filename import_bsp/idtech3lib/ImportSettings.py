@@ -11,6 +11,10 @@ class Preset(Enum):
     SHADOW_BRUSHES = "SHADOW_BRUSHES"
     ONLY_LIGHTS = "ONLY_LIGHTS"
 
+class NormalMapOption(Enum):
+    OPENGL = "OPENGL"
+    DIRECTX = "DIRECTX"
+    SKIP = "SKIP"
 
 class Surface_Type(IntFlag):
     BAD = 0
@@ -65,6 +69,7 @@ class Import_Settings:
     entity_dict: dict = field(default_factory=dict)
     vert_lit_handling: Vert_lit_handling = Vert_lit_handling.KEEP
     current_vert_pack_index = 0
+    normal_map_option: NormalMapOption = NormalMapOption.OPENGL
 
     def __post_init__(self):
         self.bsp_name = guess_map_name(self.file)
