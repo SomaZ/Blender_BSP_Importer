@@ -113,6 +113,19 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
             ('Primitive', 'Primitive packing', "Tightly pack all vertex lit primitives. Useful for light baking", 1),
             ('UVMap', 'Diffuse UV copy', "Copies the diffuse UVs for the vertex lit surfaces. Useful for patching lightmap uvs", 2),
         ])
+    normal_map_option: EnumProperty(
+        name="Normal maps import",
+        description="Choose whether to import normal maps from shaders that use the q3map_normalimage directive, and which normal format to be used",
+        default=NormalMapOption.SKIP.value,
+        items=[
+            (NormalMapOption.OPENGL.value, "OpenGL",
+             "Import normal maps in OpenGL format", 0),
+            (NormalMapOption.DIRECTX.value, "DirectX",
+             "Import normal maps in DirectX format", 1),
+            (NormalMapOption.SKIP.value, "Skip",
+             "Skip normal map import", 2)
+        ]
+        )
 
     def execute(self, context):
         brush_imports = (
@@ -155,7 +168,8 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
             front_culling=False,
             surface_types=surface_types,
             entity_dict=entity_dict,
-            vert_lit_handling=stupid_dict[self.vert_map_packing]
+            vert_lit_handling=stupid_dict[self.vert_map_packing],
+            normal_map_option=self.normal_map_option,
         )
 
         # scene information
