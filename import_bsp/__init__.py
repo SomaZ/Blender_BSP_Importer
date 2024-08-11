@@ -268,6 +268,18 @@ def register():
     bpy.types.Scene.id_tech_3_importer_preset = bpy.props.StringProperty(
         name="id3 importer preset",
         description="Last used importer preset")
+    bpy.types.Scene.id_tech_3_normal_map_option = bpy.props.EnumProperty(
+        items=[
+            ("OPENGL", "OpenGL",
+             "Import normal maps in OpenGL format", 0),
+            ("DIRECTX", "DirectX",
+             "Import normal maps in DirectX format", 1),
+            ("SKIP", "Skip",
+             "Skip normal map import", 2)
+        ],
+        default=UI.NormalMapOption.SKIP.value,
+        name="id3 normal map option",
+        description="Normal map format to use for import")
     bpy.types.Scene.id_tech_3_file_path = bpy.props.StringProperty(
         name="ID3 file path",
         description="Full path to the last imported id tech 3 File")
