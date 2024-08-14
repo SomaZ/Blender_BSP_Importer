@@ -385,10 +385,13 @@ class Export_ID3_MD3(bpy.types.Operator, ExportHelper):
             ('LEGACY', "Legacy",
              "999 vertices per md3 surface, max of 32 surfaces. "
              "Perfect for Quake 3 era engines.", 0),
+            ('SPEC', "MD3 Specification",
+             "4095 vertices per md3 surface, max of 32 surfaces. "
+             "GZDoom and other engines use these.", 1),
+            ('RAISED', "Raised",
+             "8191 vertices per md3 surface, max of 100 surfaces.", 2),
             ('MODERN', "Modern",
-             "65534 vertices per md3 surface, max of 64 surfaces.", 1),
-            ('STUPID', "Extreme",
-             "8191999 vertices per md3 surface, max of 100 surfaces.", 2),
+             "65534 vertices per md3 surface, max of 64 surfaces.", 3)
         ])
 
     def execute(self, context):
@@ -401,8 +404,11 @@ class Export_ID3_MD3(bpy.types.Operator, ExportHelper):
         if self.limits == "MODERN":
             max_vertices = 65535
             max_surfaces = 64
-        elif self.limits == "STUPID":
-            max_vertices = 8192000
+        elif self.limits == "SPEC":
+            max_vertices = 4096
+            max_surfaces = 32
+        elif self.limits == "RAISED":
+            max_vertices = 8192
             max_surfaces = 100
 
         frame_list = range(self.start_frame, max(
