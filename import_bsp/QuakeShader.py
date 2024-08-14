@@ -743,6 +743,7 @@ class quake_shader:
                     if stage.blend == "gl_one gl_one_minus_src_alpha":
                         stage.blend = "gl_src_alpha gl_zero"
                     if stage.alpha_clip != ACLIP_NONE:
+                        shader_type = "CLIP"
                         shader.mat.blend_method = "CLIP"
                     if stage.blend != BLEND_NONE:
                         shader_type = "ADD"
@@ -766,7 +767,7 @@ class quake_shader:
                         shader.mat.blend_method = "BLEND"
 
                 if stage.blend.endswith("gl_zero") and not stage.skip_alpha:
-                    shader_type = "OPAQUE"
+                    shader_type = "OPAQUE" if shader_type != "CLIP" else "CLIP"
                     shader.mat.blend_method = (
                         "OPAQUE"
                         if shader.mat.blend_method != "CLIP"
@@ -1091,6 +1092,7 @@ class quake_shader:
                     if stage.blend == "gl_one gl_one_minus_src_alpha":
                         stage.blend = "gl_src_alpha gl_zero"
                     if stage.alpha_clip != ACLIP_NONE:
+                        shader_type = "CLIP"
                         shader.mat.blend_method = "CLIP"
                     if stage.blend != BLEND_NONE:
                         shader_type = "ADD"
@@ -1103,7 +1105,7 @@ class quake_shader:
                         stage.lighting = LIGHTING_LIGHTGRID
 
                 if stage.blend.endswith("gl_zero") and not stage.skip_alpha:
-                    shader_type = "OPAQUE"
+                    shader_type = "OPAQUE" if shader_type != "CLIP" else "CLIP"
                     shader.mat.blend_method = (
                         "OPAQUE"
                         if shader.mat.blend_method != "CLIP"
@@ -1156,6 +1158,7 @@ class quake_shader:
                         shader.mat.blend_method = "BLEND"
                     if (stage.alpha_clip != ACLIP_NONE and
                        shader.mat.blend_method != "OPAQUE"):
+                        shader_type = "CLIP"
                         shader.mat.blend_method = "CLIP"
 
                 stage_index += 1
