@@ -133,20 +133,44 @@ class vanilla_shader_stage:
     def setTcMod(stage, tcmod):
         if tcmod.startswith("scale"):
             stage.tcMods.append("scale")
-            stage.tcMods_arguments.append(tcmod.split(" ", 1)[1].strip(
-                "\r\n\t ").replace("'", "").replace("`", ""))
+            arguments = tcmod.split(" ", 1)[1].strip(
+                "\r\n\t ").replace("'", "").replace("`", "")
+            try:
+                arguments = [float(arg) for arg in arguments.split(" ")]
+            except Exception as e:
+                arguments = [0.0 for arg in arguments.split(" ")]
+                print("Error parsing tcMod: ", tcmod, e)
+            stage.tcMods_arguments.append(arguments)
         elif tcmod.startswith("scroll"):
             stage.tcMods.append("scroll")
-            stage.tcMods_arguments.append(tcmod.split(" ", 1)[1].strip(
-                "\r\n\t ").replace("'", "").replace("`", ""))
+            arguments = tcmod.split(" ", 1)[1].strip(
+                "\r\n\t ").replace("'", "").replace("`", "")
+            try:
+                arguments = [float(arg) for arg in arguments.split(" ")]
+            except Exception as e:
+                arguments = [0.0 for arg in arguments.split(" ")]
+                print("Error parsing tcMod: ", tcmod, e)
+            stage.tcMods_arguments.append(arguments)
         elif tcmod.startswith("turb"):
             stage.tcMods.append("turb")
-            stage.tcMods_arguments.append(tcmod.split(" ", 1)[1].strip(
-                "\r\n\t ").replace("'", "").replace("`", ""))
+            arguments = tcmod.split(" ", 1)[1].strip(
+                "\r\n\t ").replace("'", "").replace("`", "")
+            try:
+                arguments = [float(arg) for arg in arguments.split(" ")]
+            except Exception as e:
+                arguments = [0.0 for arg in arguments.split(" ")]
+                print("Error parsing tcMod: ", tcmod, e)
+            stage.tcMods_arguments.append(arguments)
         elif tcmod.startswith("rotate"):
             stage.tcMods.append("rotate")
-            stage.tcMods_arguments.append(tcmod.split(" ", 1)[1].strip(
-                "\r\n\t ").replace("'", "").replace("`", ""))
+            arguments = tcmod.split(" ", 1)[1].strip(
+                "\r\n\t ").replace("'", "").replace("`", "")
+            try:
+                arguments = [float(arg) for arg in arguments.split(" ")]
+            except Exception as e:
+                arguments = [0.0 for arg in arguments.split(" ")]
+                print("Error parsing tcMod: ", tcmod, e)
+            stage.tcMods_arguments.append(arguments)
         else:
             print("didn't parse tcMod: ", tcmod)
 
@@ -396,7 +420,7 @@ class quake_shader:
                         new_out_node.inputs["Vector"])
                 out_node = new_out_node
 
-                ags = arguments.split()
+                ags = arguments
                 if ags[0] == "fromentity":
                     print("tcMod scale fromentity is not supported")
                 elif len(ags) > 1:
@@ -420,7 +444,7 @@ class quake_shader:
                 new_out_node.location = (
                     shader.current_x_location - 200,
                     shader.current_y_location)
-                ags = arguments.split()
+                ags = arguments
                 if ags[0] == "fromentity":
                     print("tcMod rotate fromentity is not supported")
                 elif len(ags) >= 1:
@@ -445,7 +469,7 @@ class quake_shader:
                 new_out_node.location = (
                     shader.current_x_location - 200,
                     shader.current_y_location)
-                ags = arguments.split()
+                ags = arguments
                 if ags[0] == "fromentity":
                     print("tcMod scroll fromentity is not supported")
                 elif len(ags) > 1:
