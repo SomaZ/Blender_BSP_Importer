@@ -841,9 +841,9 @@ class quake_shader:
                     node_normalimage.image = normal_img
                     node_normalimage.location = 1500, 0
 
-                    node_channelflip = shader.nodes.new(type="ShaderNodeGroup")
-                    node_channelflip.node_tree = (
-                        ShaderNodes.Normal_Channel_Flip_Node.get_node_tree(None))
+                    node_channelflip = shader.nodes.new(type="ShaderNodeMapping")
+                    node_channelflip.inputs[1].default_value[1] = 1
+                    node_channelflip.inputs[3].default_value[1] = -1
                     node_channelflip.location = 1800, 0
                     node_channelflip.width = 300
                     node_channelflip.label = "Green Channel Flip"
@@ -1239,9 +1239,9 @@ class quake_shader:
                     node_normalimage.image = normal_img
                     node_normalimage.location = 1500, 400
 
-                    node_channelflip = shader.nodes.new(type="ShaderNodeGroup")
-                    node_channelflip.node_tree = (
-                        ShaderNodes.Normal_Channel_Flip_Node.get_node_tree(None))
+                    node_channelflip = shader.nodes.new(type="ShaderNodeMapping")
+                    node_channelflip.inputs[1].default_value[1] = 1
+                    node_channelflip.inputs[3].default_value[1] = -1
                     node_channelflip.location = 1800, 400
                     node_channelflip.width = 300
                     node_channelflip.label = "Green Channel Flip"
