@@ -15,6 +15,7 @@ from math import sqrt, log
 from . import BlenderImage, ShaderNodes, QuakeLight, QuakeSky
 from .idtech3lib import ID3Shader
 from .idtech3lib.Parsing import *
+from .idtech3lib.ImportSettings import NormalMapOption
 
 
 if bpy.app.version >= (4, 0, 0):
@@ -831,7 +832,7 @@ class quake_shader:
                     node_light = shader.nodes.new(type='ShaderNodeRGB')
                     node_light.outputs[0].default_value = (
                         color[0], color[1], color[2], 1.0)
-            if "q3map_normalimage" in shader.attributes and import_settings.normal_map_option != "SKIP":
+            if "q3map_normalimage" in shader.attributes and import_settings.normal_map_option != NormalMapOption.SKIP.value:
                 normal_img = BlenderImage.load_file(
                     shader.attributes["q3map_normalimage"][0], VFS)
                 if normal_img is not None:
@@ -848,7 +849,7 @@ class quake_shader:
                     node_channelflip.label = "Green Channel Flip"
                     shader.links.new(
                         node_normalimage.outputs["Color"], node_channelflip.inputs[0])
-                    node_channelflip.mute = (import_settings.normal_map_option != "DIRECTX")
+                    node_channelflip.mute = (import_settings.normal_map_option != NormalMapOption.DIRECTX.value)
 
                     node_normalmap = shader.nodes.new(type='ShaderNodeNormalMap')
                     node_normalmap.uv_map = "UVMap"
@@ -1229,7 +1230,7 @@ class quake_shader:
                 shader.current_y_location -= 600
                 n_stages += 1
 
-            if "q3map_normalimage" in shader.attributes and import_settings.normal_map_option != "SKIP":
+            if "q3map_normalimage" in shader.attributes and import_settings.normal_map_option != NormalMapOption.SKIP.value:
                 normal_img = BlenderImage.load_file(
                     shader.attributes["q3map_normalimage"][0], VFS)
                 if normal_img is not None:
@@ -1246,7 +1247,7 @@ class quake_shader:
                     node_channelflip.label = "Green Channel Flip"
                     shader.links.new(
                         node_normalimage.outputs["Color"], node_channelflip.inputs[0])
-                    node_channelflip.mute = (import_settings.normal_map_option != "DIRECTX")
+                    node_channelflip.mute = (import_settings.normal_map_option != NormalMapOption.DIRECTX.value)
 
                     node_normalmap = shader.nodes.new(type='ShaderNodeNormalMap')
                     node_normalmap.uv_map = "UVMap"

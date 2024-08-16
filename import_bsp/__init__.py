@@ -67,6 +67,7 @@ else:
 
 import bpy
 from . import UI
+from .idtech3lib.ImportSettings import NormalMapOption
 
 panel_cls = [
     (UI.Q3_PT_ShaderPanel, "ID3 Shaders"),
@@ -138,6 +139,21 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
         maxlen=2048,
     )
 
+    normal_map_option: bpy.props.EnumProperty(
+        name="Normal Map Import",
+        description="Choose whether to import normal maps from shaders that use the q3map_normalimage directive, and which normal format to be used "
+                    "(by default, Blender uses the OpenGL format)",
+        default=NormalMapOption.OPENGL.value,
+        items=[
+            (NormalMapOption.OPENGL.value, "OpenGL",
+             "Import normal maps in OpenGL format", 0),
+            (NormalMapOption.DIRECTX.value, "DirectX",
+             "Import normal maps in DirectX format", 1),
+            (NormalMapOption.SKIP.value, "Skip",
+             "Skip normal map import", 2)
+        ]
+    )
+
     def gamepack_list_cb(self, context):
         file_path = bpy.utils.script_paths(
             subdir="addons/import_bsp/gamepacks/")[0]
@@ -202,6 +218,8 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
         row.operator("q3.add_new_gamepack", text="", icon="PLUS").name = self.gamepack_name
         row = layout.row()
         row.operator("q3.import_def_gamepack").name = self.gamepack_name
+        row = layout.row()
+        row.prop(self, "normal_map_option")
         row = layout.row()
         if bpy.app.version >= (3, 0, 0):
             layout.separator()
@@ -268,18 +286,6 @@ def register():
     bpy.types.Scene.id_tech_3_importer_preset = bpy.props.StringProperty(
         name="id3 importer preset",
         description="Last used importer preset")
-    bpy.types.Scene.id_tech_3_normal_map_option = bpy.props.EnumProperty(
-        items=[
-            ("OPENGL", "OpenGL",
-             "Import normal maps in OpenGL format", 0),
-            ("DIRECTX", "DirectX",
-             "Import normal maps in DirectX format", 1),
-            ("SKIP", "Skip",
-             "Skip normal map import", 2)
-        ],
-        default=UI.NormalMapOption.SKIP.value,
-        name="id3 normal map option",
-        description="Normal map format to use for import")
     bpy.types.Scene.id_tech_3_file_path = bpy.props.StringProperty(
         name="ID3 file path",
         description="Full path to the last imported id tech 3 File")

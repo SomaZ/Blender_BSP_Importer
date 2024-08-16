@@ -113,22 +113,10 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
             ('Primitive', 'Primitive packing', "Tightly pack all vertex lit primitives. Useful for light baking", 1),
             ('UVMap', 'Diffuse UV copy', "Copies the diffuse UVs for the vertex lit surfaces. Useful for patching lightmap uvs", 2),
         ])
-    normal_map_option: EnumProperty(
-        name="Normal maps import",
-        description="Choose whether to import normal maps from shaders that use the q3map_normalimage directive, and which normal format to be used. "
-                    "By default, Blender uses the OpenGL format",
-        default=NormalMapOption.SKIP.value,
-        items=[
-            (NormalMapOption.OPENGL.value, "OpenGL",
-             "Import normal maps in OpenGL format", 0),
-            (NormalMapOption.DIRECTX.value, "DirectX",
-             "Import normal maps in DirectX format", 1),
-            (NormalMapOption.SKIP.value, "Skip",
-             "Skip normal map import", 2)
-        ]
-        )
 
     def execute(self, context):
+        addon_name = __name__.split('.')[0]
+        prefs = context.preferences.addons[addon_name].preferences
         brush_imports = (
             Preset.BRUSHES.value,
             Preset.SHADOW_BRUSHES.value
@@ -170,12 +158,11 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
             surface_types=surface_types,
             entity_dict=entity_dict,
             vert_lit_handling=stupid_dict[self.vert_map_packing],
-            normal_map_option=self.normal_map_option,
+            normal_map_option=prefs.normal_map_option,
         )
 
         # scene information
         context.scene.id_tech_3_importer_preset = self.preset
-        context.scene.id_tech_3_normal_map_option = self.normal_map_option
         if self.preset not in brush_imports:
             context.scene.id_tech_3_file_path = self.filepath
 
@@ -203,6 +190,22 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
 
         return {'FINISHED'}
 
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        addon_name = __name__.split('.')[0]
+        prefs = context.preferences.addons[addon_name].preferences
+
+        row = layout.row()
+        row.prop(self, "preset")
+        row = layout.row()
+        row.prop(self, "subdivisions")
+        row = layout.row()
+        row.prop(self, "min_atlas_size")
+        row = layout.row()
+        row.prop(self, "vert_map_packing")
+        row = layout.row()
+        row.prop(prefs, "normal_map_option")
 
 class Import_MAP(bpy.types.Operator, ImportHelper):
     bl_idname = "import_scene.id_map"
@@ -1047,6 +1050,8 @@ class Q3_PT_ShaderPanel(bpy.types.Panel):
         layout = self.layout
 
         scene = context.scene
+        addon_name = __name__.split('.')[0]
+        prefs = context.preferences.addons[addon_name].preferences
 
         row = layout.row()
         row.scale_y = 1.0
@@ -1054,7 +1059,7 @@ class Q3_PT_ShaderPanel(bpy.types.Panel):
         row = layout.row()
         row.operator("q3mapping.reload_render_shader")
         row = layout.row()
-        row.prop(scene, "id_tech_3_normal_map_option", text="Normal Map Import")
+        row.prop(prefs, "normal_map_option")
         layout.separator()
 
         lg_group = bpy.data.node_groups.get("LightGrid")
@@ -2146,10 +2151,12 @@ class Reload_preview_shader(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        addon_name = __name__.split('.')[0]
+        prefs = context.preferences.addons[addon_name].preferences
         import_settings = Import_Settings(
             base_paths=get_base_paths(context, context.scene.id_tech_3_file_path),
             preset=Preset.PREVIEW.value,
-            normal_map_option=context.scene.id_tech_3_normal_map_option,
+            normal_map_option=prefs.normal_map_option,
         )
 
         # initialize virtual file system
@@ -2171,10 +2178,12 @@ class Reload_render_shader(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        addon_name = __name__.split('.')[0]
+        prefs = context.preferences.addons[addon_name].preferences
         import_settings = Import_Settings(
             base_paths=get_base_paths(context, context.scene.id_tech_3_file_path),
             preset=Preset.RENDERING.value,
-            normal_map_option=context.scene.id_tech_3_normal_map_option,
+            normal_map_option=prefs.normal_map_option,
         )
 
         # initialize virtual file system
