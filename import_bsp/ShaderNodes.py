@@ -75,9 +75,6 @@ def create_static_node(shader, name):
     elif name == "NormalSetNode":
         node = shader.nodes.new(type="ShaderNodeGroup")
         node.node_tree = Normal_Set_Node.get_node_tree(None)
-    elif name == "NormalChannelFlipNode":
-        node = shader.nodes.new(type="ShaderNodeGroup")
-        node.node_tree = Normal_Channel_Flip_Node.get_node_tree(None)
     else:
         print("unrecognized static node: ", name)
         return None
@@ -281,43 +278,6 @@ class Normal_Set_Node(Generic_Node_Group):
         normal_group.links.new(
             normal_map.outputs["Normal"], group_outputs.inputs['OutNormal'])
         return normal_group
-
-class Normal_Channel_Flip_Node(Generic_Node_Group):
-    name = 'NormalChannelFlipNode'
-
-    @classmethod
-    def create_node_tree(self, empty):
-        normal_flip_group = bpy.data.node_groups.new(self.name, 'ShaderNodeTree')
-
-        group_inputs = normal_flip_group.nodes.new('NodeGroupInput')
-        group_inputs.location = (-1000, 0)
-        create_node_input(normal_flip_group, 'NodeSocketVector', 'InColor')
-
-        group_outputs = normal_flip_group.nodes.new('NodeGroupOutput')
-        group_outputs.location = (1000, 0)
-        create_node_output(normal_flip_group, 'NodeSocketVector', 'OutColor')
-
-        separate_xyz = normal_flip_group.nodes.new(type="ShaderNodeSeparateXYZ")
-        separate_xyz.location = (-400, 0)
-        normal_flip_group.links.new(
-            group_inputs.outputs['InColor'], separate_xyz.inputs['Vector'])
-
-        subtract = normal_flip_group.nodes.new(type="ShaderNodeMath")
-        subtract.location = (0, 100)
-        subtract.operation = 'SUBTRACT'
-        subtract.inputs[0].default_value = 1.0
-        normal_flip_group.links.new(
-            separate_xyz.outputs['Y'], subtract.inputs[1])
-
-        combine_xyz = normal_flip_group.nodes.new(type="ShaderNodeCombineXYZ")
-        combine_xyz.location = (400, 0)
-        normal_flip_group.links.new(separate_xyz.outputs['X'], combine_xyz.inputs['X'])
-        normal_flip_group.links.new(subtract.outputs[0], combine_xyz.inputs['Y'])
-        normal_flip_group.links.new(separate_xyz.outputs['Z'], combine_xyz.inputs['Z'])
-
-        normal_flip_group.links.new(
-            combine_xyz.outputs["Vector"], group_outputs.inputs['OutColor'])
-        return normal_flip_group
 
 
 class Color_Normalize_Node(Generic_Node_Group):
