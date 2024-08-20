@@ -11,7 +11,7 @@ class Vertex_map:
         if mesh.has_custom_normals:
             self.normal = mesh.loops[loop_id].normal.copy().freeze()
         self.tc = mesh.uv_layers.active.data[loop_id].uv.copy().freeze()
-        self.hash_value = hash((self.position, self.normal, self.tc))
+        self.hash_tuple = tuple((*self.position, *self.normal, *self.tc))
 
     def set_mesh(self, mesh):
         self.mesh = mesh
@@ -41,11 +41,11 @@ class Surface_descriptor:
                                                in_triangle.loops)):
             vert_map = Vertex_map(in_obj_id, in_mesh, tri, loo)
             vertices.append(vert_map)
-            if vert_map.hash_value not in self.vertex_hashes:
+            if vert_map.hash_tuple not in self.vertex_hashes:
                 continue
             # vertex already in the surface
             if new_triangle[index] is None:
-                new_triangle[index] = self.vertex_hashes[vert_map.hash_value]
+                new_triangle[index] = self.vertex_hashes[vert_map.hash_tuple]
                 reused_vertices += 1
 
         if 3-reused_vertices + len(self.vertex_mapping) >= SHADER_MAX_VERTEXES:
@@ -56,7 +56,7 @@ class Surface_descriptor:
             if index is None:
                 new_map = vertices[id]
                 self.vertex_mapping.append(new_map)
-                self.vertex_hashes[new_map.hash_value] = self.current_index
+                self.vertex_hashes[new_map.hash_tuple] = self.current_index
                 new_triangle[id] = self.current_index
                 self.current_index += 1
 
