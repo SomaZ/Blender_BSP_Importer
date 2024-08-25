@@ -143,7 +143,7 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
         name="Normal Map Import",
         description="Choose whether to import normal maps from shaders that use the q3map_normalimage directive, and which normal format to be used "
                     "(by default, Blender uses the OpenGL format)",
-        default=NormalMapOption.OPENGL.value,
+        default=NormalMapOption.DIRECTX.value,
         items=[
             (NormalMapOption.OPENGL.value, "OpenGL",
              "Import normal maps in OpenGL format", 0),

@@ -69,7 +69,7 @@ class Import_Settings:
     entity_dict: dict = field(default_factory=dict)
     vert_lit_handling: Vert_lit_handling = Vert_lit_handling.KEEP
     current_vert_pack_index = 0
-    normal_map_option: NormalMapOption = NormalMapOption.OPENGL
+    normal_map_option: NormalMapOption = NormalMapOption.DIRECTX
 
     def __post_init__(self):
         self.bsp_name = guess_map_name(self.file)
