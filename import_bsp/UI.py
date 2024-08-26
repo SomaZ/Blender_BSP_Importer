@@ -240,7 +240,8 @@ class Import_MAP(bpy.types.Operator, ImportHelper):
             preset=import_preset,
             front_culling=False,
             surface_types=Surface_Type.BAD, # not used
-            entity_dict=entity_dict
+            entity_dict=entity_dict,
+            normal_map_option=NormalMapOption.SKIP.value
         )
 
         BlenderBSP.import_map_file(import_settings)
@@ -283,6 +284,7 @@ class Import_ID3_MD3(bpy.types.Operator, ImportHelper):
         import_settings.base_paths = get_base_paths(context, self.filepath)
         import_settings.bsp_name = ""
         import_settings.preset = "PREVIEW"
+        import_settings.normal_map_option = NormalMapOption.SKIP.value
 
         # initialize virtual file system
         VFS = Q3VFS()
@@ -335,6 +337,7 @@ class Import_ID3_TIK(bpy.types.Operator, ImportHelper):
         import_settings.base_paths = get_base_paths(context, self.filepath)
         import_settings.bsp_name = ""
         import_settings.preset = "PREVIEW"
+        import_settings.normal_map_option = NormalMapOption.SKIP.value
 
         # initialize virtual file system
         VFS = Q3VFS()
