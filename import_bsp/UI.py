@@ -2535,10 +2535,16 @@ class Q3_OP_Quick_emission_mat(bpy.types.Operator):
             if node.type != "BSDF_PRINCIPLED":
                 continue
             
-            mix_node = nt.nodes.new(type="ShaderNodeMix")
-            mix_node.data_type = "RGBA"
+            if context.blend_data.version < (3, 4, 0):
+                mix_node = nodes.new("ShaderNodeMixRGB")
+                mix_node.use_clamp = True
+                mix_node_keys = ("Color1", "Color2", "Color")
+            else:
+                mix_node = nt.nodes.new(type="ShaderNodeMix")
+                mix_node.data_type = "RGBA"
+                mix_node.clamp_result = True
+                mix_node_keys = ("A", "B", "Result")
             mix_node.blend_type = 'MULTIPLY'
-            mix_node.clamp_result = True
             mix_node.inputs[0].default_value = 1.0
             mix_node.location[0] += 2400
             mix_node.location[1] -= 300
@@ -2557,12 +2563,12 @@ class Q3_OP_Quick_emission_mat(bpy.types.Operator):
             m_node.location[1] -= 300
 
             nt.links.new(vm_node.outputs["Value"], m_node.inputs["Value"])
-            nt.links.new(m_node.outputs["Value"], mix_node.inputs["B"])
+            nt.links.new(m_node.outputs["Value"], mix_node.inputs[mix_node_keys[1]])
 
             input = node.inputs["Base Color"]
             for link in input.links:
                 nt.links.new(link.from_node.outputs[0], vm_node.inputs[0])
-                nt.links.new(link.from_node.outputs[0], mix_node.inputs["A"])
+                nt.links.new(link.from_node.outputs[0], mix_node.inputs[mix_node_keys[0]])
 
             if bpy.app.version >= (4, 0, 0):
                 EMISSION_KEY = "Emission Color"
@@ -2577,7 +2583,7 @@ class Q3_OP_Quick_emission_mat(bpy.types.Operator):
                 scale_node.location[0] += 2700
                 scale_node.location[1] -= 300
                 scale_node.name = "EmissionScaleNode"
-            nt.links.new(mix_node.outputs["Result"], scale_node.inputs["Color"])
+            nt.links.new(mix_node.outputs[mix_node_keys[2]], scale_node.inputs["Color"])
             nt.links.new(scale_node.outputs[0], node.inputs[EMISSION_KEY])
             if bpy.app.version >= (4, 0, 0):
                 node.inputs["Emission Strength"].default_value = 1.0
