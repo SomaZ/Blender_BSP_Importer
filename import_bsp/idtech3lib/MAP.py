@@ -96,7 +96,7 @@ def parse_surface_data(surface_info_lines) -> Map_surface:
     return surface
 
 
-def read_map_file(byte_array) -> dict:
+def read_map_file(byte_array, import_settings) -> dict:
     lines = byte_array.decode(encoding="latin-1").splitlines()
     entities = {}
     is_open = False
@@ -123,7 +123,8 @@ def read_map_file(byte_array) -> dict:
                 nested_open = 0
                 if "surfaces" not in current_ent:
                     current_ent["surfaces"] = []
-                current_ent["surfaces"].append(parse_surface_data(obj_info))
+                if import_settings.preset != "ONLY_LIGHTS":
+                    current_ent["surfaces"].append(parse_surface_data(obj_info))
                 obj_info = []
                 continue
 

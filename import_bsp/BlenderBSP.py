@@ -754,7 +754,7 @@ def import_map_file(import_settings):
 
     byte_array = VFS.get(import_settings.file)
 
-    entities = MAP.read_map_file(byte_array)
+    entities = MAP.read_map_file(byte_array, import_settings)
     objects = create_blender_objects(
         VFS,
         import_settings,
