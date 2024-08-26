@@ -135,8 +135,9 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
 
     normal_map_option: bpy.props.EnumProperty(
         name="Normal Map Import",
-        description="Choose whether to import normal maps from shaders that use the q3map_normalimage directive, and which normal format to be used "
-                    "(by default, Blender uses the OpenGL format)",
+        description="Choose whether to import normal maps from shaders that use the "
+                    "q3map_normalimage directive, and which normal format to be used "
+                    "(by default, q3map2 uses the DirectX format)",
         default=idtech3lib.ImportSettings.NormalMapOption.DIRECTX.value,
         items=[
             (idtech3lib.ImportSettings.NormalMapOption.OPENGL.value, "OpenGL",
@@ -201,6 +202,8 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
         row.prop(self, "mod_path_1")
         layout.separator()
         row = layout.row()
+        row.prop(self, "normal_map_option")
+        row = layout.row()
         row.prop(self, "merge_id3_panels")
         layout.separator()
         row = layout.row()
@@ -213,8 +216,7 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
         row = layout.row()
         row.operator("q3.import_def_gamepack").name = self.gamepack_name
         row = layout.row()
-        row.prop(self, "normal_map_option")
-        row = layout.row()
+        
         if bpy.app.version >= (3, 0, 0):
             layout.separator()
             row = layout.row()
