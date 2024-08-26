@@ -2,7 +2,6 @@ import bpy, bpy_extras
 import os
 import re
 from enum import Enum
-import json
 
 
 class Open_gamepack(bpy.types.Operator):

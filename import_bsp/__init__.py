@@ -16,10 +16,6 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-#  Imports
-#  Python
-import importlib
-import os
 
 bl_info = {
     "name": "Import id Tech 3 BSP",
@@ -32,42 +28,39 @@ bl_info = {
     "category": "Import-Export"
 }
 
+
 if "bpy" in locals():
     # Just do all the reloading here
-    if "BlenderBSP" in locals():
-        importlib.reload(BlenderBSP)
-    if "BlenderEntities" in locals():
-        importlib.reload(BlenderEntities)
-    if "BlenderImage" in locals():
-        importlib.reload(BlenderImage)
-    if "BlenderSurfaceFactory" in locals():
-        importlib.reload(BlenderSurfaceFactory)
-    if "Gamepacks" in locals():
-        importlib.reload(Gamepacks)
-    if "GridIcoSphere" in locals():
-        importlib.reload(GridIcoSphere)
-    if "MD3" in locals():
-        importlib.reload(MD3)
-    if "QuakeLight" in locals():
-        importlib.reload(QuakeLight)
-    if "QuakeShader" in locals():
-        importlib.reload(QuakeShader)
-    if "QuakeSky" in locals():
-        importlib.reload(QuakeSky)
-    if "ShaderNodes" in locals():
-        importlib.reload(ShaderNodes)
-    if "TAN" in locals():
-        importlib.reload(TAN)
-    if "UI" in locals():
-        importlib.reload(UI)
+    import importlib
+    from . import idtech3lib
+    importlib.reload(idtech3lib)
+    from . import BlenderImage, Gamepacks, GridIcoSphere, ShaderNodes
+    importlib.reload(BlenderImage)
+    importlib.reload(Gamepacks)
+    importlib.reload(GridIcoSphere)
+    importlib.reload(ShaderNodes)
+    from . import BlenderEntities, BlenderSurfaceFactory
+    importlib.reload(BlenderEntities)
+    importlib.reload(BlenderSurfaceFactory)
+    from . import QuakeLight, MD3, TAN
+    importlib.reload(QuakeLight)
+    importlib.reload(MD3)
+    importlib.reload(TAN)
+    from . import QuakeSky
+    importlib.reload(QuakeSky)
+    from . import QuakeShader
+    importlib.reload(QuakeShader)
+    from . import BlenderBSP
+    importlib.reload(BlenderBSP)
+    from . import UI
+    importlib.reload(UI)
 else:
-    from . import BlenderBSP, BlenderEntities, BlenderImage, BlenderSurfaceFactory
-    from . import Gamepacks, GridIcoSphere, MD3, QuakeLight, QuakeShader
-    from . import QuakeSky, ShaderNodes, TAN
+    import bpy
+    from . import Gamepacks
+    from . import idtech3lib
+    from . import UI
+import os
 
-import bpy
-from . import UI
-from .idtech3lib.ImportSettings import NormalMapOption
 
 panel_cls = [
     (UI.Q3_PT_ShaderPanel, "ID3 Shaders"),
@@ -78,6 +71,7 @@ panel_cls = [
     (UI.Q3_PT_EditEntityPanel, "ID3 Entities"),
     (UI.Q3_PT_DataExportPanel, "ID3 Data"),
 ]
+
 
 def update_panels(self, context):
     for cls, catergory in panel_cls:
@@ -143,13 +137,13 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
         name="Normal Map Import",
         description="Choose whether to import normal maps from shaders that use the q3map_normalimage directive, and which normal format to be used "
                     "(by default, Blender uses the OpenGL format)",
-        default=NormalMapOption.DIRECTX.value,
+        default=idtech3lib.ImportSettings.NormalMapOption.DIRECTX.value,
         items=[
-            (NormalMapOption.OPENGL.value, "OpenGL",
+            (idtech3lib.ImportSettings.NormalMapOption.OPENGL.value, "OpenGL",
              "Import normal maps in OpenGL format", 0),
-            (NormalMapOption.DIRECTX.value, "DirectX",
+            (idtech3lib.ImportSettings.NormalMapOption.DIRECTX.value, "DirectX",
              "Import normal maps in DirectX format", 1),
-            (NormalMapOption.SKIP.value, "Skip",
+            (idtech3lib.ImportSettings.NormalMapOption.SKIP.value, "Skip",
              "Skip normal map import", 2)
         ]
     )
