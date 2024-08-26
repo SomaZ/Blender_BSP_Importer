@@ -2608,12 +2608,16 @@ class Q3_OP_Quick_simple_mat(bpy.types.Operator):
         for node in nodes:
             if node.type == "BUMP":
                 nodes.remove(node)
+        skip_bump = False
+        if "q3map_normalimage output" in [n.name for n in nodes]:
+            skip_bump = True
         for node in nodes:
             if node.type != "BSDF_PRINCIPLED":
                 continue
             node.inputs["Roughness"].default_value = 0.5
             node.name = "Main Material"
-
+            if skip_bump:
+                continue
             bump_node = nt.nodes.new(type="ShaderNodeBump")
             bump_node.name = "Bump Node"
             bump_node.location = node.location
