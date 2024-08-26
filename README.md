@@ -2,11 +2,13 @@
 
 This is a .bsp file importer which supports different id tech 3 games bsp formats. It also features md3 and tiki tan importers and exporters as also a WIP .map importer. Materials are approximated from the .shader files of the games. All files are also read from a virtual file system that can read pk3 files. Configuring the base path in the addons preferences is recommended for this.
 
-Blender versions 2.93 to 4.1 are supported right now
+Blender versions 2.93 to 4.2 are supported right now
+
+**Please do not use this addon to copy or steal another creators work. Always ask for the creators permission.**
 
 ## Features:
 
- - Import BSP files
+ - [Import BSP files](https://github.com/SomaZ/Blender_BSP_Importer/wiki/Importing-BSP-files)
  - Bake lightmaps 
  - Edit lightmap coordinates
  - Bake lightgrid
@@ -20,7 +22,7 @@ Blender versions 2.93 to 4.1 are supported right now
  - Export Tiki tan files
  - Import legacy MAP files (no BP or V220 support for now)
 
-## Supported Games:
+## Supported Games (excerpt):
 
 | Game | Patch edits |
 | - | - |
@@ -36,6 +38,8 @@ Blender versions 2.93 to 4.1 are supported right now
 | Warsow | :heavy_check_mark: |
 | Warfork | :heavy_check_mark: |
 
+[More](https://github.com/SomaZ/Blender_BSP_Importer/wiki/Supported-Games)
+
 ## How to install:
 
  - Download the addon zip file
@@ -44,6 +48,8 @@ Blender versions 2.93 to 4.1 are supported right now
  - Click the 'Install...' button on the top right and navigate to the zip you downloaded, then click 'Install Add-on'
  - Tick the checkbox next to 'Import-Export: Import id Tech 3 BSP' to enable the addon
  - Optionally add your base path and mod paths in the addons preferences
+
+For more information consult the [Wiki](https://github.com/SomaZ/Blender_BSP_Importer/wiki/Setup)
 
 ## Attributions
 
