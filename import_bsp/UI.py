@@ -2667,6 +2667,8 @@ class Q3_PT_Materialpanel(bpy.types.Panel):
         mat = context.material
         if mat is None:
             return
+        if not mat.use_nodes:
+            return
         layout.label(text = mat.name.split(".")[0])
         if "shader_file" in mat:
             layout.label(
