@@ -1131,6 +1131,8 @@ class Q3_PT_PropertiesEntityPanel(bpy.types.Panel):
 
         if obj is None:
             return
+        if obj.data is None:
+            return
 
         filtered_keys = ["classname", "spawnflags",
                          "origin", "angles", "angle"]
