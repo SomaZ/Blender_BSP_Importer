@@ -12,7 +12,7 @@ def get_gamepack(path, name):
     try:
         with open(path + name) as file:
             return json.load(file)
-    except Exception():
+    except Exception:
         return {}
 
 
@@ -20,5 +20,5 @@ def save_gamepack(dict, path, name):
     try:
         with open(path + name, 'w') as file:
             json.dump(dict, file, indent=4,)
-    except Exception():
+    except Exception:
         print("Failed writing gamepack")
