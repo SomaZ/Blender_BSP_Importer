@@ -42,9 +42,10 @@ if "bpy" in locals():
     from . import BlenderEntities, BlenderSurfaceFactory
     importlib.reload(BlenderEntities)
     importlib.reload(BlenderSurfaceFactory)
-    from . import QuakeLight, MD3, TAN
+    from . import QuakeLight, MD3, TAN, MDR
     importlib.reload(QuakeLight)
     importlib.reload(MD3)
+    importlib.reload(MDR)
     importlib.reload(TAN)
     from . import QuakeSky
     importlib.reload(QuakeSky)
@@ -238,6 +239,7 @@ classes = (Gamepacks.Open_gamepack,
            UI.Import_ID3_BSP,
            UI.Import_MAP,
            UI.Import_ID3_MD3,
+           UI.Import_ID3_MDR,
            UI.Import_ID3_TIK,
            UI.Export_ID3_MD3,
            UI.Export_ID3_TIK,
@@ -274,6 +276,7 @@ def register():
     bpy.types.TOPBAR_MT_file_import.append(UI.menu_func_map_import)
     bpy.types.TOPBAR_MT_file_import.append(UI.menu_func_bsp_import)
     bpy.types.TOPBAR_MT_file_import.append(UI.menu_func_md3_import)
+    bpy.types.TOPBAR_MT_file_import.append(UI.menu_func_mdr_import)
     bpy.types.TOPBAR_MT_file_import.append(UI.menu_func_tik_import)
     bpy.types.TOPBAR_MT_file_export.append(UI.menu_func_md3_export)
     bpy.types.TOPBAR_MT_file_export.append(UI.menu_func_tik_export)
@@ -315,6 +318,7 @@ def unregister():
     bpy.types.TOPBAR_MT_file_import.remove(UI.menu_func_map_import)
     bpy.types.TOPBAR_MT_file_import.remove(UI.menu_func_bsp_import)
     bpy.types.TOPBAR_MT_file_import.remove(UI.menu_func_md3_import)
+    bpy.types.TOPBAR_MT_file_import.remove(UI.menu_func_mdr_import)
     bpy.types.TOPBAR_MT_file_import.remove(UI.menu_func_tik_import)
     bpy.types.TOPBAR_MT_file_export.remove(UI.menu_func_md3_export)
     bpy.types.TOPBAR_MT_file_export.remove(UI.menu_func_tik_export)

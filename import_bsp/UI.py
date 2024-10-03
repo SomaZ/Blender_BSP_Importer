@@ -14,7 +14,7 @@ import os
 import uuid
 
 from . import BlenderBSP, BlenderEntities
-from . import MD3, TAN
+from . import MD3, TAN, MDR
 from . import QuakeShader, QuakeSky, QuakeLight, ShaderNodes
 
 from .idtech3lib import Helpers, Parsing, GamePacks
@@ -39,7 +39,11 @@ def get_base_paths(context, import_file_path = None):
     if len(paths) == 0 and import_file_path is not None:
         fixed_file_path = import_file_path.replace("\\", "/")
         split_folder = "/maps/"
-        if fixed_file_path.endswith(".md3") or fixed_file_path.endswith(".tik"):
+        if (fixed_file_path.endswith(".md3") or
+            fixed_file_path.endswith(".tik") or
+            fixed_file_path.endswith(".mdr") or
+            fixed_file_path.endswith(".tan")
+            ):
             split_folder = "/models/"
         split = fixed_file_path.split(split_folder)
         if len(split) > 1:
@@ -303,6 +307,89 @@ class Import_ID3_MD3(bpy.types.Operator, ImportHelper):
             context.scene.id_tech_3_file_path = self.filepath
 
         return {'FINISHED'}
+    
+
+class Import_ID3_MDR(bpy.types.Operator, ImportHelper):
+    bl_idname = "import_scene.id3_mdr"
+    bl_label = "Import ID3 engine MDR (.mdr)"
+    filename_ext = ".mdr"
+    filter_glob: StringProperty(default="*.mdr", options={'HIDDEN'})
+
+    def skin_list_cb(self, context):
+        try:
+            filepath =os.path.dirname(self.filepath).replace("\\", "/")
+        except:
+            print("could not find file or folder")
+            return []
+        skin_files = []
+
+        try:
+            skin_files = sorted(f for f in os.listdir(filepath)
+                                    if f.endswith(".skin"))
+        except Exception as e:
+            print("Could not open skin files, error: ", e)
+
+        default_skin = os.path.basename(self.filepath)
+        if default_skin.endswith(".mdr"):
+            default_skin = default_skin[:-len(".mdr")] + "_default.skin"
+
+        items = []
+        for skin in skin_files:
+            if skin.endswith(default_skin):
+                items.append((
+                    "{}/{}".format(filepath, skin),
+                    skin.split(".")[0],
+                    ""))
+        items.append((" ", "None", "Use file internal paths. "))
+        return items + [
+            ("{}/{}".format(filepath, skin), skin.split(".")[0], "")
+                for skin in skin_files if not skin.endswith(default_skin)]
+
+    filepath: StringProperty(
+        name="File Path",
+        description="File path used for importing the MDR file",
+        maxlen=1024,
+        default="")
+    skin: EnumProperty(
+        items=skin_list_cb,
+        name="Skin",
+        default=0,
+        description="The skin to load, choose none to use file internal paths")
+    animations: EnumProperty(
+        name="animations",
+        description="Whether to import animations from the .mdr",
+        default='ALL',
+        items=[
+            ("ALL", "All", "Import all animations", 0),
+            ("NONE", "None", "Just imports the first frame as base pose", 1),
+            #("CFG", "Cfg", "Import animations from animations.cfg file", 2),
+        ])
+
+    def execute(self, context):
+        # trace some things like paths and lightmap size
+        import_settings = Import_Settings()
+        import_settings.base_paths = get_base_paths(context, self.filepath)
+        import_settings.bsp_name = ""
+        import_settings.preset = "PREVIEW"
+        import_settings.normal_map_option = NormalMapOption.SKIP.value
+
+        # initialize virtual file system
+        VFS = Q3VFS()
+        for base_path in import_settings.base_paths:
+            VFS.add_base(base_path)
+        VFS.build_index()
+
+        objs = MDR.ImportMDR(
+            VFS,
+            self.filepath.replace("\\", "/"),
+            self.skin,
+            self.animations)
+        QuakeShader.build_quake_shaders(VFS, import_settings, objs)
+
+        if context.scene.id_tech_3_file_path == "":
+            context.scene.id_tech_3_file_path = self.filepath
+
+        return {'FINISHED'}
 
 
 class Import_ID3_TIK(bpy.types.Operator, ImportHelper):
@@ -549,6 +636,10 @@ def menu_func_map_import(self, context):
 
 def menu_func_md3_import(self, context):
     self.layout.operator(Import_ID3_MD3.bl_idname, text="ID3 MD3 (.md3)")
+
+
+def menu_func_mdr_import(self, context):
+    self.layout.operator(Import_ID3_MDR.bl_idname, text="ID3 MDR (.mdr)")
 
 
 def menu_func_tik_import(self, context):
