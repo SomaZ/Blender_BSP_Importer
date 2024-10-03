@@ -25,7 +25,7 @@ from math import atan, radians
 from numpy import dot, sqrt
 
 from . import BlenderImage, QuakeShader, QuakeLight
-from . import MD3, TAN
+from . import MD3, TIKI
 
 #import cProfile
 
@@ -126,7 +126,7 @@ def load_mesh(VFS, mesh_name, zoffset, bsp):
             return blender_mesh, vertex_groups
     elif mesh_name.endswith(".tik"):
         try:
-            blender_mesh = TAN.ImportTIK(
+            blender_mesh = TIKI.ImportTIK(
                 VFS,
                 "models/{}".format(mesh_name),
                 zoffset)[0]

@@ -42,13 +42,15 @@ if "bpy" in locals():
     from . import BlenderEntities, BlenderSurfaceFactory
     importlib.reload(BlenderEntities)
     importlib.reload(BlenderSurfaceFactory)
-    from . import QuakeLight, MD3, TAN, MDR
+    from . import QuakeLight, MD3, TAN, MDR, SKB
     importlib.reload(QuakeLight)
     importlib.reload(MD3)
     importlib.reload(MDR)
+    importlib.reload(SKB)
     importlib.reload(TAN)
-    from . import QuakeSky
+    from . import QuakeSky, TIKI
     importlib.reload(QuakeSky)
+    importlib.reload(TIKI)
     from . import QuakeShader
     importlib.reload(QuakeShader)
     from . import BlenderBSP

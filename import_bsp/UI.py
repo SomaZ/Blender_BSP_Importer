@@ -14,7 +14,7 @@ import os
 import uuid
 
 from . import BlenderBSP, BlenderEntities
-from . import MD3, TAN, MDR
+from . import MD3, TAN, TIKI, MDR
 from . import QuakeShader, QuakeSky, QuakeLight, ShaderNodes
 
 from .idtech3lib import Helpers, Parsing, GamePacks
@@ -432,7 +432,7 @@ class Import_ID3_TIK(bpy.types.Operator, ImportHelper):
             VFS.add_base(base_path)
         VFS.build_index()
 
-        objs = TAN.ImportTIKObject(
+        objs = TIKI.ImportTIKObject(
             VFS,
             self.filepath.replace("\\", "/"),
             self.import_tags,
