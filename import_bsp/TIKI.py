@@ -1,6 +1,6 @@
 from .idtech3lib.Parsing import parse
 from .TAN import ImportTAN, ImportTANObject
-from .SKB import ImportSKB
+from .SKB import ImportSKBs
 
 def load_tiki(VFS, file_name, current_info = None):
     if current_info is None:
@@ -9,6 +9,8 @@ def load_tiki(VFS, file_name, current_info = None):
         current_info["texture_path"] = ""
         current_info["scale"] = 1.0
         current_info["materials"] = {}
+        current_info["no_draw"] = []
+        current_info["replacement"] = {}
 
     byte_array = VFS.get(file_name)
     if byte_array is None:
@@ -72,7 +74,15 @@ def load_tiki(VFS, file_name, current_info = None):
                 else:
                     current_info["materials"][arguments[0]] = arguments[2]
             elif key == "replacesurface":
-                print("replacesurface is not implemented yet!", line)
+                arguments = value.split()
+                if len(arguments) < 3:
+                    print("Could not parse replacesurface", line)
+                    continue
+                if arguments[2] in current_info["replacement"]:
+                    current_info["replacement"][arguments[2]].append(arguments[1])
+                else:
+                    current_info["replacement"][arguments[2]] = [arguments[1]]
+                current_info["no_draw"].append(arguments[0])
         elif dict_key == "animations":
             key, value = parse(line)
             if len(arguments) < 2:
@@ -83,6 +93,14 @@ def load_tiki(VFS, file_name, current_info = None):
                     print("Some model already found, error unknown to handle properly")
                     continue
                 current_info["model"] = current_info["path"] + value
+        elif dict_key == "init":
+            if line == "server":
+                dict_key = "init_server"
+        elif dict_key == "init_server":
+            key, value = parse(line)
+            if key == "surface" and value.endswith("+nodraw"):
+                current_info["no_draw"].append(value.split()[0])
+
     return current_info
 
 
@@ -121,9 +139,8 @@ def ImportTIKObject(VFS,
     
     if not dict["model"].endswith(".tan"):
         if dict["model"].endswith(".skb"):
-            return ImportSKB(VFS,
-                             dict["model"],
-                             dict["materials"])
+            return ImportSKBs(VFS,
+                              dict)
         print(dict)
         print("Tried loading unsupported file: ", dict["model"])
     return ImportTANObject(VFS,

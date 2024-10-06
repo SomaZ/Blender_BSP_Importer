@@ -268,3 +268,27 @@ def ImportSKB(VFS,
         armatureModifier.use_bone_envelopes = False
 
     return objects
+
+
+def ImportSKBs(VFS, tik_dict):
+    all_objects = []
+    model_name = tik_dict["model"]
+    skin_map = tik_dict["materials"]
+    objects = ImportSKB(VFS, model_name, skin_map)
+    all_objects += objects
+
+    for obj in objects:
+        if obj.name in tik_dict["no_draw"]:
+            obj.name = obj.name + "_nodraw"
+            obj.hide_render = True
+            obj.hide_set(True)
+
+    for replacement in tik_dict["replacement"]:
+        objects = ImportSKB(VFS, replacement, skin_map)
+        for obj in objects:
+            if obj.name.split(".")[0] not in tik_dict["replacement"][replacement]:
+                obj.hide_render = True
+                obj.hide_set(True)
+        all_objects += objects
+
+    return all_objects
