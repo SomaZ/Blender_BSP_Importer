@@ -3,6 +3,8 @@ from ctypes import (LittleEndianStructure,
                     c_char, c_float, c_int, c_short, sizeof)
 import mathutils
 from .idtech3lib.Parsing import guess_model_name
+from .idtech3lib.Helpers import normalize
+from numpy import dot
 
 class SKB_HEADER(LittleEndianStructure):
     _fields_ = [
@@ -199,21 +201,21 @@ def ImportSKB(VFS,
             vert_offset += sizeof(SKB_VERT)
             vertex_tc.append(vertex.texCoords)
             position = mathutils.Vector([0.0, 0.0, 0.0])
-            transform_mat = mathutils.Matrix() * 0
+            normal = mathutils.Vector([0.0, 0.0, 0.0])
             for weight_id in range(vertex.numWeights):
                 weight = SKB_WEIGHT.from_buffer_copy(byte_array, vert_offset)
                 vert_offset += sizeof(SKB_WEIGHT)
                 position += weight.boneWeight * (bone_matrices[weight.boneIndex] @ mathutils.Vector(weight.offset))
-                transform_mat += bone_matrices[weight.boneIndex] * weight.boneWeight
+                normal[0] += weight.boneWeight * dot(bone_matrices[weight.boneIndex][0][0:3], vertex.normal)
+                normal[1] += weight.boneWeight * dot(bone_matrices[weight.boneIndex][1][0:3], vertex.normal)
+                normal[2] += weight.boneWeight * dot(bone_matrices[weight.boneIndex][2][0:3], vertex.normal)
                 
                 if weight.boneIndex in bone_map:
                     bone_map[weight.boneIndex].append((vertex_id, weight.boneWeight))
                 else:
                     bone_map[weight.boneIndex] = [(vertex_id, weight.boneWeight)]
             vertex_pos.append(position)
-            transform_mat.invert()
-            transform_mat.transpose()
-            vertex_nor.append(transform_mat @ mathutils.Vector(vertex.normal))
+            vertex_nor.append(normalize(normal))
             
         index_offset = surf_ofs + surface.ofsTriangles
         for index_id in range(surface.numTriangles):
