@@ -85,9 +85,6 @@ def load_tiki(VFS, file_name, current_info = None):
                 current_info["no_draw"].append(arguments[0])
         elif dict_key == "animations":
             key, value = parse(line)
-            if len(arguments) < 2:
-                print("Could not parse animations info", line)
-                continue
             if key == "idle":
                 if "model" in current_info:
                     print("Some model already found, error unknown to handle properly")
