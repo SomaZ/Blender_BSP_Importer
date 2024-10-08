@@ -41,34 +41,29 @@ def unwrap_vert_map(vert_id, vertmap_size, current_id):
     current_x = id % (vertmap_size[0] - 1)
     current_y = 2 * floor(id / (vertmap_size[0] - 1))
     
-    eps_u = 0.005
     if even:
-        eps_small = 0.495
-        eps_big = 1.505
         if vert_id == 0:
-            return ((current_x + eps_small + eps_u) / vertmap_size[0], (current_y + eps_big) / vertmap_size[1])
+            return ((current_x + 0.495) / vertmap_size[0], (current_y + 1.51) / vertmap_size[1])
         elif vert_id == 1:
-            return ((current_x + eps_small + eps_u) / vertmap_size[0], (current_y + eps_small) / vertmap_size[1])
+            return ((current_x + 0.495) / vertmap_size[0], (current_y + 0.495) / vertmap_size[1])
         elif vert_id == 2:
-            return ((current_x + eps_big + eps_u) / vertmap_size[0], (current_y + eps_small) / vertmap_size[1])
+            return ((current_x + 1.51) / vertmap_size[0], (current_y + 0.495) / vertmap_size[1])
         #special case for patch surfaces
         elif vert_id == 3:
-            return ((current_x + eps_big + eps_u) / vertmap_size[0], (current_y + eps_big) / vertmap_size[1])
+            return ((current_x + 1.505) / vertmap_size[0], (current_y + 1.505) / vertmap_size[1])
         else:
             return (0.0, 0.0)
     else:
-        eps_small = 0.505
-        eps_big = 1.505
         current_x += 1
         if vert_id == 0:
-            return ((current_x - eps_small - eps_u) / vertmap_size[0], (current_y + eps_big) / vertmap_size[1])
+            return ((current_x - 0.51) / vertmap_size[0], (current_y + 1.505) / vertmap_size[1])
         elif vert_id == 1:
-            return ((current_x + eps_small + eps_u) / vertmap_size[0], (current_y + eps_big) / vertmap_size[1])
+            return ((current_x + 0.505) / vertmap_size[0], (current_y + 1.505) / vertmap_size[1])
         elif vert_id == 2:
-            return ((current_x + eps_small + eps_u) / vertmap_size[0], (current_y + 0.49) / vertmap_size[1])
+            return ((current_x + 0.505) / vertmap_size[0], (current_y + 0.49) / vertmap_size[1])
         #special case for patch surfaces
         elif vert_id == 3:
-            return ((current_x - eps_small - eps_u) / vertmap_size[0], (current_y + 0.49) / vertmap_size[1])
+            return ((current_x - 0.505) / vertmap_size[0], (current_y + 0.495) / vertmap_size[1])
         else:
             return (0.0, 0.0)
 
