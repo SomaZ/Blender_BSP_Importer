@@ -2,7 +2,7 @@ import bpy
 import os
 import struct
 from mathutils import Vector
-from math import floor, ceil, pi, pow, atan2, sqrt, acos
+from math import floor, ceil, pi, pow, atan2, sqrt, acos, isnan
 from . import GridIcoSphere
 
 
@@ -69,8 +69,10 @@ def colorNormalize(color, scale, lightsettings=None):
 
 
 def color_to_bytes(color):
-    out_color = [0 for i in range(len(color))]
-    for i in range(len(color)):
+    out_color = [0] * len(color)
+    for i, v in enumerate(color):
+        if isnan(v):
+            continue
         out_color[i] = int(color[i] * 255) & 0xff
     return out_color
 
