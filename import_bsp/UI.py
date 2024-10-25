@@ -364,6 +364,10 @@ class Import_ID3_MDR(bpy.types.Operator, ImportHelper):
             ("NONE", "None", "Just imports the first frame as base pose", 1),
             #("CFG", "Cfg", "Import animations from animations.cfg file", 2),
         ])
+    rotate_y_minus: BoolProperty(
+        name="Y- Orientation",
+        description="Rotate the model to blenders y- forward orientation",
+        default=True)
 
     def execute(self, context):
         # trace some things like paths and lightmap size
@@ -383,6 +387,7 @@ class Import_ID3_MDR(bpy.types.Operator, ImportHelper):
             VFS,
             self.filepath.replace("\\", "/"),
             self.skin,
+            self.rotate_y_minus,
             self.animations)
         QuakeShader.build_quake_shaders(VFS, import_settings, objs)
 

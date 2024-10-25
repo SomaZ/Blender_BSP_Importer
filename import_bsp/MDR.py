@@ -3,6 +3,8 @@ from ctypes import (LittleEndianStructure,
                     c_char, c_float, c_int, c_ushort, sizeof)
 import mathutils
 from .idtech3lib.Parsing import guess_model_name
+from .idtech3lib.Helpers import normalize
+from numpy import dot, sqrt
 
 def read_skin(file_lines):
     out = {}
@@ -107,14 +109,23 @@ class MDR_TAG(LittleEndianStructure):
 
 scale_vec = 1.0 / 32767.0
 scale_pos = 1.0 / 64.0
+# x+ to y- rotation matrix
+rotation_mat = mathutils.Matrix((
+                [0.0, 1.0,  0.0,  0.0],
+                [-1.0, 0.0,  0.0,  0.0],
+                [0.0, 0.0,  1.0,  0.0],
+                [0.0, 0.0,  0.0,  1.0]
+                ))
 
 def get_correction_mats(header, byte_array):
-    offset = header.ofsLODs
-    lod = MDR_LOD.from_buffer_copy(byte_array, offset)
-    
     normalizing_mats = [mathutils.Matrix() for i in range(header.numBones)]
     normalizing_weights = [0.0 for i in range(header.numBones)]
+
+    if header.numLODs == 0:
+        return normalizing_mats
     
+    offset = header.ofsLODs
+    lod = MDR_LOD.from_buffer_copy(byte_array, offset)
     surf_ofs = offset + lod.ofsSurfaces
     for surf_index in range(lod.numSurfaces):
         surface = MDR_SURFACE.from_buffer_copy(byte_array, surf_ofs)
@@ -138,6 +149,7 @@ def get_correction_mats(header, byte_array):
 def ImportMDR(VFS,
               model_name,
               skin_path,
+              rotate_y_minus=True,
               animations=None
               ):
     if not VFS:
@@ -188,11 +200,16 @@ def ImportMDR(VFS,
             if lower_obj:
                 torso_bone = lower_obj.pose.bones.get("tag_torso")
             if torso_bone:
-                for frame in range(bpy.context.scene.frame_end):
-                    bpy.context.scene.frame_set(frame+1)
-                    armature_obj.matrix_world = lower_obj.matrix_world @ torso_bone.matrix
-                    armature_obj.keyframe_insert("location", frame=frame+1)
-                    armature_obj.keyframe_insert("rotation_quaternion", frame=frame+1)
+                fcs = armature_obj.driver_add('location')
+                for i, fc in enumerate(fcs):
+                    driver = fc.driver
+                    v = fc.driver.variables.new()
+                    v.type = "TRANSFORMS"
+                    tar0 = v.targets[0]
+                    tar0.id = lower_obj
+                    tar0.bone_target = "tag_torso"
+                    tar0.transform_type = ('LOC_X', 'LOC_Y', 'LOC_Z')[i]
+                    driver.expression = v.name
 
     objects = []
     armature = armature_obj.data
@@ -239,6 +256,8 @@ def ImportMDR(VFS,
                 [0.0, 0.0, 0.0, 1.0]
                 ]
             vanilla_mat = mathutils.Matrix(rows)
+            if rotate_y_minus:
+                vanilla_mat = rotation_mat @ vanilla_mat
             mat = vanilla_mat @ normalizing_mats[bone_index]
 
             if frame_index == 0:
@@ -302,20 +321,20 @@ def ImportMDR(VFS,
                 vert_offset += sizeof(MDR_VERT)
                 vertex_tc.append(vertex.texCoords)
                 position = mathutils.Vector([0.0, 0.0, 0.0])
-                transform_mat = mathutils.Matrix() * 0
+                normal = mathutils.Vector([0.0, 0.0, 0.0])
                 for weight_id in range(vertex.numWeights):
                     weight = MDR_WEIGHT.from_buffer_copy(byte_array, vert_offset)
                     vert_offset += sizeof(MDR_WEIGHT)
                     position += weight.boneWeight * (bone_matrices[weight.boneIndex] @ mathutils.Vector(weight.offset))
-                    transform_mat += bone_matrices[weight.boneIndex] * weight.boneWeight
+                    normal[0] += weight.boneWeight * dot(bone_matrices[weight.boneIndex][0][0:3], vertex.normal)
+                    normal[1] += weight.boneWeight * dot(bone_matrices[weight.boneIndex][1][0:3], vertex.normal)
+                    normal[2] += weight.boneWeight * dot(bone_matrices[weight.boneIndex][2][0:3], vertex.normal)
                     if weight.boneIndex in bone_map:
                         bone_map[weight.boneIndex].append((vertex_id, weight.boneWeight))
                     else:
                         bone_map[weight.boneIndex] = [(vertex_id, weight.boneWeight)]
                 vertex_pos.append(position)
-                transform_mat.invert()
-                transform_mat.transpose()
-                vertex_nor.append(transform_mat @ mathutils.Vector(vertex.normal))
+                vertex_nor.append(normalize(normal))
             
             index_offset = surf_ofs + surface.ofsTriangles
             for index_id in range(surface.numTriangles):
