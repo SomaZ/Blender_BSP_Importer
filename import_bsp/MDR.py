@@ -2,6 +2,7 @@ import bpy
 from ctypes import (LittleEndianStructure,
                     c_char, c_float, c_int, c_ushort, sizeof)
 import mathutils
+from .BlenderSurfaceFactory import Surface_factory
 from .idtech3lib.Parsing import guess_model_name
 from .idtech3lib.Helpers import normalize
 from numpy import dot, sqrt
@@ -34,7 +35,7 @@ class MDR_HEADER(LittleEndianStructure):
         
         ("ofsEnd", c_int),
     ]
-    
+
 class MDR_COMPRESSED_FRAME(LittleEndianStructure):
     _fields_ = [
         ("min_bounds", c_float*3),
@@ -43,19 +44,93 @@ class MDR_COMPRESSED_FRAME(LittleEndianStructure):
         ("radius", c_float),
         #compressed bones
     ]
-    
+
+    @classmethod
+    def bytes_from_objects(cls, objects, bones, correction_mats, rotate_y_minus):
+        frame = cls()
+        frame.min_bounds[:] = [512, 512, 512]
+        frame.max_bounds[:] = [-512, -512, -512]
+        for obj in objects:
+            mesh = obj.data.copy()
+            mesh.transform(obj.matrix_world)
+            for vert in mesh.vertices:
+                frame.min_bounds[:] = [min(frame.min_bounds[0], vert.co[0]),
+                                    min(frame.min_bounds[1], vert.co[1]),
+                                    min(frame.min_bounds[2], vert.co[2])]
+                frame.max_bounds[:] = [max(frame.max_bounds[0], vert.co[0]),
+                                    max(frame.max_bounds[1], vert.co[1]),
+                                    max(frame.max_bounds[2], vert.co[2])]
+        x = frame.min_bounds[0] + \
+            (frame.max_bounds[0] - frame.min_bounds[0]) / 2
+        y = frame.min_bounds[1] + \
+            (frame.max_bounds[1] - frame.min_bounds[1]) / 2
+        z = frame.min_bounds[2] + \
+            (frame.max_bounds[2] - frame.min_bounds[2]) / 2
+        frame.local_origin = x, y, z
+        r1 = frame.max_bounds[0] - x
+        r2 = frame.max_bounds[1] - y
+        r3 = frame.max_bounds[2] - z
+        frame.radius = sqrt(r1*r1 + r2*r2 + r3*r3)
+
+        frame_bytes = bytearray()
+        frame_bytes += bytes(frame)
+        for i, bone in enumerate(bones):
+            if rotate_y_minus:
+                matrix = inverse_rot_mat @ bone.matrix
+            else:
+                matrix = bone.matrix
+            matrix = matrix @ correction_mats[i].inverted()
+            frame_bytes += MDR_COMPRESSED_BONE.bytes_from_matrix(matrix)
+
+        return frame_bytes
+
 class MDR_COMPRESSED_BONE(LittleEndianStructure):
     _fields_ = [
         ("values", c_ushort*12)
     ]
-    
+
+    @classmethod
+    def bytes_from_matrix(cls, matrix):
+        new_bone = cls()
+        new_bone.values[0] = int((matrix[0][3] / scale_pos) + 32767)
+        new_bone.values[1] = int((matrix[1][3] / scale_pos) + 32767)
+        new_bone.values[2] = int((matrix[2][3] / scale_pos) + 32767)
+
+        new_bone.values[3] = int((matrix[0][0] / scale_vec) + 32767)
+        new_bone.values[4] = int((matrix[0][1] / scale_vec) + 32767)
+        new_bone.values[5] = int((matrix[0][2] / scale_vec) + 32767)
+        new_bone.values[6] = int((matrix[1][0] / scale_vec) + 32767)
+        new_bone.values[7] = int((matrix[1][1] / scale_vec) + 32767)
+        new_bone.values[8] = int((matrix[1][2] / scale_vec) + 32767)
+        new_bone.values[9] = int((matrix[2][0] / scale_vec) + 32767)
+        new_bone.values[10] = int((matrix[2][1] / scale_vec) + 32767)
+        new_bone.values[11] = int((matrix[2][2] / scale_vec) + 32767)
+
+        return bytes(new_bone)
+
 class MDR_LOD(LittleEndianStructure):
     _fields_ = [
         ("numSurfaces", c_int),
         ("ofsSurfaces", c_int),
         ("ofsEnd", c_int),
     ]
-    
+
+    @classmethod
+    def bytes_from_surface_factory(cls, sf, bone_group_mapping, object_lod_name_mapping):
+        surfaces_bytes = bytearray()
+        for i, sd in enumerate(sf.surface_descriptors):
+            new_surface = MDR_SURFACE.bytes_from_surface_descriptor(i, sd, sf.objects, bone_group_mapping)
+            surfaces_bytes += bytes(new_surface)
+        new_lod = MDR_LOD()
+        new_lod.ofsSurfaces = sizeof(MDR_LOD)
+        new_lod.numSurfaces = sf.num_surfaces
+        new_lod.ofsEnd = sizeof(MDR_LOD) + len(surfaces_bytes)
+        lod_bytes = bytearray()
+        lod_bytes += bytes(new_lod)
+        lod_bytes += surfaces_bytes
+
+        return lod_bytes
+
 class MDR_SURFACE(LittleEndianStructure):
     _fields_ = [
         ("ident", c_int),
@@ -75,7 +150,45 @@ class MDR_SURFACE(LittleEndianStructure):
         
         ("ofsEnd", c_int),
     ]
-    
+
+    @classmethod
+    def bytes_from_surface_descriptor(cls, ident, sd, objects, bone_group_mapping):
+        new_surface = cls()
+        new_surface.ident = ident
+        new_surface.name = sd.obj_name.encode() # FIX ME: corrected name from object lod mapping
+        new_surface.shader = sd.material.encode()
+        new_surface.ofsHeader = -0 # FIX ME
+
+        new_surface.ofsBoneReferences = sizeof(cls)
+        new_surface.numBoneReferences = 0 # Weird thing, 1 seems to be written non the less in old files
+
+        new_surface.numTriangles = len(sd.triangles)
+        new_surface.ofsTriangles = new_surface.ofsBoneReferences + sizeof(MDR_BONE_REF)
+
+        new_surface.numVerts = sd.current_index
+        new_surface.ofsVerts = new_surface.ofsTriangles + new_surface.numTriangles * sizeof(MDR_TRIANGLE) 
+        
+        reference_bytes = bytearray()
+        reference_bytes += bytes(MDR_BONE_REF())
+
+        triangle_bytes = bytearray()
+        for triangle in sd.triangles:
+            triangle_bytes += MDR_TRIANGLE.bytes_from_triangle(triangle)
+
+        vertices_bytes = bytearray()
+        for map in sd.vertex_mapping:
+
+            vertices_bytes += MDR_VERT.bytes_from_vertex_map(map, objects, bone_group_mapping)
+
+        new_surface.ofsEnd = new_surface.ofsVerts + len(vertices_bytes)
+
+        surface_bytes = bytearray()
+        surface_bytes += bytes(new_surface)
+        surface_bytes += reference_bytes
+        surface_bytes += triangle_bytes
+        surface_bytes += vertices_bytes
+        return surface_bytes
+
 class MDR_BONE_REF(LittleEndianStructure):
     _fields_ = [
         ("boneIndex", c_int)
@@ -88,24 +201,83 @@ class MDR_VERT(LittleEndianStructure):
         ("numWeights", c_int),
         # weights
     ]
-    
+
+    @classmethod
+    def bytes_from_vertex_map(cls, vertex_map, objects, bone_group_mapping):
+        byte_array = bytearray()
+        new_vert = cls()
+        mesh = vertex_map.mesh
+        b_vert = mesh.vertices[vertex_map.vert]
+        b_loop = mesh.uv_layers.active.data[vertex_map.loop]
+
+        new_vert.texCoords[0] = b_loop.uv[0]
+        new_vert.texCoords[1] = 1.0 - b_loop.uv[1]
+        normal = mathutils.Vector()
+
+        new_weights = []
+        full_weight = 0
+        for group in b_vert.groups:
+            name = objects[vertex_map.obj_id].vertex_groups[group.group].name
+            if name not in bone_group_mapping:
+                print("Skipping group eval because apparently not a bone weight:", name)
+                continue
+            if group.weight <= 0.0:
+                continue
+            index, bone = bone_group_mapping[name]
+            inverse_bone_matrix = bone.matrix.inverted()
+            new_weights.append(MDR_WEIGHT.from_data(index, group.weight, inverse_bone_matrix, b_vert.co))
+            full_weight += group.weight
+            normal += group.weight * (bone.matrix @ mesh.loops[vertex_map.loop].normal)
+        new_vert.normal[:] = normalize(normal)
+        new_vert.numWeights = len(new_weights)
+
+        byte_array += bytes(new_vert)
+        for weight in new_weights:
+            weight.boneWeight /= full_weight
+            byte_array += bytes(weight)
+
+        return byte_array
+
 class MDR_WEIGHT(LittleEndianStructure):
     _fields_ = [
         ("boneIndex", c_int),
         ("boneWeight", c_float),
         ("offset", c_float*3),
     ]
+
+    @classmethod
+    def from_data(cls, index, weight, inverse_bone_matrix, position):
+        new_weight = cls()
+        new_weight.boneIndex = index
+        new_weight.boneWeight = weight
+        new_weight.offset[:] = inverse_bone_matrix @ position
+        return new_weight
     
 class MDR_TRIANGLE(LittleEndianStructure):
     _fields_ = [
         ("indices", c_int*3),
     ]
 
+    @classmethod
+    def bytes_from_triangle(cls, triangle):
+        new_triangle = cls()
+        triangle[0], triangle[1] = triangle[1], triangle[0]
+        for i in range(3):
+            new_triangle.indices[i] = triangle[i]
+        return bytes(new_triangle)
+
 class MDR_TAG(LittleEndianStructure):
     _fields_ = [
         ("boneIndex", c_int),
         ("name", c_char*32),
     ]
+
+    @classmethod
+    def bytes_from_data(cls, index, name):
+        new_tag = cls()
+        new_tag.boneIndex = index
+        new_tag.name = name.encode()
+        return bytes(new_tag)
 
 scale_vec = 1.0 / 32767.0
 scale_pos = 1.0 / 64.0
@@ -116,6 +288,7 @@ rotation_mat = mathutils.Matrix((
                 [0.0, 0.0,  1.0,  0.0],
                 [0.0, 0.0,  0.0,  1.0]
                 ))
+inverse_rot_mat = rotation_mat.inverted()
 
 def get_correction_mats(header, byte_array):
     normalizing_mats = [mathutils.Matrix() for i in range(header.numBones)]
@@ -406,3 +579,96 @@ def ImportMDR(VFS,
 
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
     return objects
+
+
+def ExportMDR(file_path,
+              armature_obj,
+              rotate_y_minus):
+    return_status = [False, "Unknown Error"]
+    bpy.context.scene.frame_set(bpy.context.scene.frame_start)
+    num_frames = bpy.context.scene.frame_end - bpy.context.scene.frame_start + 1
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+
+    lods = [e for e in armature_obj.children 
+            if e.type == "EMPTY" and e.name.startswith("LOD_")]
+    valid_lods = []
+    for i, lod in enumerate(sorted(lods, key=lambda lod: lod.name)):
+        if lod.name[len("LOD_"):] != str(i):
+            if i == 0:
+                return_status = [False, "Could not find root LOD: LOD_0"]
+                return return_status
+            print("Missing LOD:", i)
+            break
+        valid_lods.append(lod)
+
+    # Find tags and write bone_group_mapping
+    bone_group_mapping = {} # Group name -> (bone index, edit bone)
+    tags_data = bytearray()
+    num_tags = 0
+    num_bones = len(armature_obj.data.bones)
+    for i, bone in enumerate(armature_obj.data.bones):
+        bone_group_mapping[bone.name] = (i, bone)
+        if bone.name.startswith("tag_"):
+            tags_data += MDR_TAG.bytes_from_data(i, bone.name)
+            num_tags += 1
+
+    num_lods = len(valid_lods)
+    lods_data = bytearray()
+    for lod in valid_lods:
+        eval_objects = [obj.evaluated_get(depsgraph) for obj in lod.children if obj.type == "MESH"]
+        sf = Surface_factory(
+            eval_objects,
+            False,
+            True,
+            1000, # maybe 500 for shadows?
+            32)
+        lods_data += MDR_LOD.bytes_from_surface_factory(sf, bone_group_mapping, {})
+
+    dummy_header = MDR_HEADER()
+    dummy_header.numLODs = 1
+    dummy_header.numBones = num_bones
+    correction_mats = get_correction_mats(dummy_header, lods_data)
+
+    frames_data = bytearray()
+    for frame in range(1, num_frames+1):
+        bpy.context.scene.frame_set(frame)
+        depsgraph.update()
+        eval_objects = [
+            obj.evaluated_get(depsgraph) for obj in lod.children if obj.type == "MESH"]
+
+        frames_data += MDR_COMPRESSED_FRAME.bytes_from_objects(
+            eval_objects, armature_obj.pose.bones, correction_mats, rotate_y_minus)
+
+
+    header = MDR_HEADER()
+    header.magic_nr = b'RDM5'
+    header.version_nr = 2
+    header.name = file_path.rsplit("/", 1)[1].encode() + b'\0'
+    header.numFrames = num_frames
+    header.numBones = num_bones
+    header.numLODs = num_lods
+    header.numTags = num_tags
+
+    header.ofsTags = sizeof(MDR_HEADER)
+    header.ofsFrames = -(header.ofsTags + header.numTags * sizeof(MDR_TAG))
+    header.ofsLODs = (-header.ofsFrames +
+                      header.numFrames * (
+                          sizeof(MDR_COMPRESSED_FRAME) + 
+                            header.numBones * sizeof(MDR_COMPRESSED_BONE)))
+    header.ofsEnd = header.ofsLODs + len(lods_data)
+
+    byte_array = bytearray()
+    byte_array += bytes(header)
+    byte_array += tags_data
+    byte_array += frames_data
+    byte_array += lods_data
+    
+    opened_file = open(file_path, "wb")
+    try:
+        opened_file.write(byte_array)
+    except Exception:
+        return_status[1] = "Couldn't write file"
+        return return_status
+    opened_file.close()
+
+    return (True, "Everything is fine")

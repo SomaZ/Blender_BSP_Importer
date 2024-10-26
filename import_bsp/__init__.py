@@ -244,6 +244,7 @@ classes = (Gamepacks.Open_gamepack,
            UI.Import_ID3_MDR,
            UI.Import_ID3_TIK,
            UI.Export_ID3_MD3,
+           UI.Export_ID3_MDR,
            UI.Export_ID3_TIK,
            UI.Reload_preview_shader,
            UI.Reload_render_shader,
@@ -281,6 +282,7 @@ def register():
     bpy.types.TOPBAR_MT_file_import.append(UI.menu_func_mdr_import)
     bpy.types.TOPBAR_MT_file_import.append(UI.menu_func_tik_import)
     bpy.types.TOPBAR_MT_file_export.append(UI.menu_func_md3_export)
+    bpy.types.TOPBAR_MT_file_export.append(UI.menu_func_mdr_export)
     bpy.types.TOPBAR_MT_file_export.append(UI.menu_func_tik_export)
     bpy.types.Object.q3_dynamic_props = bpy.props.PointerProperty(
         type=UI.DynamicProperties)
@@ -323,6 +325,7 @@ def unregister():
     bpy.types.TOPBAR_MT_file_import.remove(UI.menu_func_mdr_import)
     bpy.types.TOPBAR_MT_file_import.remove(UI.menu_func_tik_import)
     bpy.types.TOPBAR_MT_file_export.remove(UI.menu_func_md3_export)
+    bpy.types.TOPBAR_MT_file_export.remove(UI.menu_func_mdr_export)
     bpy.types.TOPBAR_MT_file_export.remove(UI.menu_func_tik_export)
     for cls in classes:
         bpy.utils.unregister_class(cls)

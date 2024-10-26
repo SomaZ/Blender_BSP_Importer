@@ -540,6 +540,48 @@ class Export_ID3_MD3(bpy.types.Operator, ExportHelper):
         else:
             self.report({"ERROR"}, status[1])
             return {'CANCELLED'}
+        
+
+class Export_ID3_MDR(bpy.types.Operator, ExportHelper):
+    bl_idname = "export_scene.id3_mdr"
+    bl_label = "Export ID3 engine MDR (.mdr)"
+    filename_ext = ".mdr"
+    filter_glob: StringProperty(default="*.mdr", options={'HIDDEN'})
+
+    filepath: StringProperty(
+        name="File Path",
+        description="File path used for exporting the MDR file",
+        maxlen=1024,
+        default="")
+    only_selected: BoolProperty(
+        name="Export only selected",
+        description="Exports only selected Objects",
+        default=False)
+    rotate_y_minus: BoolProperty(
+        name="Y- Orientation",
+        description="Model uses blenders y- forward orientation",
+        default=True)
+
+    def execute(self, context):
+        objects = context.scene.objects
+        if self.only_selected:
+            objects = context.selected_objects
+
+        # find armature
+        armatures = [o for o in objects if o.type == "ARMATURE"]
+        if len(armatures) != 1:
+            self.report({"ERROR"}, "No armature or mutliple armatures selected. Can only export one at a time. Aborted export")
+            return {'CANCELLED'}
+
+        status = MDR.ExportMDR(
+            self.filepath.replace("\\", "/"),
+            armatures[0],
+            self.rotate_y_minus)
+        if status[0]:
+            return {'FINISHED'}
+        else:
+            self.report({"ERROR"}, status[1])
+            return {'CANCELLED'}
 
 
 class Export_ID3_TIK(bpy.types.Operator, ExportHelper):
@@ -653,6 +695,10 @@ def menu_func_tik_import(self, context):
 
 def menu_func_md3_export(self, context):
     self.layout.operator(Export_ID3_MD3.bl_idname, text="ID3 MD3 (.md3)")
+
+
+def menu_func_mdr_export(self, context):
+    self.layout.operator(Export_ID3_MDR.bl_idname, text="ID3 MDR (.mdr)")
 
 
 def menu_func_tik_export(self, context):
