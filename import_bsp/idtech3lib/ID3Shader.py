@@ -12,13 +12,19 @@ def create_white_image():
     return image
 
 
-def get_material_dicts(VFS, import_settings, material_list):
-
-    for shader_path in import_settings.shader_dirs:
-        reg = "^" + shader_path + r"(.*?).shader$"
+def get_shader_list(VFS, ext, shader_dirs):
+    shader_list = []
+    for shader_path in shader_dirs:
+        reg = "^" + shader_path + r"(.*?)." + ext + "$"
         shader_list = VFS.search(reg)
         if len(shader_list) > 0:
             break
+    return shader_list
+
+def get_material_dicts(VFS, import_settings, material_list):
+    shader_list = get_shader_list(VFS, "shader", import_settings.shader_dirs)
+    if len(shader_list) == 0:
+        shader_list = get_shader_list(VFS, "mtr", import_settings.shader_dirs)
 
     shader_info = {}
 

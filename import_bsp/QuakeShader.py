@@ -1529,6 +1529,12 @@ class quake_shader:
             node_Voulme.outputs["Volume"], node_output.inputs[1])
 
     def finish_shader(shader, VFS, import_settings):
+        if "diffusemap" in shader.attributes:
+            shader.stages = [vanilla_shader_stage()] + shader.stages
+            shader.stages[0].setDiffuse(shader.attributes["diffusemap"][0])
+        if "bumpmap" in shader.attributes:
+            shader.attributes["q3map_normalimage"] = shader.attributes["bumpmap"][0]
+
         if shader.is_fog:
             shader.finish_fog_shader(VFS, import_settings)
         elif shader.is_brush:

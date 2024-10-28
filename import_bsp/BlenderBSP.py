@@ -17,6 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 import bpy
+import sys, os
 
 from .idtech3lib.ID3VFS import Q3VFS
 from .idtech3lib.BSP import BSP_READER as BSP
@@ -28,6 +29,15 @@ from . import BlenderImage, QuakeShader, QuakeLight
 from . import MD3, TIKI
 
 #import cProfile
+
+class HiddenPrints:
+    def __enter__(self):
+        self._original_stdout = sys.stdout
+        sys.stdout = open(os.devnull, 'w')
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        sys.stdout.close()
+        sys.stdout = self._original_stdout
 
 
 def create_meshes_from_models(models):
@@ -145,6 +155,40 @@ def load_mesh(VFS, mesh_name, zoffset, bsp):
             new_blender_mesh = create_meshes_from_models([
                 bsp.get_bsp_model(model_id)])
             blender_mesh, vertex_groups = next(iter(new_blender_mesh.values()))
+        except Exception as e:
+            print("Could not get model for mesh ", mesh_name, e)
+            return blender_mesh, vertex_groups
+    elif mesh_name.endswith(".lwo"):
+        try:
+            for bp in VFS.basepaths:
+                bpy.ops.object.select_all(action='DESELECT')
+                with HiddenPrints():
+                    bpy.ops.import_scene.lwo(
+                        filepath = bp + "/" + mesh_name,
+                        USE_EXISTING_MATERIALS = True
+                        )
+                ent_object = bpy.context.object
+                if ent_object:
+                    break
+            blender_mesh = ent_object.data
+            bpy.data.objects.remove(ent_object, do_unlink=True)
+        except Exception as e:
+            print("Could not get model for mesh ", mesh_name, e)
+            return blender_mesh, vertex_groups
+    elif mesh_name.endswith(".ase"):
+        try:
+            for bp in VFS.basepaths:
+                bpy.ops.object.select_all(action='DESELECT')
+                with HiddenPrints():
+                    bpy.ops.import_scene.ase(
+                        filepath = bp + "/" + mesh_name,
+                        option_reuse_mats = True
+                        )
+                ent_object = bpy.context.object
+                if ent_object:
+                    break
+            blender_mesh = ent_object.data
+            bpy.data.objects.remove(ent_object, do_unlink=True)
         except Exception as e:
             print("Could not get model for mesh ", mesh_name, e)
             return blender_mesh, vertex_groups
@@ -472,7 +516,13 @@ def create_blender_objects(VFS, import_settings, objects, meshes, bsp):
     if len(objects) <= 0:
         return None
     object_list = []
+    m_type = 3
+    if "Map_type" in objects and objects["Map_type"] == "id Tech 4":
+        m_type = 4
+
     for obj_name in objects:
+        if obj_name == "Map_type":
+            continue
         obj = objects[obj_name]
 
         if not is_object_valid_for_preset(obj, import_settings):
@@ -498,6 +548,8 @@ def create_blender_objects(VFS, import_settings, objects, meshes, bsp):
             mesh_z_name = mesh_z_name[:-len(".md3")]
         if mesh_z_name.endswith(".tik"):
             mesh_z_name = mesh_z_name[:-len(".tik")]
+        if mesh_z_name.endswith(".lwo"):
+            mesh_z_name = mesh_z_name[:-len(".lwo")]
         if obj.zoffset != 0:
             mesh_z_name = mesh_z_name + ".z{}".format(obj.zoffset)
 
@@ -527,9 +579,16 @@ def create_blender_objects(VFS, import_settings, objects, meshes, bsp):
             continue
 
         blender_obj = bpy.data.objects.new(obj.name, blender_mesh)
-        blender_obj.location = obj.position
+        if m_type == 3 or (m_type == 4 and not blender_mesh.name.startswith("*")):
+            blender_obj.location = obj.position
 
-        if not blender_mesh.name.startswith("*"):
+        if "rotation" in obj.custom_parameters:
+            blender_obj.matrix_world[0][0:3] = obj.custom_parameters["rotation"][0:3]
+            blender_obj.matrix_world[1][0:3] = obj.custom_parameters["rotation"][3:6]
+            blender_obj.matrix_world[2][0:3] = obj.custom_parameters["rotation"][6:9]
+            blender_obj.location = obj.position
+            blender_obj.scale = obj.scale
+        elif not blender_mesh.name.startswith("*"):
             blender_obj.rotation_euler = obj.rotation
             if "Tiki_Scale" in blender_mesh:
                 new_scale = (blender_mesh["Tiki_Scale"], blender_mesh["Tiki_Scale"], blender_mesh["Tiki_Scale"])

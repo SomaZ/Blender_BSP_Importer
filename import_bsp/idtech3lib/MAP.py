@@ -67,7 +67,12 @@ def parse_surface_data(surface_info_lines) -> Map_surface:
 
             if not is_open and not line.startswith("("):
                 if line not in surface.materials:
-                    surface.materials.append(line)
+                    if line.startswith('"textures/'):
+                        surface.materials.append(line[len('"textures/'):].replace('"', ""))
+                    elif line.startswith('"models/'):
+                        surface.materials.append(line[len('"models/'):].replace('"', ""))
+                    else:
+                        surface.materials.append(line)
 
             if not is_open and line.startswith("("):
                 patch_info = [
@@ -81,6 +86,52 @@ def parse_surface_data(surface_info_lines) -> Map_surface:
                         ).split())) for values in line.split(") (")]
                 for info in vertex_info:
                     surface.ctrl_points.append(Vertex(info))
+    elif "patchdef3" in surface_info_lines:
+        surface.type = "PATCH"
+        is_open = False
+        for line in surface_info_lines:
+            if line == "(":
+                is_open = True
+                continue
+            if line == ")":
+                is_open = False
+                continue
+            if line == "patchdef3":
+                continue
+            if not is_open and not line.startswith("("):
+                if line not in surface.materials:
+                    if line.startswith('"textures/'):
+                        surface.materials.append(line[len('"textures/'):].replace('"', ""))
+                    elif line.startswith('"models/'):
+                        surface.materials.append(line[len('"models/'):].replace('"', ""))
+                    else:
+                        surface.materials.append(line)
+
+            if not is_open and line.startswith("("):
+                patch_info = [
+                    int(value) for value in line[1:-1].strip().split(" ")]
+                surface.patch_layout = (patch_info[0], patch_info[1])
+
+            if is_open and line.startswith("("):
+                line = line[1:-1].strip()
+                vertex_info = [
+                    list(map(float, values.strip("() \t\n\r").strip(
+                        ).split())) for values in line.split(") (")]
+                for info in vertex_info:
+                    surface.ctrl_points.append(Vertex(info))
+    elif "brushdef3" in surface_info_lines:
+        is_open = False
+        for line in surface_info_lines:
+            if line == "brushdef3":
+                continue
+            data = line.replace("(", "").strip().split(")")
+            if len(data) != 5:
+                print("Error parsing line " + line)
+                continue
+            for p in range(3):
+                data[p] = list(map(float, data[p].strip().split(" ")))
+            plane = Plane.from_d3_map_def(data)
+            surface.planes.append(plane)
     else:
         is_open = False
         for line in surface_info_lines:
@@ -104,6 +155,10 @@ def read_map_file(byte_array, import_settings) -> dict:
     current_ent = {}
     obj_info = []
     n_ent = 0
+    map_type = "id Tech 3"
+    if lines[0].strip() == "Version 2":
+        map_type = "id Tech 4"
+
     for line in lines:
         line = line.strip().lower()
         # skip empty lines
@@ -184,4 +239,5 @@ def read_map_file(byte_array, import_settings) -> dict:
             else:
                 obj_info.append(line)
                 continue
+    entities["Map_type"] = map_type
     return entities

@@ -92,6 +92,17 @@ class Plane():
 
         self.tex_info["vecs"] = (quake_vec_x, quake_vec_y)
 
+    def parse_d3_tex_info(self,
+                          vec1,
+                          vec2):
+        # FIXME: Implement this properly
+        
+        d3_vec_x = [vec1[0], vec1[1], vec1[2], 0.0]
+
+        d3_vec_y = [vec2[0], vec2[1], vec2[2], 0.0]
+
+        self.tex_info["vecs"] = (d3_vec_x, d3_vec_y)
+
     def __init__(self,
                  normal=(0.0, 0.0, 1.0),
                  distance=0.0,
@@ -127,7 +138,23 @@ class Plane():
                     scale_x,
                     scale_y)
         return cls(normal, distance, material, tex_info)
-
+    
+    @classmethod
+    def from_d3_map_def(cls, array):
+        if len(array) != 5:
+            raise Exception("False data to parse plane")
+        
+        data = array[4].split()
+        if len(data) != 4:
+            raise Exception("Non d3 brush format definition found")
+        
+        normal = array[0][0], array[0][1], array[0][2]
+        distance = -array[0][3]
+        material = data[0].replace('"', "")
+        plane = cls(normal, distance, material)
+        # FIXME: Implement this properly
+        #plane.parse_d3_tex_info(array[1], array[2])
+        return plane
 
 def p3_intersect(plane_one: Plane, plane_two: Plane, plane_three: Plane):
     M = array((plane_one.normal, plane_two.normal, plane_three.normal))

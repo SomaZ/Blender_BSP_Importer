@@ -38,7 +38,7 @@ class Q3VFS:
     def build_index(self):
         for base in reversed(self.basepaths):
             for pk3_file in sorted(
-                    [f for f in os.listdir(base) if f.endswith('.pk3')]):
+                    [f for f in os.listdir(base) if f.endswith('.pk3') or f.endswith('.pk4')]):
                 pk3h = zipfile.ZipFile(os.path.join(base, pk3_file), mode='r')
                 for pk3f in [f for f in pk3h.infolist() if not f.is_dir()]:
                     self.index[pk3f.filename.lower()] = self.PK3FileRetriever(

@@ -59,7 +59,7 @@ class Import_Settings:
     file: str = ""
     bsp_name: str = ""
     base_paths: List[str] = field(default_factory=list)
-    shader_dirs: Tuple[str] = ("shaders/", "scripts/")
+    shader_dirs: Tuple[str] = ("shaders/", "scripts/", "materials/")
     preset: Preset = Preset.PREVIEW
     min_atlas_size: Tuple[int, int] = (128, 128)
     subdivisions: int = 2
