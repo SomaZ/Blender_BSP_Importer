@@ -1,6 +1,6 @@
 from math import floor, ceil, pi, sin, cos
 from .ID3Brushes import Plane, parse_brush
-from .ImportSettings import Surface_Type
+from .ImportSettings import Surface_Type, Surface_info_storing
 
 
 class Map_Vertex:
@@ -145,21 +145,30 @@ class ID3Model:
         self.vertex_colors = {}
         self.vertex_groups = {}
         self.vertex_data_layers = {}
+        self.face_data_layers = {}
         self.material_names = []
         self.material_id = []
         self.face_smooth = []
 
-    def init_bsp_face_data(self, bsp):
+    def init_bsp_face_data(self, bsp, import_settings):
         self.vertex_groups["Lightmapped"] = set()
         self.vertex_groups["Patch mesh"] = set()
         self.vertex_data_layers["BSP_VERT_INDEX"] = (
             self.VertexAttribute(self.indices))
-        self.vertex_data_layers["BSP_SHADER_INDEX"] = (
-            self.VertexAttribute(self.indices))
-        self.vertex_data_layers["BSP_SURFACE_INDEX"] = (
-            self.VertexAttribute(self.indices))
-        self.vertex_data_layers["BSP_FOG_INDEX"] = (
-            self.VertexAttribute(self.indices))
+        if import_settings.surface_info_storing == Surface_info_storing.PER_VERTEX:
+            self.vertex_data_layers["BSP_SHADER_INDEX"] = (
+                self.VertexAttribute(self.indices))
+            self.vertex_data_layers["BSP_SURFACE_INDEX"] = (
+                self.VertexAttribute(self.indices))
+            self.vertex_data_layers["BSP_FOG_INDEX"] = (
+                self.VertexAttribute(self.indices))
+            self.vertex_data_layers["BSP_SURFACE_TYPE"] = (
+                self.VertexAttribute(self.indices))
+        if import_settings.surface_info_storing == Surface_info_storing.PER_TRIANGLE:
+            self.face_data_layers["BSP_SHADER_INDEX"] = []
+            self.face_data_layers["BSP_SURFACE_INDEX"] = []
+            self.face_data_layers["BSP_FOG_INDEX"] = []
+            self.face_data_layers["BSP_SURFACE_TYPE"] = []
         self.vertex_colors["Color"] = (
             self.VertexAttribute(self.indices))
         self.vertex_colors["Alpha"] = (
@@ -264,6 +273,9 @@ class ID3Model:
                 if "BSP_FOG_INDEX" in self.vertex_data_layers:
                     self.vertex_data_layers["BSP_FOG_INDEX"].add_indexed(
                         face.effect)
+                if "BSP_SURFACE_TYPE" in self.vertex_data_layers:
+                    self.vertex_data_layers["BSP_SURFACE_TYPE"].add_indexed(
+                        face.type)
 
                 for i in range(2, bsp.lightmaps+1):
                     if i <= 4:
@@ -318,6 +330,14 @@ class ID3Model:
             self.material_names.append(material_name)
         self.material_id.append(self.material_names.index(material_name))
         self.face_smooth.append(True)
+        if "BSP_SURFACE_TYPE" in self.face_data_layers:
+            self.face_data_layers["BSP_SURFACE_TYPE"].append(face.type)
+        if "BSP_SHADER_INDEX" in self.face_data_layers:
+            self.face_data_layers["BSP_SHADER_INDEX"].append(face.texture)
+        if "BSP_SURFACE_INDEX" in self.face_data_layers:
+            self.face_data_layers["BSP_SURFACE_INDEX"].append(bsp.lumps["surfaces"].index(face))
+        if "BSP_FOG_INDEX" in self.face_data_layers:
+            self.face_data_layers["BSP_FOG_INDEX"].append(face.effect)
 
     def add_bsp_surface(self, bsp, face, import_settings):
         first_index = face.index
@@ -653,7 +673,7 @@ class ID3Model:
         if model_id < 0:
             return
 
-        self.init_bsp_face_data(bsp)
+        self.init_bsp_face_data(bsp, import_settings)
         bsp_model = bsp.lumps["models"][model_id]
         first_face = bsp_model.face
         bsp_surface_types = (

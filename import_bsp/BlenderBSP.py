@@ -85,6 +85,14 @@ def create_meshes_from_models(models):
                 mesh.attributes[vert_att].data.foreach_set(
                     "value",
                     model.vertex_data_layers[vert_att].get_indexed(int))
+            for face_att in model.face_data_layers:
+                print(face_att, len(model.face_data_layers[face_att]))
+                mesh.attributes.new(name=face_att,
+                                    type='INT',
+                                    domain='FACE')
+                mesh.attributes[face_att].data.foreach_set(
+                    "value",
+                    model.face_data_layers[face_att])
         elif bpy.app.version >= (2, 91, 0):
             for vert_att in model.vertex_data_layers:
                 mesh.attributes.new(name=vert_att,
@@ -93,6 +101,13 @@ def create_meshes_from_models(models):
                         "value",
                         model.vertex_data_layers[vert_att].get_indexed(
                             int))
+            for face_att in model.face_data_layers:
+                mesh.attributes.new(name=face_att,
+                                    type='INT',
+                                    domain='POLYGON')
+                mesh.attributes[face_att].data.foreach_set(
+                    "value",
+                    model.face_data_layers[face_att])
         else:
             for vert_att in model.vertex_data_layers:
                 mesh.vertex_layers_int.new(name=vert_att)

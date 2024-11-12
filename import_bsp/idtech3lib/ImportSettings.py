@@ -53,6 +53,11 @@ class Vert_lit_handling(IntFlag):
     UV_MAP = 1
     PRIMITIVE_PACK = 2
 
+class Surface_info_storing(IntFlag):
+    NONE = 0
+    PER_VERTEX = 1
+    PER_TRIANGLE = 2
+
 @dataclass
 class Import_Settings:
 
@@ -70,6 +75,7 @@ class Import_Settings:
     vert_lit_handling: Vert_lit_handling = Vert_lit_handling.KEEP
     current_vert_pack_index = 0
     normal_map_option: NormalMapOption = NormalMapOption.DIRECTX
+    surface_info_storing: Surface_info_storing = Surface_info_storing.NONE
 
     def __post_init__(self):
         self.bsp_name = guess_map_name(self.file)

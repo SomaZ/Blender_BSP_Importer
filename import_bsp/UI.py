@@ -163,6 +163,7 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
             entity_dict=entity_dict,
             vert_lit_handling=stupid_dict[self.vert_map_packing],
             normal_map_option=prefs.normal_map_option,
+            surface_info_storing=Surface_info_storing.PER_TRIANGLE
         )
 
         # scene information
