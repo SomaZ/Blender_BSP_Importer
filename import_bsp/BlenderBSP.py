@@ -86,7 +86,6 @@ def create_meshes_from_models(models):
                     "value",
                     model.vertex_data_layers[vert_att].get_indexed(int))
             for face_att in model.face_data_layers:
-                print(face_att, len(model.face_data_layers[face_att]))
                 mesh.attributes.new(name=face_att,
                                     type='INT',
                                     domain='FACE')
