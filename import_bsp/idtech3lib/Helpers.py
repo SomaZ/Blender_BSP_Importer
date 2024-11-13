@@ -1,6 +1,4 @@
-from .ID3Image import ID3Image as Image
-from math import floor, ceil
-from numpy import array, dot, sin, cos, sqrt, pi
+from numpy import array, dot, sqrt
 
 
 def avg_vec2(vec1, vec2):

@@ -37,9 +37,9 @@ class Surface_descriptor:
 
         reused_vertices = 0
         vertices = []
-        for index, (tri, loo) in enumerate(zip(in_triangle.vertices,
+        for index, (vert, loop) in enumerate(zip(in_triangle.vertices,
                                                in_triangle.loops)):
-            vert_map = Vertex_map(in_obj_id, in_mesh, tri, loo)
+            vert_map = Vertex_map(in_obj_id, in_mesh, vert, loop)
             vertices.append(vert_map)
             if vert_map.hash_tuple not in self.vertex_hashes:
                 continue

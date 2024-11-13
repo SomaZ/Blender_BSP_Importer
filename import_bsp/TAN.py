@@ -4,7 +4,7 @@ import struct
 from math import pi, sin, cos, atan2, acos, sqrt
 from mathutils import Matrix
 from bpy_extras.io_utils import unpack_list
-from .idtech3lib.Parsing import guess_model_name, fillName, parse
+from .idtech3lib.Parsing import guess_model_name, fillName
 
 
 FLOAT = 4

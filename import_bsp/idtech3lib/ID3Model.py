@@ -1,4 +1,4 @@
-from math import floor, ceil, pi, sin, cos
+from math import floor
 from .ID3Brushes import Plane, parse_brush
 from .ImportSettings import Surface_Type, Surface_info_storing
 
