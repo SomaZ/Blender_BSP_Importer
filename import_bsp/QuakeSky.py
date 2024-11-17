@@ -148,7 +148,9 @@ fragment_shader = '''
     }
 '''
 
-if bpy.app.version < (3, 5, 0):
+if bpy.app.background:
+    pass
+elif bpy.app.version < (3, 5, 0):
     shader = gpu.types.GPUShader(
         vertex_header+vertex_shader,
         fragment_header+fragment_shader)
@@ -172,8 +174,9 @@ else:
     shader_sky_info.fragment_source(fragment_shader)
 
     shader = gpu.shader.create_from_info(shader_sky_info)
-
-batch = batch_for_shader(shader, 'TRIS', {"vertex_id": (0, 1, 2)})
+    
+if not bpy.app.background:
+    batch = batch_for_shader(shader, 'TRIS', {"vertex_id": (0, 1, 2)})
 
 
 def make_equirectangular_from_sky(VFS, sky_name):
@@ -372,8 +375,9 @@ ets_fragment_shader = '''
         FragColor = textureLod(equirect, tex, 0);
     }
 '''
-
-if bpy.app.version < (3, 5, 0):
+if bpy.app.background:
+    pass
+elif bpy.app.version < (3, 5, 0):
     ets_shader = gpu.types.GPUShader(
         ets_vertex_header+ets_vertex_shader,
         ets_fragment_header+ets_fragment_shader)
@@ -393,7 +397,8 @@ else:
 
     ets_shader = gpu.shader.create_from_info(ets_info)
 
-ets_batch = batch_for_shader(ets_shader, 'TRIS', {"vertex_id": (0, 1, 2)})
+if not bpy.app.background:
+    ets_batch = batch_for_shader(ets_shader, 'TRIS', {"vertex_id": (0, 1, 2)})
 
 def make_sky_from_equirect(image):
     if image is None:
