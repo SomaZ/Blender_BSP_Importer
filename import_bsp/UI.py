@@ -365,6 +365,11 @@ class Import_ID3_MDR(bpy.types.Operator, ImportHelper):
             ("NONE", "None", "Just imports the first frame as base pose", 1),
             #("CFG", "Cfg", "Import animations from animations.cfg file", 2),
         ])
+    base_frame: IntProperty(
+        name="Base frame",
+        description="Which frame to use as base pose",
+        default=1,
+        min=1)
     rotate_y_minus: BoolProperty(
         name="Y- Orientation",
         description="Rotate the model to blenders y- forward orientation",
@@ -389,7 +394,8 @@ class Import_ID3_MDR(bpy.types.Operator, ImportHelper):
             self.filepath.replace("\\", "/"),
             self.skin,
             self.rotate_y_minus,
-            self.animations)
+            self.animations,
+            self.base_frame)
         QuakeShader.build_quake_shaders(VFS, import_settings, objs)
 
         if context.scene.id_tech_3_file_path == "":

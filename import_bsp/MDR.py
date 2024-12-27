@@ -323,7 +323,8 @@ def ImportMDR(VFS,
               model_name,
               skin_path,
               rotate_y_minus=True,
-              animations=None
+              animations=None,
+              base_frame=1
               ):
     if not VFS:
         print("Tried importing a mdr without a virtual file system")
@@ -360,6 +361,10 @@ def ImportMDR(VFS,
         print("Not a valid or supported .mdr file", model_name)
         return []
     
+    if header.ofsFrames > 0:
+        print("Uncompressed .mdr files aren't supported", model_name)
+        return []
+    
     armature_obj = bpy.data.objects.get(guessed_name)
     if armature_obj is None:
         armature = bpy.data.armatures.new(guessed_name)
@@ -386,20 +391,75 @@ def ImportMDR(VFS,
 
     objects = []
     armature = armature_obj.data
-    
+
     normalizing_mats = get_correction_mats(header, byte_array)
-    
-    frames = []
+
     bone_matrices = []
 
     num_import_frames = header.numFrames if animations != "NONE" else 1
     bpy.context.scene.frame_end = num_import_frames
     bpy.context.view_layer.objects.active = armature_obj
+
+    # Create bones and base pose
+    bpy.ops.object.mode_set(mode='EDIT')
+    # Clamp picked base frame to a valid frame number
+    frame = min(max(base_frame - 1, 0), header.numFrames-1)
+    offset = -header.ofsFrames + frame * (sizeof(MDR_COMPRESSED_FRAME) + header.numBones*sizeof(MDR_COMPRESSED_BONE))
+    # Unused frame data in the import process
+    # c_frame = MDR_COMPRESSED_FRAME.from_buffer_copy(byte_array, offset)
+    offset += sizeof(MDR_COMPRESSED_FRAME)
+    for bone_index in range(header.numBones):
+        c_bone = MDR_COMPRESSED_BONE.from_buffer_copy(byte_array, offset).values
+        offset += sizeof(MDR_COMPRESSED_BONE)
+
+        c_bone = [float(v) - 32767 for v in c_bone]
+
+        c_bone[0] = c_bone[0] * scale_pos
+        c_bone[1] = c_bone[1] * scale_pos
+        c_bone[2] = c_bone[2] * scale_pos
+
+        c_bone[3] = c_bone[3] * scale_vec
+        c_bone[4] = c_bone[4] * scale_vec
+        c_bone[5] = c_bone[5] * scale_vec
+        c_bone[6] = c_bone[6] * scale_vec
+        c_bone[7] = c_bone[7] * scale_vec
+        c_bone[8] = c_bone[8] * scale_vec
+        c_bone[9] = c_bone[9] * scale_vec
+        c_bone[10] = c_bone[10] * scale_vec
+        c_bone[11] = c_bone[11] * scale_vec
+
+        rows = [
+            [c_bone[3], c_bone[4],  c_bone[5],  c_bone[0]],
+            [c_bone[6], c_bone[7],  c_bone[8],  c_bone[1]],
+            [c_bone[9], c_bone[10], c_bone[11], c_bone[2]],
+            [0.0, 0.0, 0.0, 1.0]
+            ]
+        vanilla_mat = mathutils.Matrix(rows)
+        if rotate_y_minus:
+            vanilla_mat = rotation_mat @ vanilla_mat
+        mat = vanilla_mat @ normalizing_mats[bone_index]
+
+        bone_matrices.append(vanilla_mat.copy())
+        bone = armature.edit_bones.get("BONE_{}".format(bone_index))
+        if not bone:
+            bone = armature.edit_bones.new("BONE_{}".format(bone_index))
+        bone.head = mat @ mathutils.Vector((0.0, 0.0, 0.0))
+        bone.tail = mat @ mathutils.Vector((0.0, 5.0, 0.0))
+        bone.align_roll(mathutils.Vector(mat.col[2][0:3]))
+
+    # Set base pose to keyframe -1
+    bpy.ops.object.mode_set(mode='POSE', toggle=False)
+    for bone_index in range(header.numBones):
+        obj = armature_obj.pose.bones.get("BONE_{}".format(bone_index))
+        obj.keyframe_insert("location", frame=0)
+        obj.keyframe_insert("rotation_quaternion", frame=0)
     
+    # Parse animations
+    bpy.ops.object.mode_set(mode='POSE', toggle=False)
     offset = -header.ofsFrames
     for frame_index in range(num_import_frames):
-        frame = MDR_COMPRESSED_FRAME.from_buffer_copy(byte_array, offset)
-        frames.append(frame)
+        # Unused frame data in the import process
+        # c_frame = MDR_COMPRESSED_FRAME.from_buffer_copy(byte_array, offset)
         offset += sizeof(MDR_COMPRESSED_FRAME)
         
         for bone_index in range(header.numBones):
@@ -433,23 +493,8 @@ def ImportMDR(VFS,
                 vanilla_mat = rotation_mat @ vanilla_mat
             mat = vanilla_mat @ normalizing_mats[bone_index]
 
-            if frame_index == 0:
-                bone_matrices.append(vanilla_mat.copy())
-                
-                bpy.ops.object.mode_set(mode='EDIT')
-                bone = armature.edit_bones.get("BONE_{}".format(bone_index))
-                if not bone:
-                    bone = armature.edit_bones.new("BONE_{}".format(bone_index))
-                bone.head = mat @ mathutils.Vector((0.0, 0.0, 0.0))
-                bone.tail = mat @ mathutils.Vector((0.0, 5.0, 0.0))
-                bone.align_roll(mathutils.Vector(mat.col[2][0:3]))
-                bone.parent = armature.edit_bones.get("BONE_{}".format(header.numBones-1))
-
-            bpy.ops.object.mode_set(mode='POSE', toggle=False)
             obj = armature_obj.pose.bones.get("BONE_{}".format(bone_index))
-            
             obj.matrix = mat
-            
             obj.scale = [1, 1, 1]
             obj.keyframe_insert("location", frame=frame_index+1)
             obj.keyframe_insert("rotation_quaternion", frame=frame_index+1)
