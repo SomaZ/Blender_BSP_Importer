@@ -1,4 +1,5 @@
 import bpy
+import string
 
 class Vertex_map:
     def __init__(self, object_id, mesh, vertex_id, loop_id):
@@ -24,7 +25,7 @@ class Surface_descriptor:
         self.vertex_hashes = {}
         self.triangles = []
         self.material = material
-        self.obj_name = obj_name
+        self.obj_name = obj_name.split(".")[0]
 
     # always make sure that you pack the same material in
     # one surface descriptor!
@@ -159,12 +160,32 @@ class Surface_factory:
                         mesh,
                         triangle,
                         SHADER_MAX_VERTEXES)
-                    # TODO: Split model, add numeric suffix to model names
-                    if not succeeded:
+                    if succeeded:
+                        continue
+                    
+                    if len(surfaces[obj.name]) >= len(string.ascii_lowercase):
                         self.valid = False
-                        self.status = (
-                            "Object exceeds vertex or indices limit: " +
-                            obj.name)
+                        self.status = "Exported object(s) exceed "
+                        "max surfaces. Reduce model complexity."
+                        return
+
+                    new_name = obj.name.split(".")[0]
+                    new_name += string.ascii_lowercase[len(surfaces[obj.name])]
+                    
+                    new_surface_descr = Surface_descriptor(
+                        surface_descr.material, new_name)
+                    new_surface_descr.add_triangle(
+                        obj_id,
+                        mesh,
+                        triangle,
+                        SHADER_MAX_VERTEXES)
+                    surfaces[obj.name].append(new_surface_descr)
+                    self.num_surfaces += 1
+                    
+                    if MAX_SURFACES > 0 and self.num_surfaces > MAX_SURFACES:
+                        self.valid = False
+                        self.status = "Exported object(s) exceed "
+                        "max surfaces. Reduce model complexity."
                         return
 
         for mat in surfaces:
