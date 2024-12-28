@@ -568,6 +568,16 @@ class Export_ID3_MDR(bpy.types.Operator, ExportHelper):
         name="Y- Orientation",
         description="Model uses blenders y- forward orientation",
         default=True)
+    start_frame: IntProperty(
+        name="Start Frame",
+        description="First frame to export",
+        default=0,
+        min=0)
+    end_frame: IntProperty(
+        name="End Frame",
+        description="Last frame to export",
+        default=0,
+        min=0)
 
     def execute(self, context):
         objects = context.scene.objects
@@ -583,12 +593,19 @@ class Export_ID3_MDR(bpy.types.Operator, ExportHelper):
         status = MDR.ExportMDR(
             self.filepath.replace("\\", "/"),
             armatures[0],
-            self.rotate_y_minus)
+            self.rotate_y_minus,
+            self.start_frame,
+            self.end_frame)
         if status[0]:
             return {'FINISHED'}
         else:
             self.report({"ERROR"}, status[1])
             return {'CANCELLED'}
+        
+    def invoke(self, context, event):
+        self.start_frame = context.scene.frame_start
+        self.end_frame = context.scene.frame_end
+        return super().invoke(context, event)
 
 
 class Export_ID3_TIK(bpy.types.Operator, ExportHelper):
