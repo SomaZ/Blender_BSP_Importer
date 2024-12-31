@@ -731,7 +731,8 @@ class quake_shader:
 
             node_lm.select = True
             shader.nodes.active = node_lm
-            shader.mat.shadow_method = 'NONE'
+            if bpy.app.version < (4, 3, 0):
+                shader.mat.shadow_method = 'NONE'
             return
 
         elif shader.is_explicit:
@@ -1043,7 +1044,8 @@ class quake_shader:
             eevee_out.target = "EEVEE"
             shader.links.new(node_BSDF.outputs[0], eevee_out.inputs[0])
 
-        shader.mat.shadow_method = 'CLIP'
+        if bpy.app.version < (4, 3, 0):
+            shader.mat.shadow_method = 'CLIP'
 
         node_lm.select = True
         shader.nodes.active = node_lm
@@ -1336,7 +1338,8 @@ class quake_shader:
             if (shader.attributes["cull"][0] == "twosided" or
                shader.attributes["cull"][0] == "none"):
                 shader.mat.use_backface_culling = False
-        shader.mat.shadow_method = 'CLIP'
+        if bpy.app.version < (4, 3, 0):
+            shader.mat.shadow_method = 'CLIP'
 
         if import_settings.preset == 'EDITING' and shader.is_system_shader:
             shader_type = "BLEND"
@@ -1453,7 +1456,8 @@ class quake_shader:
                 node_BSDF.name = "Sky" if is_sky else "Transparent"
                 shader.links.new(
                     node_BSDF.outputs[0], shader.nodes["Output"].inputs[0])
-                shader.mat.shadow_method = 'NONE'
+                if bpy.app.version < (4, 3, 0):
+                    shader.mat.shadow_method = 'NONE'
             else:
                 solid_BSDF = shader.nodes.new(type="ShaderNodeBsdfDiffuse")
                 solid_BSDF.location = 4200, 0
@@ -1471,7 +1475,8 @@ class quake_shader:
         else:
             shader.links.new(
                 node_BSDF.outputs[0], shader.nodes["Output"].inputs[0])
-            shader.mat.shadow_method = 'NONE'
+            if bpy.app.version < (4, 3, 0):
+                shader.mat.shadow_method = 'NONE'
             shader.mat.blend_method = "BLEND"
 
     def finish_fog_shader(shader, VFS, import_settings):

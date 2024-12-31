@@ -991,7 +991,8 @@ def get_empty_bsp_model_mat():
         mat = bpy.data.materials.new(name="Empty_BSP_Model")
         mat.use_nodes = True
         mat.blend_method = "CLIP"
-        mat.shadow_method = "NONE"
+        if bpy.app.version < (4, 3, 0):
+            mat.shadow_method = "NONE"
         node = mat.node_tree.nodes["Principled BSDF"]
         node.inputs["Alpha"].default_value = 0.0
     return mat
@@ -2809,7 +2810,8 @@ class Q3_OP_Quick_transparent_mat(bpy.types.Operator):
         if mat.use_nodes is False:
             return {"CANCELLED"}
         mat.blend_method = 'CLIP'
-        mat.shadow_method = 'CLIP'
+        if bpy.app.version < (4, 3, 0):
+            mat.shadow_method = 'CLIP'
         nt = mat.node_tree
         # materials can have multiple out nodes for eevee and cycles
         out_nodes = [node for node in nt.nodes if node.type == "OUTPUT_MATERIAL"]
