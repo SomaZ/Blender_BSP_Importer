@@ -316,12 +316,12 @@ class MD3:
             self.local_origin = [array[6], array[7], array[8]]
             self.radius = array[9]
 
-            first_0 = 64
+            first_0 = 16
             for pos, i in enumerate(array[10]):
                 if i == 0:
                     first_0 = pos
                     break
-            reverse = 64-first_0
+            reverse = 16-first_0
 
             self.name = array[10][:-reverse].decode("ascii", errors="ignore")
 
@@ -330,6 +330,8 @@ class MD3:
             array = [0.0 for i in range(10)]
             array.append(bytes(fillName("test", 16), "ascii"))
             frame = cls(array)
+
+            frame.name = "Frame{}".format(bpy.context.scene.frame_current)
 
             frame.min_bounds = [512, 512, 512]
             frame.max_bounds = [-512, -512, -512]
