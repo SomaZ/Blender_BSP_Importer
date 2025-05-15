@@ -164,9 +164,7 @@ def parse_brush(planes, material_sizes=None):
         culled_points = [p for p in all_points.copy()
                          if abs(dot(plane, (*p, 1.0))) <= 0.00001]
 
-        culled_points_set = set()
-        for point in culled_points:
-            culled_points_set.add(point)
+        culled_points_set = set(culled_points)
 
         # check if valid face
         if len(culled_points_set) < 3:
@@ -201,9 +199,9 @@ def parse_brush(planes, material_sizes=None):
             mat_size = 128.0, 128.0
 
         face_indices = []
-        for point_angle in sorted_points:
-            point = point_angle[0]
-            final_points.append(point)
+        for point, _ in sorted_points:
+            if point not in final_points:
+                final_points.append(point)
 
             uv = [0.0, 0.0]
             if "vecs" in uv_data[1]:

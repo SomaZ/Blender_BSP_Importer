@@ -79,7 +79,8 @@ class MDR_COMPRESSED_FRAME(LittleEndianStructure):
                 matrix = inverse_rot_mat @ bone.matrix
             else:
                 matrix = bone.matrix
-            matrix = matrix @ correction_mats[i].inverted()
+            if not bone.name.startswith("tag_"):
+                matrix = matrix @ correction_mats[i].inverted()
             frame_bytes += MDR_COMPRESSED_BONE.bytes_from_matrix(matrix)
 
         return frame_bytes
@@ -116,7 +117,7 @@ class MDR_LOD(LittleEndianStructure):
     ]
 
     @classmethod
-    def bytes_from_surface_factory(cls, sf, bone_group_mapping, object_lod_name_mapping):
+    def bytes_from_surface_factory(cls, sf, bone_group_mapping):
         surfaces_bytes = bytearray()
         for i, sd in enumerate(sf.surface_descriptors):
             new_surface = MDR_SURFACE.bytes_from_surface_descriptor(i, sd, sf.objects, bone_group_mapping)
@@ -155,12 +156,12 @@ class MDR_SURFACE(LittleEndianStructure):
     def bytes_from_surface_descriptor(cls, ident, sd, objects, bone_group_mapping):
         new_surface = cls()
         new_surface.ident = ident
-        new_surface.name = sd.obj_name.encode() # FIX ME: corrected name from object lod mapping
-        new_surface.shader = sd.material.encode()
+        new_surface.name = sd.obj_name.encode()
+        new_surface.shader = b'\0' + sd.material[1:].encode()
         new_surface.ofsHeader = -0 # FIX ME
 
         new_surface.ofsBoneReferences = sizeof(cls)
-        new_surface.numBoneReferences = 0 # Weird thing, 1 seems to be written non the less in old files
+        new_surface.numBoneReferences = 0 # Weird thing, 1 seems to be written non the less in old files, value is still 0
 
         new_surface.numTriangles = len(sd.triangles)
         new_surface.ofsTriangles = new_surface.ofsBoneReferences + sizeof(MDR_BONE_REF)
@@ -220,6 +221,8 @@ class MDR_VERT(LittleEndianStructure):
             name = objects[vertex_map.obj_id].vertex_groups[group.group].name
             if name not in bone_group_mapping:
                 print("Skipping group eval because apparently not a bone weight:", name)
+                continue
+            if name.startswith("tag_"):
                 continue
             if group.weight <= 0.0:
                 continue
@@ -290,7 +293,7 @@ rotation_mat = mathutils.Matrix((
                 ))
 inverse_rot_mat = rotation_mat.inverted()
 
-def get_correction_mats(header, byte_array):
+def get_correction_mats(header, byte_array, tag_bone_indices):
     normalizing_mats = [mathutils.Matrix() for i in range(header.numBones)]
     normalizing_weights = [0.0 for i in range(header.numBones)]
 
@@ -309,6 +312,8 @@ def get_correction_mats(header, byte_array):
             for weight_id in range(vertex.numWeights):
                 weight = MDR_WEIGHT.from_buffer_copy(byte_array, vert_offset)
                 vert_offset += sizeof(MDR_WEIGHT)
+                if weight.boneIndex in tag_bone_indices:
+                    continue
                 normalizing_mats[weight.boneIndex].translation += mathutils.Vector(weight.offset)
                 normalizing_weights[weight.boneIndex] += 1.0
         surf_ofs += surface.ofsEnd
@@ -323,7 +328,8 @@ def ImportMDR(VFS,
               model_name,
               skin_path,
               rotate_y_minus=True,
-              animations=None
+              animations=None,
+              base_frame=1
               ):
     if not VFS:
         print("Tried importing a mdr without a virtual file system")
@@ -360,6 +366,10 @@ def ImportMDR(VFS,
         print("Not a valid or supported .mdr file", model_name)
         return []
     
+    if header.ofsFrames > 0:
+        print("Uncompressed .mdr files aren't supported", model_name)
+        return []
+    
     armature_obj = bpy.data.objects.get(guessed_name)
     if armature_obj is None:
         armature = bpy.data.armatures.new(guessed_name)
@@ -386,20 +396,76 @@ def ImportMDR(VFS,
 
     objects = []
     armature = armature_obj.data
-    
-    normalizing_mats = get_correction_mats(header, byte_array)
-    
-    frames = []
+
+    # we assume nothing is weighted against tags, so no list of tag indices needed
+    normalizing_mats = get_correction_mats(header, byte_array, [])
+
     bone_matrices = []
 
     num_import_frames = header.numFrames if animations != "NONE" else 1
     bpy.context.scene.frame_end = num_import_frames
     bpy.context.view_layer.objects.active = armature_obj
+
+    # Create bones and base pose
+    bpy.ops.object.mode_set(mode='EDIT')
+    # Clamp picked base frame to a valid frame number
+    frame = min(max(base_frame - 1, 0), header.numFrames-1)
+    offset = -header.ofsFrames + frame * (sizeof(MDR_COMPRESSED_FRAME) + header.numBones*sizeof(MDR_COMPRESSED_BONE))
+    # Unused frame data in the import process
+    # c_frame = MDR_COMPRESSED_FRAME.from_buffer_copy(byte_array, offset)
+    offset += sizeof(MDR_COMPRESSED_FRAME)
+    for bone_index in range(header.numBones):
+        c_bone = MDR_COMPRESSED_BONE.from_buffer_copy(byte_array, offset).values
+        offset += sizeof(MDR_COMPRESSED_BONE)
+
+        c_bone = [float(v) - 32767 for v in c_bone]
+
+        c_bone[0] = c_bone[0] * scale_pos
+        c_bone[1] = c_bone[1] * scale_pos
+        c_bone[2] = c_bone[2] * scale_pos
+
+        c_bone[3] = c_bone[3] * scale_vec
+        c_bone[4] = c_bone[4] * scale_vec
+        c_bone[5] = c_bone[5] * scale_vec
+        c_bone[6] = c_bone[6] * scale_vec
+        c_bone[7] = c_bone[7] * scale_vec
+        c_bone[8] = c_bone[8] * scale_vec
+        c_bone[9] = c_bone[9] * scale_vec
+        c_bone[10] = c_bone[10] * scale_vec
+        c_bone[11] = c_bone[11] * scale_vec
+
+        rows = [
+            [c_bone[3], c_bone[4],  c_bone[5],  c_bone[0]],
+            [c_bone[6], c_bone[7],  c_bone[8],  c_bone[1]],
+            [c_bone[9], c_bone[10], c_bone[11], c_bone[2]],
+            [0.0, 0.0, 0.0, 1.0]
+            ]
+        vanilla_mat = mathutils.Matrix(rows)
+        if rotate_y_minus:
+            vanilla_mat = rotation_mat @ vanilla_mat
+        mat = vanilla_mat @ normalizing_mats[bone_index]
+
+        bone_matrices.append(vanilla_mat.copy())
+        bone = armature.edit_bones.get("BONE_{}".format(bone_index))
+        if not bone:
+            bone = armature.edit_bones.new("BONE_{}".format(bone_index))
+        bone.head = mat @ mathutils.Vector((0.0, 0.0, 0.0))
+        bone.tail = mat @ mathutils.Vector((0.0, 5.0, 0.0))
+        bone.align_roll(mathutils.Vector(mat.col[2][0:3]))
+
+    # Set base pose to keyframe -1
+    bpy.ops.object.mode_set(mode='POSE', toggle=False)
+    for bone_index in range(header.numBones):
+        obj = armature_obj.pose.bones.get("BONE_{}".format(bone_index))
+        obj.keyframe_insert("location", frame=0)
+        obj.keyframe_insert("rotation_quaternion", frame=0)
     
+    # Parse animations
+    bpy.ops.object.mode_set(mode='POSE', toggle=False)
     offset = -header.ofsFrames
     for frame_index in range(num_import_frames):
-        frame = MDR_COMPRESSED_FRAME.from_buffer_copy(byte_array, offset)
-        frames.append(frame)
+        # Unused frame data in the import process
+        # c_frame = MDR_COMPRESSED_FRAME.from_buffer_copy(byte_array, offset)
         offset += sizeof(MDR_COMPRESSED_FRAME)
         
         for bone_index in range(header.numBones):
@@ -433,23 +499,8 @@ def ImportMDR(VFS,
                 vanilla_mat = rotation_mat @ vanilla_mat
             mat = vanilla_mat @ normalizing_mats[bone_index]
 
-            if frame_index == 0:
-                bone_matrices.append(vanilla_mat.copy())
-                
-                bpy.ops.object.mode_set(mode='EDIT')
-                bone = armature.edit_bones.get("BONE_{}".format(bone_index))
-                if not bone:
-                    bone = armature.edit_bones.new("BONE_{}".format(bone_index))
-                bone.head = mat @ mathutils.Vector((0.0, 0.0, 0.0))
-                bone.tail = mat @ mathutils.Vector((0.0, 5.0, 0.0))
-                bone.align_roll(mathutils.Vector(mat.col[2][0:3]))
-                bone.parent = armature.edit_bones.get("BONE_{}".format(header.numBones-1))
-
-            bpy.ops.object.mode_set(mode='POSE', toggle=False)
             obj = armature_obj.pose.bones.get("BONE_{}".format(bone_index))
-            
             obj.matrix = mat
-            
             obj.scale = [1, 1, 1]
             obj.keyframe_insert("location", frame=frame_index+1)
             obj.keyframe_insert("rotation_quaternion", frame=frame_index+1)
@@ -583,10 +634,12 @@ def ImportMDR(VFS,
 
 def ExportMDR(file_path,
               armature_obj,
-              rotate_y_minus):
+              rotate_y_minus,
+              start_frame=1,
+              end_frame=1):
     return_status = [False, "Unknown Error"]
     bpy.context.scene.frame_set(bpy.context.scene.frame_start)
-    num_frames = bpy.context.scene.frame_end - bpy.context.scene.frame_start + 1
+    num_frames = end_frame - start_frame + 1
     depsgraph = bpy.context.evaluated_depsgraph_get()
 
     lods = [e for e in armature_obj.children 
@@ -603,6 +656,7 @@ def ExportMDR(file_path,
 
     # Find tags and write bone_group_mapping
     bone_group_mapping = {} # Group name -> (bone index, edit bone)
+    tag_bone_indices = []
     tags_data = bytearray()
     num_tags = 0
     num_bones = len(armature_obj.data.bones)
@@ -611,26 +665,31 @@ def ExportMDR(file_path,
         if bone.name.startswith("tag_"):
             tags_data += MDR_TAG.bytes_from_data(i, bone.name)
             num_tags += 1
+            tag_bone_indices.append(i)
 
+    skin_file_matching = {}
     num_lods = len(valid_lods)
     lods_data = bytearray()
-    for lod in valid_lods:
+    for id, lod in enumerate(valid_lods):
         eval_objects = [obj.evaluated_get(depsgraph) for obj in lod.children if obj.type == "MESH"]
         sf = Surface_factory(
             eval_objects,
             False,
-            True,
-            1000, # maybe 500 for shadows?
+            False,
+            1000,
             32)
-        lods_data += MDR_LOD.bytes_from_surface_factory(sf, bone_group_mapping, {})
+        for sd in sf.surface_descriptors:
+            sd.obj_name = sd.obj_name.replace("_{}".format(id), "")
+            skin_file_matching[sd.obj_name] = sd.material
+        lods_data += MDR_LOD.bytes_from_surface_factory(sf, bone_group_mapping)
 
     dummy_header = MDR_HEADER()
     dummy_header.numLODs = 1
     dummy_header.numBones = num_bones
-    correction_mats = get_correction_mats(dummy_header, lods_data)
+    correction_mats = get_correction_mats(dummy_header, lods_data, tag_bone_indices)
 
     frames_data = bytearray()
-    for frame in range(1, num_frames+1):
+    for frame in range(start_frame, end_frame+1):
         bpy.context.scene.frame_set(frame)
         depsgraph.update()
         eval_objects = [
@@ -638,7 +697,6 @@ def ExportMDR(file_path,
 
         frames_data += MDR_COMPRESSED_FRAME.bytes_from_objects(
             eval_objects, armature_obj.pose.bones, correction_mats, rotate_y_minus)
-
 
     header = MDR_HEADER()
     header.magic_nr = b'RDM5'
@@ -670,5 +728,15 @@ def ExportMDR(file_path,
         return_status[1] = "Couldn't write file"
         return return_status
     opened_file.close()
+
+    name = header.name.decode()
+    if name.endswith(".mdr"):
+        name = name[:-len(".mdr")]
+    skin_text = bpy.data.texts.get(name + "_default.skin")
+    if skin_text is None:
+        skin_text = bpy.data.texts.new(name + "_default.skin")
+    skin_text.clear()
+    for surface in skin_file_matching:
+        skin_text.write("{},{}.tga\n".format(surface, skin_file_matching[surface]))
 
     return (True, "Everything is fine")

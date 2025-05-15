@@ -608,15 +608,14 @@ class ID3Model:
         points, uvs, faces, mats = parse_brush(planes)
 
         indices = []
-        for i in range(len(points)):
-            indices.append(len(self.index_mapping))
-            self.index_mapping.append(-2)
-
-        for index, (point, uv) in zip(indices, (zip(points, uvs))):
-            self.index_mapping[index] = self.current_index
-            self.current_index += 1
+        for point in points:
             self.positions.add_indexed(point)
             self.vertex_normals.add_indexed((0.0, 0.0, 0.0))
+            indices.append(len(self.index_mapping))
+            self.index_mapping.append(self.current_index)
+            self.current_index += 1
+
+        for uv in uvs:
             self.uv_layers["UVMap"].add_unindexed(uv)
 
         for face, material in zip(faces, mats):
@@ -643,15 +642,14 @@ class ID3Model:
         points, uvs, faces, mats  = parse_brush(min_max_planes)
 
         indices = []
-        for i in range(len(points)):
-            indices.append(len(self.index_mapping))
-            self.index_mapping.append(-2)
-
-        for index, (point, uv) in zip(indices, (zip(points, uvs))):
-            self.index_mapping[index] = self.current_index
-            self.current_index += 1
+        for point in points:
             self.positions.add_indexed(point)
             self.vertex_normals.add_indexed((0.0, 0.0, 0.0))
+            indices.append(len(self.index_mapping))
+            self.index_mapping.append(self.current_index)
+            self.current_index += 1
+
+        for uv in uvs:
             self.uv_layers["UVMap"].add_unindexed(uv)
 
         for face, material in zip(faces, mats):
@@ -799,14 +797,13 @@ class ID3Model:
                 points, uvs, faces, mats = parse_brush(surf.planes, material_sizes)
 
                 indices = []
-                for i in range(len(points)):
-                    indices.append(len(self.index_mapping))
-                    self.index_mapping.append(-2)
-
-                for index, (point, uv) in zip(indices, (zip(points, uvs))):
-                    self.index_mapping[index] = self.current_index
-                    self.current_index += 1
+                for point in points:
                     self.positions.add_indexed(point)
+                    indices.append(len(self.index_mapping))
+                    self.index_mapping.append(self.current_index)
+                    self.current_index += 1
+
+                for uv in uvs:
                     self.uv_layers["UVMap"].add_unindexed(uv)
 
                 for face, material in zip(faces, mats):

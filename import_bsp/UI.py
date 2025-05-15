@@ -365,6 +365,11 @@ class Import_ID3_MDR(bpy.types.Operator, ImportHelper):
             ("NONE", "None", "Just imports the first frame as base pose", 1),
             #("CFG", "Cfg", "Import animations from animations.cfg file", 2),
         ])
+    base_frame: IntProperty(
+        name="Base frame",
+        description="Which frame to use as base pose",
+        default=1,
+        min=1)
     rotate_y_minus: BoolProperty(
         name="Y- Orientation",
         description="Rotate the model to blenders y- forward orientation",
@@ -389,7 +394,8 @@ class Import_ID3_MDR(bpy.types.Operator, ImportHelper):
             self.filepath.replace("\\", "/"),
             self.skin,
             self.rotate_y_minus,
-            self.animations)
+            self.animations,
+            self.base_frame)
         QuakeShader.build_quake_shaders(VFS, import_settings, objs)
 
         if context.scene.id_tech_3_file_path == "":
@@ -562,6 +568,16 @@ class Export_ID3_MDR(bpy.types.Operator, ExportHelper):
         name="Y- Orientation",
         description="Model uses blenders y- forward orientation",
         default=True)
+    start_frame: IntProperty(
+        name="Start Frame",
+        description="First frame to export",
+        default=0,
+        min=0)
+    end_frame: IntProperty(
+        name="End Frame",
+        description="Last frame to export",
+        default=0,
+        min=0)
 
     def execute(self, context):
         objects = context.scene.objects
@@ -577,12 +593,19 @@ class Export_ID3_MDR(bpy.types.Operator, ExportHelper):
         status = MDR.ExportMDR(
             self.filepath.replace("\\", "/"),
             armatures[0],
-            self.rotate_y_minus)
+            self.rotate_y_minus,
+            self.start_frame,
+            self.end_frame)
         if status[0]:
             return {'FINISHED'}
         else:
             self.report({"ERROR"}, status[1])
             return {'CANCELLED'}
+        
+    def invoke(self, context, event):
+        self.start_frame = context.scene.frame_start
+        self.end_frame = context.scene.frame_end
+        return super().invoke(context, event)
 
 
 class Export_ID3_TIK(bpy.types.Operator, ExportHelper):
@@ -968,7 +991,8 @@ def get_empty_bsp_model_mat():
         mat = bpy.data.materials.new(name="Empty_BSP_Model")
         mat.use_nodes = True
         mat.blend_method = "CLIP"
-        mat.shadow_method = "NONE"
+        if bpy.app.version < (4, 3, 0):
+            mat.shadow_method = "NONE"
         node = mat.node_tree.nodes["Principled BSDF"]
         node.inputs["Alpha"].default_value = 0.0
     return mat
@@ -2786,7 +2810,8 @@ class Q3_OP_Quick_transparent_mat(bpy.types.Operator):
         if mat.use_nodes is False:
             return {"CANCELLED"}
         mat.blend_method = 'CLIP'
-        mat.shadow_method = 'CLIP'
+        if bpy.app.version < (4, 3, 0):
+            mat.shadow_method = 'CLIP'
         nt = mat.node_tree
         # materials can have multiple out nodes for eevee and cycles
         out_nodes = [node for node in nt.nodes if node.type == "OUTPUT_MATERIAL"]
