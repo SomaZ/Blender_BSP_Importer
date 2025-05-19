@@ -183,12 +183,12 @@ def build_ent_dict(source_files):
                     if splitted[5] == "?":
                         skip = 5
                     else:
-                        ent.mins = [int(splitted[5 - skip]), int(splitted[6 - skip]), int(splitted[7 - skip])]
+                        ent.mins = [float(splitted[5 - skip]), float(splitted[6 - skip]), float(splitted[7 - skip])]
                 if len(splitted) > 10 and skip == 0:
                     if splitted[8] == "?":
                         skip = 2
                     else:
-                        ent.maxs = [int(splitted[8 - skip]), int(splitted[9 - skip]), int(splitted[10 - skip])]
+                        ent.maxs = [float(splitted[8 - skip]), float(splitted[9 - skip]), float(splitted[10 - skip])]
                 if len(splitted) > 11 - skip:
                     if splitted[11 - skip].upper() != "X":
                         ent.spawnflags[splitted[11 - skip].upper()] = Spawn_flag(1, "NOT DOCUMENTED YET")
