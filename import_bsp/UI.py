@@ -64,6 +64,7 @@ def get_current_entity_dict(context):
     
 
 class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
+    """Import a ID3 engine BSP file (Quake 3, Jedi Outcast/Academy, etc.)"""
     bl_idname = "import_scene.id3_bsp"
     bl_label = "Import ID3 engine BSP (.bsp)"
     filename_ext = ".bsp"
@@ -213,6 +214,7 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
         row.prop(prefs, "normal_map_option")
 
 class Import_MAP(bpy.types.Operator, ImportHelper):
+    """Import a ID3 engine MAP file (Quake 3, Jedi Outcast/Academy, etc.)"""
     bl_idname = "import_scene.id_map"
     bl_label = "Import MAP file (.map)"
     filename_ext = ".map"
@@ -258,6 +260,7 @@ class Import_MAP(bpy.types.Operator, ImportHelper):
 
 
 class Import_ID3_MD3(bpy.types.Operator, ImportHelper):
+    """Import a ID3 engine MD3 file"""
     bl_idname = "import_scene.id3_md3"
     bl_label = "Import ID3 engine MD3 (.md3)"
     filename_ext = ".md3"
@@ -311,6 +314,7 @@ class Import_ID3_MD3(bpy.types.Operator, ImportHelper):
     
 
 class Import_ID3_MDR(bpy.types.Operator, ImportHelper):
+    """Import a ID3 engine MDR file"""
     bl_idname = "import_scene.id3_mdr"
     bl_label = "Import ID3 engine MDR (.mdr)"
     filename_ext = ".mdr"
@@ -405,6 +409,7 @@ class Import_ID3_MDR(bpy.types.Operator, ImportHelper):
 
 
 class Import_ID3_TIK(bpy.types.Operator, ImportHelper):
+    """Import a ID3 engine TIK file"""
     bl_idname = "import_scene.id3_tik"
     bl_label = "Import ID3 engine TIKK (.tik)"
     filename_ext = ".tik"
@@ -458,6 +463,7 @@ class Import_ID3_TIK(bpy.types.Operator, ImportHelper):
 
 
 class Export_ID3_MD3(bpy.types.Operator, ExportHelper):
+    """Export a ID3 engine MD3 file"""
     bl_idname = "export_scene.id3_md3"
     bl_label = "Export ID3 engine MD3 (.md3)"
     filename_ext = ".md3"
@@ -550,6 +556,7 @@ class Export_ID3_MD3(bpy.types.Operator, ExportHelper):
         
 
 class Export_ID3_MDR(bpy.types.Operator, ExportHelper):
+    """Export a ID3 engine MDR file"""
     bl_idname = "export_scene.id3_mdr"
     bl_label = "Export ID3 engine MDR (.mdr)"
     filename_ext = ".mdr"
@@ -609,6 +616,7 @@ class Export_ID3_MDR(bpy.types.Operator, ExportHelper):
 
 
 class Export_ID3_TIK(bpy.types.Operator, ExportHelper):
+    """Export a ID3 engine TIK file"""
     bl_idname = "export_scene.id3_tik"
     bl_label = "Export ID3 engine TIK (.tik)"
     filename_ext = ".tik"
@@ -744,6 +752,7 @@ flag_mapping = {
 
 
 class Del_property(bpy.types.Operator):
+    """Remove custom property"""
     bl_idname = "q3.del_property"
     bl_label = "Remove custom property"
     bl_options = {"UNDO", "INTERNAL", "REGISTER"}
@@ -774,6 +783,7 @@ default_values = {"STRING": "",
 
 
 class Add_property(bpy.types.Operator):
+    """Add custom property"""
     bl_idname = "q3.add_property"
     bl_label = "Add custom property"
     bl_options = {"UNDO", "INTERNAL", "REGISTER"}
@@ -819,6 +829,7 @@ class Add_property(bpy.types.Operator):
 
 
 class Add_entity_definition(bpy.types.Operator):
+    """Add entity definition"""
     bl_idname = "q3.add_entity_definition"
     bl_label = "Update entity definition"
     bl_options = {"INTERNAL", "REGISTER"}
@@ -851,6 +862,7 @@ class Add_entity_definition(bpy.types.Operator):
 
 
 class Add_key_definition(bpy.types.Operator):
+    """Add key definition"""
     bl_idname = "q3.add_key_definition"
     bl_label = "Update entity definition"
     bl_options = {"INTERNAL", "REGISTER"}
@@ -901,6 +913,7 @@ type_save_matching = {"NONE": "STRING",
 
 
 class Update_entity_definition(bpy.types.Operator):
+    """Update entity definition"""
     bl_idname = "q3.update_entity_definition"
     bl_label = "Update entity definition"
     bl_options = {"INTERNAL", "REGISTER"}
@@ -1462,6 +1475,7 @@ class Q3_PT_EditEntityPanel(bpy.types.Panel):
 
 
 class ExportEnt(bpy.types.Operator, ExportHelper):
+    """Export to .ent file"""
     bl_idname = "q3.export_ent"
     bl_label = "Export to .ent file"
     bl_options = {"INTERNAL", "REGISTER"}
@@ -1487,6 +1501,7 @@ class ExportEnt(bpy.types.Operator, ExportHelper):
 
 
 class PatchBspEntities(bpy.types.Operator, ExportHelper):
+    """Patch entities in existing .bsp"""
     bl_idname = "q3.patch_bsp_ents"
     bl_label = "Patch entities in existing .bsp"
     bl_options = {"INTERNAL", "REGISTER"}
@@ -1537,6 +1552,7 @@ class PatchBspEntities(bpy.types.Operator, ExportHelper):
 
 
 class PatchBspData(bpy.types.Operator, ExportHelper):
+    """Patch data in existing .bsp"""
     bl_idname = "q3.patch_bsp_data"
     bl_label = "Patch data in existing .bsp"
     bl_options = {"INTERNAL", "REGISTER"}
@@ -2095,6 +2111,7 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
 
 
 class Prepare_Lightmap_Baking(bpy.types.Operator):
+    """Prepare Lightmap Baking"""
     bl_idname = "q3.prepare_lm_baking"
     bl_label = "Prepare Lightmap Baking"
     bl_options = {"INTERNAL", "REGISTER"}
@@ -2178,6 +2195,7 @@ class Prepare_Lightmap_Baking(bpy.types.Operator):
 
 
 class Store_Vertex_Colors(bpy.types.Operator):
+    """Store Vertex Colors"""
     bl_idname = "q3.store_vertex_colors"
     bl_label = "Store Vertex Colors"
     bl_options = {"INTERNAL", "REGISTER"}
@@ -2204,6 +2222,7 @@ def pack_image(name):
 
 
 class Create_Lightgrid(bpy.types.Operator):
+    """Create Lightgrid"""
     bl_idname = "q3.create_lightgrid"
     bl_label = "Create Lightgrid"
     bl_options = {"INTERNAL", "REGISTER"}
@@ -2217,6 +2236,7 @@ class Create_Lightgrid(bpy.types.Operator):
 
 
 class Convert_Baked_Lightgrid(bpy.types.Operator):
+    """Convert Baked Lightgrid"""
     bl_idname = "q3.convert_baked_lightgrid"
     bl_label = "Convert Baked Lightgrid"
     bl_options = {"INTERNAL", "REGISTER"}
@@ -2235,6 +2255,7 @@ class Convert_Baked_Lightgrid(bpy.types.Operator):
 
 
 class Pack_Lightmap_Images(bpy.types.Operator):
+    """Pack Lightmap Images"""
     bl_idname = "q3.pack_lightmap_images"
     bl_label = "Pack Lightmap Images"
     bl_options = {"INTERNAL", "REGISTER"}
@@ -2371,6 +2392,7 @@ class Reload_render_shader(bpy.types.Operator):
 
 
 class FillAssetLibrary(bpy.types.Operator):
+    """Fill asset library with models"""
     bl_idname = "q3.fill_asset_lib"
     bl_label = "Fill asset library with models"
     bl_options = {"INTERNAL", "REGISTER"}
@@ -2521,6 +2543,7 @@ class FillAssetLibrary(bpy.types.Operator):
 
 
 class FillAssetLibraryEntities(bpy.types.Operator):
+    """Fill asset library with entities"""
     bl_idname = "q3.fill_asset_lib_entities"
     bl_label = "Fill asset library with entities"
     bl_options = {"INTERNAL", "REGISTER"}
@@ -2662,6 +2685,7 @@ class FillAssetLibraryEntities(bpy.types.Operator):
 
 
 class Q3_OP_Equi_to_box(bpy.types.Operator):
+    """Make skybox from equirectangular"""
     bl_idname = "q3.equi_to_box"
     bl_label = "Make skybox from equirectangular"
     def execute(self, context):
@@ -2693,6 +2717,7 @@ class Q3_PT_Imagepanel(bpy.types.Panel):
 
 
 class Q3_OP_Quick_emission_mat(bpy.types.Operator):
+    """Make material emissive"""
     bl_idname = "q3.quick_emission_mat"
     bl_label = "Make material emissive"
     def execute(self, context):
@@ -2764,6 +2789,7 @@ class Q3_OP_Quick_emission_mat(bpy.types.Operator):
 
 
 class Q3_OP_Quick_simple_mat(bpy.types.Operator):
+    """Make simple material"""
     bl_idname = "q3.quick_simple_mat"
     bl_label = "Make simple material"
     def execute(self, context):
@@ -2801,6 +2827,7 @@ class Q3_OP_Quick_simple_mat(bpy.types.Operator):
 
 
 class Q3_OP_Quick_transparent_mat(bpy.types.Operator):
+    """Make current material transparent"""
     bl_idname = "q3.quick_transparent_mat"
     bl_label = "Make current material transparent"
     def execute(self, context):
