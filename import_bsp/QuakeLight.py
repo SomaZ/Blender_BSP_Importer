@@ -1101,11 +1101,9 @@ def storeVertexColors(bsp, objs, light_settings, patch_colors=False):
 
                 bsp_vert = bsp.lumps["drawverts"][bsp_vert_index]
 
-                if (samples_vertex_colors[bsp_vert_index] > 1):
-                    print("More than one sample found for vertex", bsp_vert_index)
                 if (samples_vertex_colors[bsp_vert_index] == 0):
                     continue
-                
+
                 hdr_vertex_colors[bsp_vert_index * 3] /= float(
                     samples_vertex_colors[bsp_vert_index])
                 hdr_vertex_colors[bsp_vert_index * 3 + 1] /= float(
