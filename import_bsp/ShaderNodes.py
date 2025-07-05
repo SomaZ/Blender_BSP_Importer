@@ -2,15 +2,15 @@ import bpy
 
 def create_node_output(node_group, type, name):
     if bpy.app.version >= (4, 0, 0):
-        node_group.interface.new_socket(name=name, in_out='OUTPUT', socket_type=type)
+        return node_group.interface.new_socket(name=name, in_out='OUTPUT', socket_type=type)
     else:
-        node_group.outputs.new(type, name)
+        return node_group.outputs.new(type, name)
 
 def create_node_input(node_group, type, name):
     if bpy.app.version >= (4, 0, 0):
-        node_group.interface.new_socket(name=name, in_out='INPUT', socket_type=type)
+        return node_group.interface.new_socket(name=name, in_out='INPUT', socket_type=type)
     else:
-        node_group.inputs.new(type, name)
+        return node_group.inputs.new(type, name)
 
 def set_default_input(node_group, name, value):
     if bpy.app.version >= (4, 0, 0):
@@ -249,6 +249,220 @@ class Emission_Node(Generic_Node_Group):
             out_full_emission.outputs["Vector"],
             group_outputs.inputs['OutColor'])
         return emission_group
+    
+
+class Angle_attenuation_Node(Generic_Node_Group):
+    name = 'AngleAttenuationNode'
+
+    @classmethod
+    def create_node_tree(self, empty):
+        surface_spot = bpy.data.node_groups.new(self.name, 'ShaderNodeTree')
+
+        color_socket = create_node_input(surface_spot, 'NodeSocketColor', 'Color')
+        color_socket.default_value = (0.0, 0.0, 0.0, 1.0)
+
+        angle_socket = create_node_input(surface_spot, 'NodeSocketFloat', 'Angle')
+        angle_socket.default_value = 90.0
+        angle_socket.min_value = 0.0
+        angle_socket.max_value = 180.0
+
+        blend_socket = create_node_input(surface_spot, 'NodeSocketFloat', 'Blend')
+        blend_socket.default_value = 0.0
+        blend_socket.min_value = 0.0
+        blend_socket.max_value = 1.0
+        blend_socket.subtype = 'FACTOR'
+        
+        cone_socket = create_node_output(surface_spot, 'NodeSocketColor', 'Color')
+        cone_socket.default_value = (1.0, 1.0, 1.0, 1.0)
+
+        #initialize surface_spot nodes
+        #node Group Output
+        group_output = surface_spot.nodes.new("NodeGroupOutput")
+        group_output.name = "Group Output"
+        group_output.is_active_output = True
+
+        #node Group Input
+        group_input = surface_spot.nodes.new("NodeGroupInput")
+        group_input.name = "Group Input"
+
+        #node Geometry
+        geometry = surface_spot.nodes.new("ShaderNodeNewGeometry")
+        geometry.name = "Geometry"
+
+        #node dot_NI
+        dot_ni = surface_spot.nodes.new("ShaderNodeVectorMath")
+        dot_ni.name = "dot_NI"
+        dot_ni.operation = 'DOT_PRODUCT'
+
+        #node arcsine
+        arcsine = surface_spot.nodes.new("ShaderNodeMath")
+        arcsine.name = "arcsine"
+        arcsine.operation = 'ARCSINE'
+
+        #node to_degrees
+        to_degrees = surface_spot.nodes.new("ShaderNodeMath")
+        to_degrees.name = "to_degrees"
+        to_degrees.operation = 'DEGREES'
+
+        #node Map Range
+        map_range = surface_spot.nodes.new("ShaderNodeMapRange")
+        map_range.name = "Map Range"
+        map_range.clamp = True
+        map_range.data_type = 'FLOAT'
+        map_range.interpolation_type = 'LINEAR'
+        #To Min
+        map_range.inputs[3].default_value = 0.0
+        #To Max
+        map_range.inputs[4].default_value = 1.0
+
+        #node from_min
+        from_min = surface_spot.nodes.new("ShaderNodeMath")
+        from_min.label = "from_min"
+        from_min.name = "from_min"
+        from_min.operation = 'SUBTRACT'
+
+        #node 90deg
+        _90deg = surface_spot.nodes.new("ShaderNodeValue")
+        _90deg.name = "90deg"
+
+        _90deg.outputs[0].default_value = 90.0
+        #node from_range
+        from_range = surface_spot.nodes.new("ShaderNodeMath")
+        from_range.label = "from_range"
+        from_range.name = "from_range"
+        from_range.operation = 'SUBTRACT'
+
+        #node from_pos
+        from_pos = surface_spot.nodes.new("ShaderNodeMath")
+        from_pos.label = "from_pos"
+        from_pos.name = "from_pos"
+        from_pos.operation = 'MULTIPLY'
+
+        #node from_max
+        from_max = surface_spot.nodes.new("ShaderNodeMath")
+        from_max.label = "from_max"
+        from_max.name = "from_max"
+        from_max.operation = 'ADD'
+
+        #node clamped_blend
+        clamped_blend = surface_spot.nodes.new("ShaderNodeClamp")
+        clamped_blend.label = "Saturated Blend"
+        clamped_blend.name = "clamped_blend"
+        clamped_blend.clamp_type = 'MINMAX'
+        #Min
+        clamped_blend.inputs[1].default_value = 10e-5
+        #Max
+        clamped_blend.inputs[2].default_value = 1.0
+
+        #node half_angle
+        half_angle = surface_spot.nodes.new("ShaderNodeMath")
+        half_angle.label = "Half Angle"
+        half_angle.name = "half_angle"
+        half_angle.operation = 'MULTIPLY'
+        #Value_001
+        half_angle.inputs[1].default_value = 0.5
+
+        #node Mix
+        mix = surface_spot.nodes.new("ShaderNodeMix")
+        mix.name = "Mix"
+        mix.blend_type = 'MIX'
+        mix.clamp_factor = True
+        mix.clamp_result = False
+        mix.data_type = 'FLOAT'
+        mix.factor_mode = 'UNIFORM'
+        #B_Float
+        mix.inputs[3].default_value = 1.0
+
+        #node Light Path
+        light_path = surface_spot.nodes.new("ShaderNodeLightPath")
+        light_path.name = "Light Path"
+
+        #node dot_NI.001
+        scaled_color = surface_spot.nodes.new("ShaderNodeVectorMath")
+        scaled_color.name = "Scaled Color"
+        scaled_color.operation = 'SCALE'
+
+        #node Reroute
+        reroute = surface_spot.nodes.new("NodeReroute")
+        reroute.name = "Reroute"
+        reroute.socket_idname = "NodeSocketColor"
+        #node Reroute.001
+        reroute_001 = surface_spot.nodes.new("NodeReroute")
+        reroute_001.name = "Reroute.001"
+        reroute_001.socket_idname = "NodeSocketColor"
+
+        #Set locations
+        group_output.location = (912.0, 203.0)
+        group_input.location = (-690.0, 9.0)
+        geometry.location = (-398.0, 286.0)
+        dot_ni.location = (-209.0, 267.0)
+        arcsine.location = (-15.0, 263.0)
+        to_degrees.location = (141.0, 263.0)
+        map_range.location = (338.0, 245.0)
+        from_min.location = (-15.0, 125.0)
+        _90deg.location = (-208.0, 99.0)
+        from_range.location = (-18.0, -31.0)
+        from_pos.location = (-20.0, -183.0)
+        from_max.location = (149.0, -38.0)
+        clamped_blend.location = (-212.0, -272.0)
+        half_angle.location = (-210.0, -34.0)
+        mix.location = (539.0, 129.0)
+        light_path.location = (331.0, 573.0)
+        scaled_color.location = (723.0, 203.0)
+        reroute.location = (623.0, 631.0)
+        reroute_001.location = (-515.0, 631.0)
+
+        #initialize surface_spot links
+        #dot_ni.Value -> arcsine.Value
+        surface_spot.links.new(dot_ni.outputs[1], arcsine.inputs[0])
+        #half_angle.Value -> from_pos.Value
+        surface_spot.links.new(half_angle.outputs[0], from_pos.inputs[0])
+        #arcsine.Value -> to_degrees.Value
+        surface_spot.links.new(arcsine.outputs[0], to_degrees.inputs[0])
+        #half_angle.Value -> from_min.Value
+        surface_spot.links.new(half_angle.outputs[0], from_min.inputs[1])
+        #clamped_blend.Result -> from_pos.Value
+        surface_spot.links.new(clamped_blend.outputs[0], from_pos.inputs[1])
+        #to_degrees.Value -> map_range.Value
+        surface_spot.links.new(to_degrees.outputs[0], map_range.inputs[0])
+        #from_range.Value -> from_max.Value
+        surface_spot.links.new(from_range.outputs[0], from_max.inputs[0])
+        #_90deg.Value -> from_range.Value
+        surface_spot.links.new(_90deg.outputs[0], from_range.inputs[0])
+        #_90deg.Value -> from_min.Value
+        surface_spot.links.new(_90deg.outputs[0], from_min.inputs[0])
+        #from_pos.Value -> from_max.Value
+        surface_spot.links.new(from_pos.outputs[0], from_max.inputs[1])
+        #geometry.Incoming -> dot_ni.Vector
+        surface_spot.links.new(geometry.outputs[4], dot_ni.inputs[1])
+        #from_min.Value -> map_range.From Min
+        surface_spot.links.new(from_min.outputs[0], map_range.inputs[1])
+        #geometry.Normal -> dot_ni.Vector
+        surface_spot.links.new(geometry.outputs[1], dot_ni.inputs[0])
+        #half_angle.Value -> from_range.Value
+        surface_spot.links.new(half_angle.outputs[0], from_range.inputs[1])
+        #from_max.Value -> map_range.From Max
+        surface_spot.links.new(from_max.outputs[0], map_range.inputs[2])
+        #scaled_color.Vector -> group_output.Cone
+        surface_spot.links.new(scaled_color.outputs[0], group_output.inputs[0])
+        #group_input.Angle -> half_angle.Value
+        surface_spot.links.new(group_input.outputs[1], half_angle.inputs[0])
+        #group_input.Blend -> clamped_blend.Value
+        surface_spot.links.new(group_input.outputs[2], clamped_blend.inputs[0])
+        #map_range.Result -> mix.A
+        surface_spot.links.new(map_range.outputs[0], mix.inputs[2])
+        #light_path.Is Camera Ray -> mix.Factor
+        surface_spot.links.new(light_path.outputs[0], mix.inputs[0])
+        #mix.Result -> scaled_color.Scale
+        surface_spot.links.new(mix.outputs[0], scaled_color.inputs[3])
+        #reroute.Output -> scaled_color.Vector
+        surface_spot.links.new(reroute.outputs[0], scaled_color.inputs[0])
+        #group_input.Color -> reroute_001.Input
+        surface_spot.links.new(group_input.outputs[0], reroute_001.inputs[0])
+        #reroute_001.Output -> reroute.Input
+        surface_spot.links.new(reroute_001.outputs[0], reroute.inputs[0])
+        
+        return surface_spot
 
 
 class Normal_Set_Node(Generic_Node_Group):

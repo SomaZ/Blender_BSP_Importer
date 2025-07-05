@@ -2786,6 +2786,42 @@ class Q3_OP_Quick_emission_mat(bpy.types.Operator):
                 node.inputs["Emission Strength"].default_value = 1.0
 
         return {"FINISHED"}
+    
+
+class Q3_OP_Quick_angular_emission_mat(bpy.types.Operator):
+    """Make materials emissive angle attenuated"""
+    bl_idname = "q3.quick_angular_att"
+    bl_label = "Add angle attenuation"
+    def execute(self, context):
+        mat = context.material
+        if mat is None:
+            return {"CANCELLED"}
+        if mat.use_nodes is False:
+            return {"CANCELLED"}
+        nt = mat.node_tree
+        nodes = nt.nodes
+
+        for node in nodes:
+            if node.type != "BSDF_PRINCIPLED":
+                continue
+
+            att_node = nodes.new(type="ShaderNodeGroup")
+            att_node.node_tree = ShaderNodes.Angle_attenuation_Node.get_node_tree(None)
+            att_node.name = "AngularAttNode"
+            if bpy.app.version >= (4, 0, 0):
+                EMISSION_KEY = "Emission Color"
+            else:
+                EMISSION_KEY = "Emission"
+
+            input = node.inputs[EMISSION_KEY]
+            for link in input.links:
+                att_node.location = (link.from_node.location[0] + 400.0,
+                                     link.from_node.location[1])
+                nt.links.new(link.from_node.outputs[0], att_node.inputs["Color"])
+
+            nt.links.new(att_node.outputs[0], node.inputs[EMISSION_KEY])
+
+        return {"FINISHED"}
 
 
 class Q3_OP_Quick_simple_mat(bpy.types.Operator):
@@ -2896,3 +2932,10 @@ class Q3_PT_Materialpanel(bpy.types.Panel):
         if "EmissionScaleNode" in mat.node_tree.nodes:
             light = mat.node_tree.nodes["EmissionScaleNode"].inputs["Light"]
             layout.prop(light, "default_value", text="Light scale")
+            if "AngularAttNode" not in mat.node_tree.nodes:
+                layout.operator("q3.quick_angular_att")
+        if "AngularAttNode" in mat.node_tree.nodes:
+            att = mat.node_tree.nodes["AngularAttNode"].inputs["Angle"]
+            layout.prop(att, "default_value", text="Angle")
+            att = mat.node_tree.nodes["AngularAttNode"].inputs["Blend"]
+            layout.prop(att, "default_value", text="Blend")
