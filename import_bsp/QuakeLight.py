@@ -1048,9 +1048,11 @@ def storeVertexColors(bsp, objs, light_settings, patch_colors=False):
     lm_local_pixels = list(lightmap.pixels[:])
     vt_local_pixels = list(vertexmap.pixels[:])
 
-    if hdr_export:
-        hdr_vertex_colors = [0.0 for i in range(
-            int(len(bsp.lumps["drawverts"])*3))]
+    hdr_vertex_colors = [0.0 for i in range(
+        int(len(bsp.lumps["drawverts"])*3))]
+    samples_vertex_colors = [0 for i in range(
+        int(len(bsp.lumps["drawverts"]))
+    )]
 
     for obj in objs:
         mesh = obj.data
@@ -1083,13 +1085,38 @@ def storeVertexColors(bsp, objs, light_settings, patch_colors=False):
                           round(clamp_uv(uv_coords.y) * (height - 1))]
                 index = (target[1] * width + target[0]) * 4
 
+                hdr_vertex_colors[bsp_vert_index * 
+                                  3] += local_pixels[index]
+                hdr_vertex_colors[bsp_vert_index *
+                                  3 + 1] += local_pixels[index + 1]
+                hdr_vertex_colors[bsp_vert_index *
+                                  3 + 2] += local_pixels[index + 2]
+                samples_vertex_colors[bsp_vert_index] += 1
+
+            for vertex, loop in zip(poly.vertices, poly.loop_indices):
+                # get the vertex position in the bsp file
+                bsp_vert_index = bsp_indices.data[vertex].value
+                if bsp_vert_index < 0:
+                    continue
+
                 bsp_vert = bsp.lumps["drawverts"][bsp_vert_index]
 
+                if (samples_vertex_colors[bsp_vert_index] > 1):
+                    print("More than one sample found for vertex", bsp_vert_index)
+                if (samples_vertex_colors[bsp_vert_index] == 0):
+                    continue
+                
+                hdr_vertex_colors[bsp_vert_index * 3] /= float(
+                    samples_vertex_colors[bsp_vert_index])
+                hdr_vertex_colors[bsp_vert_index * 3 + 1] /= float(
+                    samples_vertex_colors[bsp_vert_index])
+                hdr_vertex_colors[bsp_vert_index * 3 + 2] /= float(
+                    samples_vertex_colors[bsp_vert_index])
                 if patch_colors:
                     color = colorNormalize(
-                        [local_pixels[index],
-                         local_pixels[index + 1],
-                         local_pixels[index + 2]],
+                        [hdr_vertex_colors[bsp_vert_index * 3],
+                         hdr_vertex_colors[bsp_vert_index * 3 + 1],
+                         hdr_vertex_colors[bsp_vert_index * 3 + 2]],
                         color_scale,
                         light_settings)
                     bsp_vert.color1[0] = int(color[0] * 255)
@@ -1111,14 +1138,6 @@ def storeVertexColors(bsp, objs, light_settings, patch_colors=False):
                     #       mesh.vertex_colors["Color4"].data[loop].color)
                     #    bsp_vert.color4[3] = (
                     #       mesh.vertex_colors["Alpha"].data[loop].color[3])
-
-                if hdr_export:
-                    hdr_vertex_colors[bsp_vert_index *
-                                      3] = local_pixels[index]
-                    hdr_vertex_colors[bsp_vert_index *
-                                      3 + 1] = local_pixels[index + 1]
-                    hdr_vertex_colors[bsp_vert_index *
-                                      3 + 2] = local_pixels[index + 2]
 
     if hdr_export:
         hdr_bytes = bytearray()
