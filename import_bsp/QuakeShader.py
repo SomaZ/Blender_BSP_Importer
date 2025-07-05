@@ -741,10 +741,6 @@ class quake_shader:
             shader_type = "OPAQUE"
             for stage in shader.stages:
                 if stage_index == 0:
-                    if stage.blend == "gl_one gl_src_alpha":
-                        stage.blend = "gl_one_minus_src_alpha gl_zero"
-                    if stage.blend == "gl_one gl_one_minus_src_alpha":
-                        stage.blend = "gl_src_alpha gl_zero"
                     if stage.alpha_clip != ACLIP_NONE:
                         shader_type = "CLIP"
                         shader.mat.blend_method = "CLIP"
@@ -1122,10 +1118,6 @@ class quake_shader:
             for stage in shader.stages:
 
                 if stage_index == 0:
-                    if stage.blend == "gl_one gl_src_alpha":
-                        stage.blend = "gl_one_minus_src_alpha gl_zero"
-                    if stage.blend == "gl_one gl_one_minus_src_alpha":
-                        stage.blend = "gl_src_alpha gl_zero"
                     if stage.alpha_clip != ACLIP_NONE:
                         shader_type = "CLIP"
                         shader.mat.blend_method = "CLIP"
