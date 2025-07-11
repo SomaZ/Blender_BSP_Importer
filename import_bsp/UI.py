@@ -2728,6 +2728,20 @@ class Q3_OP_Quick_emission_mat(bpy.types.Operator):
             return {"CANCELLED"}
         nt = mat.node_tree
         nodes = nt.nodes
+
+        # If we already have an emission input in the emission scale node
+        # use that instead of making one up from the material
+        scale_node = nodes.get("EmissionScaleNode")
+        if scale_node is not None:
+            input = scale_node.inputs["ExtraColor"]
+            found_link = False
+            for link in input.links:
+                nt.links.new(link.from_node.outputs[0], scale_node.inputs["Color"])
+                nt.links.remove(link)
+                found_link = True
+            if found_link:
+                return {"FINISHED"}
+
         for node in nodes:
             if node.type != "BSDF_PRINCIPLED":
                 continue
@@ -2773,7 +2787,6 @@ class Q3_OP_Quick_emission_mat(bpy.types.Operator):
                 EMISSION_KEY = "Emission"
 
             # emission scale node
-            scale_node = nodes.get("EmissionScaleNode")
             if scale_node is None:
                 scale_node = nodes.new(type="ShaderNodeGroup")
                 scale_node.node_tree = ShaderNodes.Emission_Node.get_node_tree(None)
