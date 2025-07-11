@@ -232,7 +232,7 @@ class ID3Model:
         drawverts_lump.append(vert)
         return new_bsp_index
 
-    def add_bsp_vertex_data(self, bsp, bsp_indices, face=None):
+    def add_bsp_vertex_data(self, bsp, bsp_indices, face=None, force_vert_lit=False):
         drawverts_lump = bsp.lumps["drawverts"]
 
         model_indices = []
@@ -296,7 +296,7 @@ class ID3Model:
 
                 # store lightmap ids for atlasing purposes
                 if "LightmapUV" in self.uv_layers and face:
-                    self.vertex_lightmap_id.add_indexed(face.lm_indexes)
+                    self.vertex_lightmap_id.add_indexed(face.lm_indexes if not force_vert_lit else [-3]*len(face.lm_indexes))
             model_indices.append(self.index_mapping[index])
         self.indices.append(model_indices)
 
@@ -304,13 +304,16 @@ class ID3Model:
                           bsp,
                           model_indices,
                           face,
-                          force_nodraw=False):
+                          force_nodraw=False,
+                          force_vert_lit=False):
         shaders_lump = bsp.lumps["shaders"]
         material_suffix = ""
 
         first_lm_index = face.lm_indexes if (
             bsp.lightstyles == 0
         ) else face.lm_indexes[0]
+        if force_vert_lit:
+            first_lm_index = -3
 
         if force_nodraw:
             material_suffix = ".nodraw"
@@ -362,14 +365,24 @@ class ID3Model:
                     face.vertex + self.get_bsp_vertex_offset(
                         bsp, index + 1)
                 )
-            self.add_bsp_vertex_data(bsp, bsp_indices, face)
+
+            force_vertlit = False
+            if "LightmapUV" in self.uv_layers and face.lm_indexes[0] >= 0:
+                tcs = set([
+                    tuple(bsp.lumps["drawverts"][bsp_indices[0]].lm1coord),
+                    tuple(bsp.lumps["drawverts"][bsp_indices[1]].lm1coord),
+                    tuple(bsp.lumps["drawverts"][bsp_indices[2]].lm1coord)])
+                if len(tcs) == 1:
+                    force_vertlit = True
+
+            self.add_bsp_vertex_data(bsp, bsp_indices, face, force_vertlit)
 
             model_indices = (
                 self.index_mapping[bsp_indices[0]],
                 self.index_mapping[bsp_indices[1]],
                 self.index_mapping[bsp_indices[2]]
             )
-            self.add_bsp_face_data(bsp, model_indices, face)
+            self.add_bsp_face_data(bsp, model_indices, face, False, force_vertlit)
 
     def subdivide_patch(self,
                         subdivisions,
