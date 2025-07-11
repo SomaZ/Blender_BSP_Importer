@@ -862,7 +862,14 @@ class quake_shader:
                 node_BSDF = shader.nodes.new(type="ShaderNodeBsdfPrincipled")
                 node_BSDF.location = (3000, 0)
                 node_BSDF.inputs["Roughness"].default_value = 0.9999
-                shader.links.new(out_Color, node_BSDF.inputs["Base Color"])
+                max_node = shader.nodes.new(type="ShaderNodeVectorMath")
+                max_node.location = (
+                    node_BSDF.location[0] - 200,
+                    node_BSDF.location[1])
+                max_node.operation = "MAXIMUM"
+                max_node.inputs[1].default_value = [1.0 / 255.0]*3
+                shader.links.new(out_Color, max_node.inputs[0])
+                shader.links.new(max_node.outputs[0], node_BSDF.inputs["Base Color"])
                 if out_Glow is not None or node_light is not None:
                     new_node = shader.get_node_by_name("EmissionScaleNode")
                     shader.links.new(
@@ -886,7 +893,14 @@ class quake_shader:
                 if (shader_type != "OPAQUE" and
                    out_Alpha is not None and
                    "portal" not in shader.attributes):
-                    shader.links.new(out_Alpha, node_BSDF.inputs["Alpha"])
+                    max_node = shader.nodes.new(type="ShaderNodeMath")
+                    max_node.location = (
+                        node_BSDF.location[0] - 200,
+                        node_BSDF.location[1] - 400)
+                    max_node.operation = "MAXIMUM"
+                    max_node.inputs[1].default_value = 1.0 / 255.0
+                    shader.links.new(out_Alpha, max_node.inputs[0])
+                    shader.links.new(max_node.outputs[0], node_BSDF.inputs["Alpha"])
                 shader.links.new(
                     node_BSDF.outputs["BSDF"],
                     shader.nodes["Output"].inputs[0])
