@@ -2110,10 +2110,12 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
         return {'FINISHED'}
 
 
-class Prepare_Lightmap_Baking(bpy.types.Operator):
-    """Prepare Lightmap Baking"""
-    bl_idname = "q3.prepare_lm_baking"
-    bl_label = "Prepare Lightmap Baking"
+class Prepare_Baking_Materials(bpy.types.Operator):
+    """Prepare Baking Materials will test """
+    """every surface if material type matches with """
+    """the assigned lighting type (Warning: SLOW)"""
+    bl_idname = "q3.prepare_baking_materials"
+    bl_label = "Prepare Baking Materials"
     bl_options = {"INTERNAL", "REGISTER"}
 
     def execute(self, context):
@@ -2123,7 +2125,6 @@ class Prepare_Lightmap_Baking(bpy.types.Operator):
 
         context.view_layer.objects.active = None
         for obj in context.scene.objects:
-            obj.select_set(False)
             if obj.type != "MESH":
                 continue
 
@@ -2131,11 +2132,6 @@ class Prepare_Lightmap_Baking(bpy.types.Operator):
             if not (mesh.name.startswith("*") and (
                     obj.name in context.view_layer.objects)):
                 continue
-
-            context.view_layer.objects.active = obj
-            obj.select_set(True)
-            if "LightmapUV" in mesh.uv_layers:
-                mesh.uv_layers["LightmapUV"].active = True
 
             group_map = {
                 group.name: group.index for group in obj.vertex_groups}
@@ -2177,6 +2173,36 @@ class Prepare_Lightmap_Baking(bpy.types.Operator):
                 if new_mat.name not in mesh.materials:
                     mesh.materials.append(new_mat)
                 poly.material_index = mesh.materials.find(new_mat.name)
+
+        return {'FINISHED'}
+
+
+class Prepare_Lightmap_Baking(bpy.types.Operator):
+    """Prepare Lightmap Baking"""
+    bl_idname = "q3.prepare_lm_baking"
+    bl_label = "Prepare Lightmap Baking"
+    bl_options = {"INTERNAL", "REGISTER"}
+
+    def execute(self, context):
+
+        if context.object.mode == "EDIT":
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+        context.view_layer.objects.active = None
+        for obj in context.scene.objects:
+            obj.select_set(False)
+            if obj.type != "MESH":
+                continue
+
+            mesh = obj.data
+            if not (mesh.name.startswith("*") and (
+                    obj.name in context.view_layer.objects)):
+                continue
+
+            context.view_layer.objects.active = obj
+            obj.select_set(True)
+            if "LightmapUV" in mesh.uv_layers:
+                mesh.uv_layers["LightmapUV"].active = True
 
         for mat in bpy.data.materials:
             node_tree = mat.node_tree
@@ -2307,20 +2333,18 @@ class Q3_PT_DataExportPanel(bpy.types.Panel):
         layout = self.layout
         layout.label(text="1. Prepare your scene for baking")
         layout.separator()
-        op = layout.operator("q3.prepare_lm_baking",
-                             text="2. Prepare Lightmap Baking")
+        op = layout.operator("q3.prepare_baking_materials",
+                             text="2. Prepare Baking Materials (opt.)")
         layout.separator()
-        layout.label(text='3. Keep the selection of objects and bake light:')
+        op = layout.operator("q3.prepare_lm_baking",
+                             text="3. Prepare Lightmap Baking")
+        layout.separator()
+        layout.label(text='4. Keep the selection of objects and bake light:')
         layout.label(text='Bake Type: Diffuse only Direct and Indirect')
         layout.label(text='Margin: 1 px')
         layout.separator()
         op = layout.operator("q3.pack_lightmap_images",
-                             text="4. Pack and Save Baked Images")
-        layout.separator()
-        layout.label(text='5. Denoise $lightmap_bake and $vertmap_bake (opt.)')
-        layout.label(
-            text='Make sure your Images you want to be baked are named')
-        layout.label(text='$lightmap_bake and $vertmap_bake')
+                             text="5. Pack and Save Baked Images")
         layout.separator()
         op = layout.operator("q3.store_vertex_colors",
                              text="6. Preview Vertex Colors (opt.)")
@@ -2329,7 +2353,6 @@ class Q3_PT_DataExportPanel(bpy.types.Panel):
         layout.separator()
         layout.label(text="8. Select the LightGrid object and bake light:")
         layout.label(text='Bake Type: Diffuse only Direct and Indirect')
-        layout.label(text='Margin: 0 px!')
         layout.separator()
         op = layout.operator("q3.convert_baked_lightgrid",
                              text="9. Convert Baked Lightgrid")
