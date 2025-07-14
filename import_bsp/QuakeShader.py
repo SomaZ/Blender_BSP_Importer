@@ -1526,13 +1526,37 @@ class quake_shader:
             print("Fogparms with no proper values found")
             color = [1.0, 1.0, 1.0]
             density = 0.000011
+
         node_Voulme = shader.nodes.new(type="ShaderNodeVolumePrincipled")
+        node_density_scale = shader.nodes.new(type="ShaderNodeValue")
+        node_density_scale.outputs[0].default_value = float(density_scale)
+        node_density_scale.location = (1800, 0)
+        node_density_scale.name = "Scale"
+        node_density_scale.label = "Fog scale"
+        node_depth = shader.nodes.new(type="ShaderNodeValue")
+        node_depth.outputs[0].default_value = float(depth)
+        node_depth.location = (1800, 300)
+        node_depth.name = "Depth"
+        node_depth.label = "Depth to opaque"
+        node_depth_scale = shader.nodes.new(type="ShaderNodeMath")
+        node_depth_scale.operation = "DIVIDE"
+        node_depth_scale.inputs[0].default_value = sqrt(-log(1.0 / 255.0))
+        node_depth_scale.location = (2200, 300)
+        shader.links.new(node_depth.outputs[0], node_depth_scale.inputs[1])
+        node_density = shader.nodes.new(type="ShaderNodeMath")
+        node_density.operation = "MULTIPLY"
+        node_density.location = (2600, 0)
+        shader.links.new(node_depth_scale.outputs[0], node_density.inputs[0])
+        shader.links.new(node_density_scale.outputs[0], node_density.inputs[1])
+        shader.links.new(node_density.outputs[0], node_Voulme.inputs["Density"])
 
         node_Voulme.inputs["Color"].default_value = [*color, 1.0]
         node_Voulme.inputs["Density"].default_value = density
 
-        node_Voulme.inputs["Emission Strength"].default_value = density
-        node_Voulme.inputs["Emission Color"].default_value = [*color, 1.0]
+        if (import_settings.preset != 'RENDERING'):
+            node_Voulme.inputs["Emission Strength"].default_value = density
+            node_Voulme.inputs["Emission Color"].default_value = [*color, 1.0]
+            shader.links.new(node_density.outputs[0], node_Voulme.inputs["Emission Strength"])
 
         node_Voulme.name = "Out_Volume"
         node_Voulme.location = (3000, 0)
