@@ -2204,6 +2204,8 @@ class Prepare_Lightmap_Baking(bpy.types.Operator):
             if "LightmapUV" in mesh.uv_layers:
                 mesh.uv_layers["LightmapUV"].active = True
 
+        regular_bakes = ("$lightmap_bake", "$vertmap_bake")
+        deluxe_bakes = ("$deluxemap_bake", "$deluxevertmap_bake")
         for mat in bpy.data.materials:
             node_tree = mat.node_tree
             if node_tree is None:
@@ -2214,8 +2216,32 @@ class Prepare_Lightmap_Baking(bpy.types.Operator):
                 node.select = False
 
             if "Baking Image" in nodes:
-                nodes["Baking Image"].select = True
-                nodes.active = nodes["Baking Image"]
+                node = nodes["Baking Image"]
+                node.select = True
+                nodes.active = node
+                img = node.image
+                if context.scene.bake_type == "Deluxemap" and img.name in regular_bakes:
+                    index = regular_bakes.index(img.name)
+                    new_img = bpy.data.images.get(deluxe_bakes[index])
+                    if new_img is None:
+                        new_img = bpy.data.images.new(
+                            deluxe_bakes[index],
+                            width=img.size[0],
+                            height=img.size[1],
+                            float_buffer=True)
+                    new_img.colorspace_settings.name = 'Non-Color'
+                    node.image = new_img
+                elif context.scene.bake_type == "Lighting" and img.name in deluxe_bakes:
+                    index = deluxe_bakes.index(img.name)
+                    new_img = bpy.data.images.get(regular_bakes[index])
+                    if new_img is None:
+                        new_img = bpy.data.images.new(
+                            regular_bakes[index],
+                            width=img.size[0],
+                            height=img.size[1],
+                            float_buffer=True)
+                    new_img.colorspace_settings.name = 'Non-Color'
+                    node.image = new_img
 
         return {'FINISHED'}
 
@@ -2331,6 +2357,7 @@ class Q3_PT_DataExportPanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
+        layout.prop(context.scene, "bake_type")
         layout.label(text="1. Prepare your scene for baking")
         layout.separator()
         op = layout.operator("q3.prepare_baking_materials",

@@ -310,6 +310,15 @@ def register():
         description=(
             "Name for a new custom property"
             ))
+    bpy.types.Scene.bake_type = bpy.props.EnumProperty(
+        items=[
+            ("Lighting", "Lighting",
+             "Regular light bakes", 0),
+            ("Deluxemap", "Deluxemap",
+             "Bake average light incident vector (requires Blender Deluxemapping Edition)", 1)],
+        name="Bake Type",
+        description="Changes the bake target"
+    )
     
     addon_name = __name__.split('.')[0]
     prefs = bpy.context.preferences.addons[addon_name].preferences
@@ -329,6 +338,15 @@ def unregister():
     bpy.types.TOPBAR_MT_file_export.remove(UI.menu_func_md3_export)
     bpy.types.TOPBAR_MT_file_export.remove(UI.menu_func_mdr_export)
     bpy.types.TOPBAR_MT_file_export.remove(UI.menu_func_tik_export)
+
+    del bpy.types.Object.q3_dynamic_props
+    del bpy.types.Scene.id_tech_3_importer_preset
+    del bpy.types.Scene.id_tech_3_file_path
+    del bpy.types.Scene.id_tech_3_lightmaps_per_row
+    del bpy.types.Scene.id_tech_3_lightmaps_per_column
+    del bpy.types.Scene.new_id_tech_3_prop_name
+    del bpy.types.Scene.bake_type
+
     for cls in classes:
         bpy.utils.unregister_class(cls)
     for cls, catergory in panel_cls:
