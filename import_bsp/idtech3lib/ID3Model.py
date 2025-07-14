@@ -153,6 +153,7 @@ class ID3Model:
     def init_bsp_face_data(self, bsp, import_settings):
         self.vertex_groups["Lightmapped"] = set()
         self.vertex_groups["Patch mesh"] = set()
+        self.vertex_groups["Malfomed Lightmap TCs"] = set()
         self.vertex_data_layers["BSP_VERT_INDEX"] = (
             self.VertexAttribute(self.indices))
         if import_settings.surface_info_storing == Surface_info_storing.PER_VERTEX:
@@ -232,7 +233,10 @@ class ID3Model:
         drawverts_lump.append(vert)
         return new_bsp_index
 
-    def add_bsp_vertex_data(self, bsp, bsp_indices, face=None, force_vert_lit=False):
+    def add_bsp_vertex_data(self,
+                            bsp,
+                            bsp_indices,
+                            face=None):
         drawverts_lump = bsp.lumps["drawverts"]
 
         model_indices = []
@@ -296,7 +300,7 @@ class ID3Model:
 
                 # store lightmap ids for atlasing purposes
                 if "LightmapUV" in self.uv_layers and face:
-                    self.vertex_lightmap_id.add_indexed(face.lm_indexes if not force_vert_lit else [-3]*len(face.lm_indexes))
+                    self.vertex_lightmap_id.add_indexed(face.lm_indexes)
             model_indices.append(self.index_mapping[index])
         self.indices.append(model_indices)
 
@@ -305,15 +309,13 @@ class ID3Model:
                           model_indices,
                           face,
                           force_nodraw=False,
-                          force_vert_lit=False):
+                          malformed_face=False):
         shaders_lump = bsp.lumps["shaders"]
         material_suffix = ""
 
         first_lm_index = face.lm_indexes if (
             bsp.lightstyles == 0
         ) else face.lm_indexes[0]
-        if force_vert_lit:
-            first_lm_index = -3
 
         if force_nodraw:
             material_suffix = ".nodraw"
@@ -322,6 +324,10 @@ class ID3Model:
         elif "Lightmapped" in self.vertex_groups:
             for index in model_indices:
                 self.vertex_groups["Lightmapped"].add(index)
+
+        if "Malfomed Lightmap TCs" in self.vertex_groups and malformed_face:
+            for index in model_indices:
+                self.vertex_groups["Malfomed Lightmap TCs"].add(index)
 
         material_name = (
             shaders_lump[face.texture].name.decode("latin-1") +
@@ -366,23 +372,31 @@ class ID3Model:
                         bsp, index + 1)
                 )
 
-            force_vertlit = False
-            if "LightmapUV" in self.uv_layers and face.lm_indexes[0] >= 0:
+            malformed_face = False
+            
+            if bsp.lightmaps == 4 and "LightmapUV" in self.uv_layers and face.lm_indexes[0] >= 0:
                 tcs = set([
                     tuple(bsp.lumps["drawverts"][bsp_indices[0]].lm1coord),
                     tuple(bsp.lumps["drawverts"][bsp_indices[1]].lm1coord),
                     tuple(bsp.lumps["drawverts"][bsp_indices[2]].lm1coord)])
                 if len(tcs) == 1:
-                    force_vertlit = True
+                    malformed_face = True
+            elif bsp.lightmaps == 1 and "LightmapUV" in self.uv_layers and face.lm_indexes >= 0:
+                tcs = set([
+                    tuple(bsp.lumps["drawverts"][bsp_indices[0]].lm1coord),
+                    tuple(bsp.lumps["drawverts"][bsp_indices[1]].lm1coord),
+                    tuple(bsp.lumps["drawverts"][bsp_indices[2]].lm1coord)])
+                if len(tcs) == 1:
+                    malformed_face = True
 
-            self.add_bsp_vertex_data(bsp, bsp_indices, face, force_vertlit)
+            self.add_bsp_vertex_data(bsp, bsp_indices, face)
 
             model_indices = (
                 self.index_mapping[bsp_indices[0]],
                 self.index_mapping[bsp_indices[1]],
                 self.index_mapping[bsp_indices[2]]
             )
-            self.add_bsp_face_data(bsp, model_indices, face, False, force_vertlit)
+            self.add_bsp_face_data(bsp, model_indices, face, False, malformed_face)
 
     def subdivide_patch(self,
                         subdivisions,
