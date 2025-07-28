@@ -2120,7 +2120,7 @@ class Prepare_Baking_Materials(bpy.types.Operator):
 
     def execute(self, context):
 
-        if context.object.mode == "EDIT":
+        if context.object and context.object.mode == "EDIT":
             bpy.ops.object.mode_set(mode='OBJECT')
 
         context.view_layer.objects.active = None
@@ -2185,7 +2185,7 @@ class Prepare_Lightmap_Baking(bpy.types.Operator):
 
     def execute(self, context):
 
-        if context.object.mode == "EDIT":
+        if context.object and context.object.mode == "EDIT":
             bpy.ops.object.mode_set(mode='OBJECT')
 
         context.view_layer.objects.active = None
