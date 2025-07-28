@@ -593,6 +593,43 @@ def set_blender_clip_spaces(clip_start, clip_end):
                             s.clip_end = clip_end
 
 
+def get_main_collection(bsp_file):
+    map_name = bsp_file.map_name
+    if map_name.startswith("maps/"):
+        map_name = map_name[len("maps/"):]
+    main_collection = bpy.data.collections.get(map_name)
+    if main_collection is None:
+        main_collection = bpy.data.collections.new(name=map_name)
+        bpy.context.scene.collection.children.link(main_collection)
+    layer_collection = bpy.context.view_layer.layer_collection.children.get(main_collection.name)
+    if layer_collection:
+        bpy.context.view_layer.active_layer_collection = layer_collection
+    return main_collection
+
+
+def sort_bsp_objects_into_collections(main_collection):
+    main_layer = bpy.context.view_layer.layer_collection.children.get(main_collection.name)
+    if not main_layer:
+        print("Could not find the map collection in the scene collection")
+        return
+    for obj in main_collection.objects:
+        if obj.name.startswith("worldspawn"):
+            continue
+        split_name = obj.name.split("_", 1)
+        if len(split_name) == 1:
+            continue
+        etype, rest = split_name
+        col_name = "{}_{}".format(main_collection.name, etype)
+        ent_collection = bpy.data.collections.get(col_name)
+        if ent_collection is None:
+            ent_collection = bpy.data.collections.new(name=col_name)
+            main_collection.children.link(ent_collection)
+        for other_col in obj.users_collection:
+            other_col.objects.unlink(obj)
+        if obj.name not in ent_collection.objects:
+            ent_collection.objects.link(obj)
+
+
 def import_bsp_file(import_settings):
 
     print("initialize virtual file system")
@@ -604,11 +641,25 @@ def import_bsp_file(import_settings):
     print("read bsp data")
     bsp_file = BSP(VFS, import_settings)
 
+    main_collection = get_main_collection(bsp_file)
+
     # create blender objects
     blender_objects = []
     bsp_objects = None
     BRUSH_IMPORTS = ["BRUSHES", "SHADOW_BRUSHES"]
     if import_settings.preset in BRUSH_IMPORTS:
+
+        col_name = "{}_{}".format(main_collection.name, import_settings.preset)
+        brushes_collection = bpy.data.collections.get(col_name)
+        if brushes_collection is None:
+            brushes_collection = bpy.data.collections.new(name=col_name)
+            main_collection.children.link(brushes_collection)
+        layer_collection = bpy.context.view_layer.layer_collection.children.get(main_collection.name)
+        if layer_collection:
+            brush_layer = layer_collection.children.get(brushes_collection.name)
+            if brush_layer:
+                bpy.context.view_layer.active_layer_collection = brush_layer
+
         bsp_models = bsp_file.get_bsp_models()
         blender_meshes = create_meshes_from_models(bsp_models)
         for mesh_name in blender_meshes:
@@ -638,7 +689,7 @@ def import_bsp_file(import_settings):
         
         QuakeShader.build_quake_shaders(VFS, import_settings, blender_objects)
         return
-    
+
     print("prepare for packing internal lightmaps")
     bsp_file.lightmap_size = bsp_file.compute_packed_lightmap_size()
     print("get bsp entity objects")
@@ -650,6 +701,8 @@ def import_bsp_file(import_settings):
         bsp_objects,
         {},  # blender_meshes,
         bsp_file)
+    
+    sort_bsp_objects_into_collections(main_collection)
     
     print("handle fog volumes")
     bsp_fogs = bsp_file.get_bsp_fogs()
