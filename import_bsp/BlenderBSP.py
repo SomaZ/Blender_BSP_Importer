@@ -627,10 +627,15 @@ def import_bsp_file(import_settings):
             if import_settings.preset == "SHADOW_BRUSHES":
                 modifier = ob.modifiers.new("Displace", type="DISPLACE")
                 modifier.strength = -4.0
-                ob.data.name = "SB_{}".format(ob.data.name)
+                ob.data.name = "SB{}".format(ob.data.name)
             blender_objects.append(ob)
             bpy.context.collection.objects.link(ob)
-        QuakeShader.init_shader_system(bsp_file)
+
+        bsp_node = bpy.data.node_groups.get("BspInfo")
+        if bsp_node is None:
+            bsp_file.get_bsp_images()
+            QuakeShader.init_shader_system(bsp_file)
+        
         QuakeShader.build_quake_shaders(VFS, import_settings, blender_objects)
         return
     
