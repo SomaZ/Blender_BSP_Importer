@@ -39,7 +39,11 @@ class Q3VFS:
         for base in reversed(self.basepaths):
             for pk3_file in sorted(
                     [f for f in os.listdir(base) if f.endswith('.pk3')]):
-                pk3h = zipfile.ZipFile(os.path.join(base, pk3_file), mode='r')
+                try:
+                    pk3h = zipfile.ZipFile(os.path.join(base, pk3_file), mode='r')
+                except Exception:
+                    print('"{}" in "{}" is not a valid pk3 file'.format(pk3_file, base))
+                    continue
                 for pk3f in [f for f in pk3h.infolist() if not f.is_dir()]:
                     self.index[pk3f.filename.lower()] = self.PK3FileRetriever(
                         pk3h, pk3f)
