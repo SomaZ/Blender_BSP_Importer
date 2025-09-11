@@ -1031,7 +1031,9 @@ class quake_shader:
         shader.mat.use_backface_culling = True
         if "cull" in shader.attributes:
             if (shader.attributes["cull"][0] == "twosided" or
-               shader.attributes["cull"][0] == "none"):
+               shader.attributes["cull"][0] == "none" or
+               shader.attributes["cull"][0] == "disable"
+               ):
                 shader.mat.use_backface_culling = False
 
         if shader.mat.use_backface_culling:
@@ -1342,7 +1344,9 @@ class quake_shader:
         shader.mat.use_backface_culling = True
         if "cull" in shader.attributes:
             if (shader.attributes["cull"][0] == "twosided" or
-               shader.attributes["cull"][0] == "none"):
+               shader.attributes["cull"][0] == "none" or
+               shader.attributes["cull"][0] == "disable"
+               ):
                 shader.mat.use_backface_culling = False
         if bpy.app.version < (4, 3, 0):
             shader.mat.shadow_method = 'CLIP'
@@ -1454,7 +1458,9 @@ class quake_shader:
                     transparent = True
             if "cull" in shader.attributes:
                 if (shader.attributes["cull"][0] == "twosided" or
-                    shader.attributes["cull"][0] == "none"):
+                   shader.attributes["cull"][0] == "none" or
+                   shader.attributes["cull"][0] == "disable"
+                   ):
                     transparent = True
 
             if transparent:
