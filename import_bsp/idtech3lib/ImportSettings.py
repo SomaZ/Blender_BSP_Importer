@@ -76,6 +76,7 @@ class Import_Settings:
     current_vert_pack_index = 0
     normal_map_option: NormalMapOption = NormalMapOption.DIRECTX
     surface_info_storing: Surface_info_storing = Surface_info_storing.NONE
+    reimporting: bool = False
 
     def __post_init__(self):
         self.bsp_name = guess_map_name(self.file)

@@ -281,7 +281,6 @@ class quake_shader:
         shader.mat = material
         shader.mat.use_nodes = True
         shader.nodes = shader.mat.node_tree.nodes
-        shader.nodes.clear()
         shader.links = shader.mat.node_tree.links
         #   "name"          : Position
         shader.static_nodes = {"tcNormal": [-400.0, 10.0],
@@ -333,10 +332,6 @@ class quake_shader:
 
             if name.endswith(".nodraw"):
                 shader.is_system_shader = True
-
-        node_output = shader.nodes.new(type='ShaderNodeOutputMaterial')
-        node_output.name = "Output"
-        node_output.location = (4200, 0)
 
     def set_vertex_lit(shader):
         shader.is_vertex_lit = True
@@ -1492,7 +1487,6 @@ class quake_shader:
             shader.mat.blend_method = "BLEND"
 
     def finish_fog_shader(shader, VFS, import_settings):
-        shader.nodes.clear()
         node_output = shader.nodes.new(type='ShaderNodeOutputMaterial')
         node_output.name = "Output"
         node_output.location = (3400, 0)
@@ -1570,6 +1564,12 @@ class quake_shader:
             node_Voulme.outputs["Volume"], node_output.inputs[1])
 
     def finish_shader(shader, VFS, import_settings):
+
+        shader.nodes.clear()
+        node_output = shader.nodes.new(type='ShaderNodeOutputMaterial')
+        node_output.name = "Output"
+        node_output.location = (4200, 0)
+
         if shader.is_fog:
             shader.finish_fog_shader(VFS, import_settings)
         elif shader.is_brush:
@@ -1625,6 +1625,12 @@ def build_quake_shaders(VFS, import_settings, object_list):
     shaders = {}
     material_list = []
     material_names = []
+
+    # Gather skipping materials
+    skip_shaders = []
+    if import_settings.reimporting:
+        skip_shaders = [material.name for material in bpy.data.materials]
+
     for object in object_list:
         if object.data.name == "box":
             continue
@@ -1702,7 +1708,8 @@ def build_quake_shaders(VFS, import_settings, object_list):
                 current_shader.add_stage(stage)
 
         for current_shader in current_shaders:
-            current_shader.finish_shader(VFS, import_settings)
+            if current_shader.name not in skip_shaders:
+                current_shader.finish_shader(VFS, import_settings)
             has_external_lm = False
             for shader_stage in current_shader.stages:
                 if (shader_stage.tcGen == TCGEN_LM and
@@ -1736,7 +1743,8 @@ def build_quake_shaders(VFS, import_settings, object_list):
         if shader in shader_info:
             continue
         for current_shader in shaders[shader]:
-            current_shader.finish_shader(VFS, import_settings)
+            if current_shader.name not in skip_shaders:
+                current_shader.finish_shader(VFS, import_settings)
 
     for object in object_list:
         vg = object.vertex_groups.get("Decals")

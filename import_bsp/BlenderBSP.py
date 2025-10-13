@@ -152,7 +152,7 @@ def load_mesh(VFS, mesh_name, zoffset, bsp):
 
         mesh = bpy.data.meshes.get(mesh_name)
         if mesh != None:
-            mesh.name = mesh_name+"_prev.000"
+            mesh.name = mesh_name+"_prev"
 
         try:
             model_id = int(mesh_name[1:])
@@ -694,31 +694,46 @@ def import_bsp_file(import_settings):
     bsp_file.lightmap_size = bsp_file.compute_packed_lightmap_size()
     print("get bsp entity objects")
     bsp_objects = bsp_file.get_bsp_entity_objects()
-    print("create blender objects")
-    blender_objects = create_blender_objects(
-        VFS,
-        import_settings,
-        bsp_objects,
-        {},  # blender_meshes,
-        bsp_file)
+    if import_settings.reimporting:
+        blender_objects = []
+        for obj in bpy.data.objects:
+            if obj.data.name.startswith("*") and not obj.data.name.endswith("_prev"):
+                print(obj.name, "will be reimported")
+                blender_mesh, vertex_groups = load_mesh(VFS, obj.data.name, 0, bsp_file)
+                obj.data = blender_mesh
+                blender_objects.append(obj)
+                for vert_group in vertex_groups:
+                    vg = obj.vertex_groups.get(vert_group)
+                    if vg is not None:
+                        object.vertex_groups.remove(vg)
+                    vg = obj.vertex_groups.new(name=vert_group)
+                    vg.add(list(vertex_groups[vert_group]), 1.0, 'ADD')
+    else:
+        print("create blender objects")
+        blender_objects = create_blender_objects(
+            VFS,
+            import_settings,
+            bsp_objects,
+            {},  # blender_meshes,
+            bsp_file)
     
-    sort_bsp_objects_into_collections(main_collection)
-    
-    print("handle fog volumes")
-    bsp_fogs = bsp_file.get_bsp_fogs()
-    fog_meshes = create_meshes_from_models(bsp_fogs)
-    if fog_meshes is not None:
-        for mesh_name in fog_meshes:
-                mesh, vertex_groups = fog_meshes[mesh_name]
-                if mesh is None:
-                    mesh = bpy.data.meshes.new(mesh_name)
-                ob = bpy.data.objects.new(
-                        name=mesh_name,
-                        object_data=mesh)
-                # Give the volume a slight push so cycles doesnt z-fight...
-                modifier = ob.modifiers.new("Displace", type="DISPLACE")
-                blender_objects.append(ob)
-                bpy.context.collection.objects.link(ob)
+        sort_bsp_objects_into_collections(main_collection)
+        
+        print("handle fog volumes")
+        bsp_fogs = bsp_file.get_bsp_fogs()
+        fog_meshes = create_meshes_from_models(bsp_fogs)
+        if fog_meshes is not None:
+            for mesh_name in fog_meshes:
+                    mesh, vertex_groups = fog_meshes[mesh_name]
+                    if mesh is None:
+                        mesh = bpy.data.meshes.new(mesh_name)
+                    ob = bpy.data.objects.new(
+                            name=mesh_name,
+                            object_data=mesh)
+                    # Give the volume a slight push so cycles doesnt z-fight...
+                    modifier = ob.modifiers.new("Displace", type="DISPLACE")
+                    blender_objects.append(ob)
+                    bpy.context.collection.objects.link(ob)
 
     print("get clip data and gridsize")
     clip_end = 40000
@@ -742,14 +757,19 @@ def import_bsp_file(import_settings):
     bsp_images = bsp_file.get_bsp_images()
     for image in bsp_images:
         old_image = bpy.data.images.get(image.name)
-        if old_image != None:
-            old_image.name = image.name + "_prev.000"
+        if old_image != None and not import_settings.reimporting:
+            old_image.name = old_image.name + "_prev"
+
         try:
-            new_image = bpy.data.images.new(
-                image.name,
-                width=image.width,
-                height=image.height,
-                alpha=image.num_components == 4)
+            if import_settings.reimporting and old_image is not None:
+                new_image = old_image
+                new_image.scale(image.width, image.height)
+            else:
+                new_image = bpy.data.images.new(
+                    image.name,
+                    width=image.width,
+                    height=image.height,
+                    alpha=image.num_components == 4)
             new_image.pixels = image.get_rgba()
             new_image.alpha_mode = 'CHANNEL_PACKED'
             new_image.use_fake_user = True
@@ -787,11 +807,19 @@ def import_bsp_file(import_settings):
             False,
             False,
             4)
+        
+        old_image = bpy.data.images.get("$lightmap")
+        if old_image != None and not import_settings.reimporting:
+            old_image.name = old_image.name + "_prev"
 
-        new_image = bpy.data.images.new(
-            "$lightmap",
-            width=bsp_file.lightmap_size[0],
-            height=bsp_file.lightmap_size[1])
+        if import_settings.reimporting and old_image is not None:
+            new_image = old_image
+            new_image.scale(*bsp_file.lightmap_size)
+        else:
+            new_image = bpy.data.images.new(
+                "$lightmap",
+                width=bsp_file.lightmap_size[0],
+                height=bsp_file.lightmap_size[1])
         new_image.pixels = atlas_pixels
         new_image.alpha_mode = 'CHANNEL_PACKED'
 
@@ -802,11 +830,19 @@ def import_bsp_file(import_settings):
                 True,
                 False,
                 4)
+            
+            old_image = bpy.data.images.get("$deluxemap")
+            if old_image != None and not import_settings.reimporting:
+                old_image.name = old_image.name + "_prev"
 
-            new_image = bpy.data.images.new(
-                "$deluxemap",
-                width=bsp_file.lightmap_size[0],
-                height=bsp_file.lightmap_size[1])
+            if import_settings.reimporting and old_image is not None:
+                new_image = old_image
+                new_image.scale(*bsp_file.lightmap_size)
+            else:
+                new_image = bpy.data.images.new(
+                    "$deluxemap",
+                    width=bsp_file.lightmap_size[0],
+                    height=bsp_file.lightmap_size[1])
             new_image.pixels = atlas_pixels
             new_image.alpha_mode = 'CHANNEL_PACKED'
 

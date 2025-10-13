@@ -118,6 +118,11 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
             ('Primitive', 'Primitive packing', "Tightly pack all vertex lit primitives. Useful for light baking", 1),
             ('UVMap', 'Diffuse UV copy', "Copies the diffuse UVs for the vertex lit surfaces. Useful for patching lightmap uvs", 2),
         ])
+    reimport: BoolProperty(
+        name="Reimport",
+        description="The map is already imported and we want to keep some of our edits? Enable this setting",
+        default=False
+    )
 
     def execute(self, context):
         addon_name = __name__.split('.')[0]
@@ -164,7 +169,8 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
             entity_dict=entity_dict,
             vert_lit_handling=stupid_dict[self.vert_map_packing],
             normal_map_option=prefs.normal_map_option,
-            surface_info_storing=Surface_info_storing.PER_TRIANGLE
+            surface_info_storing=Surface_info_storing.PER_TRIANGLE,
+            reimporting=self.reimport,
         )
 
         # scene information
@@ -212,6 +218,9 @@ class Import_ID3_BSP(bpy.types.Operator, ImportHelper):
         row.prop(self, "vert_map_packing")
         row = layout.row()
         row.prop(prefs, "normal_map_option")
+        row = layout.row()
+        row.prop(self, "reimport")
+        
 
 class Import_MAP(bpy.types.Operator, ImportHelper):
     """Import a ID3 engine MAP file (Quake 3, Jedi Outcast/Academy, etc.)"""
