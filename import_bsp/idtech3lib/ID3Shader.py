@@ -41,7 +41,7 @@ def get_material_dicts(VFS, import_settings, material_list):
             if (not l_open(line) and not l_close(line)):
                 # shader names
                 if is_open == 0:
-                    if line in material_list:
+                    if material_list is None or line in material_list:
                         current_shader = line
                         attributes["first_line"] = line_num + 1
                         attributes["shader_file"] = shader_file
