@@ -17,7 +17,7 @@ from . import BlenderBSP, BlenderEntities
 from . import MD3, TAN, TIKI, MDR
 from . import QuakeShader, QuakeSky, QuakeLight, ShaderNodes
 
-from .idtech3lib import Helpers, Parsing, GamePacks
+from .idtech3lib import Helpers, Parsing, GamePacks, ID3Shader
 from .idtech3lib.ID3VFS import Q3VFS
 from .idtech3lib.ImportSettings import *
 
@@ -2728,6 +2728,107 @@ class FillAssetLibraryEntities(bpy.types.Operator):
             layerColl.exclude = True
 
         bpy.ops.wm.save_as_mainfile(filepath=prefs.assetlibrary+"/"+"entities.blend")
+
+        for line in log:
+            print(line)
+        return {'FINISHED'}
+
+
+class FillAssetLibraryMats(bpy.types.Operator):
+    """Fill asset library with materials"""
+    bl_idname = "q3.fill_asset_lib_mats"
+    bl_label = "Fill asset library with materials"
+    bl_options = {"INTERNAL", "REGISTER"}
+    def execute(self, context):
+        if bpy.app.version < (3, 0, 0):
+            return {'FINISHED'}
+
+        log = []
+        addon_name = __name__.split('.')[0]
+        prefs = context.preferences.addons[addon_name].preferences
+
+        asset_library_path = prefs.assetlibrary.replace("\\", "/")
+
+        base_paths = get_base_paths(context)
+        if len(base_paths) == 0:
+            self.report({"ERROR"}, "No base path configured.")
+            return {'CANCELLED'}
+        
+        # initialize virtual file system
+        VFS = Q3VFS()
+        for base_path in base_paths:
+            VFS.add_base(base_path)
+        VFS.build_index()
+
+        import_settings = Import_Settings()
+        import_settings.base_paths=base_paths
+        import_settings.bsp_name = ""
+        import_settings.preset = "RENDERING"
+
+        cats_f = "{}/blender_assets.cats.txt".format(asset_library_path)
+        os.makedirs(asset_library_path, exist_ok=True)
+        a_categorys = {}
+        add_version_to_cats = False
+        if os.path.isfile(cats_f):
+            with open(cats_f, "r") as f:
+                for line in f.readlines():
+                    if line.startswith(("#", "VERSION", "\n")):
+                        continue
+                    c_uuid, path, name = line.split(":")
+                    a_categorys[path] = c_uuid
+        else:
+            add_version_to_cats = True
+
+        # categories
+
+        shaders = ID3Shader.get_material_dicts(VFS, import_settings, None)
+        if len(shaders) == 0:
+            self.report({"ERROR"}, "No shader files found.")
+            return {'CANCELLED'}
+
+
+        for shader in shaders:
+            shader_struct = shader.split("/")
+            current_path = "Materials/" + "/".join(shader_struct[:-1])
+            if current_path not in a_categorys:
+                a_categorys[current_path] = None
+        
+        with open(cats_f, "a+") as f:
+            if add_version_to_cats:
+                f.write("VERSION 1\n")
+            for cat in a_categorys:
+                if a_categorys[cat] is None:
+                    a_categorys[cat] = str(uuid.uuid4())
+                    split_cat = cat.split("/")
+                    f.write(":".join((a_categorys[cat], cat, split_cat[len(split_cat)-1])))
+                    f.write("\n")
+
+        ent_object = bpy.ops.mesh.primitive_cube_add(
+            size=8.0, location=([0, 0, 0]))
+        ent_object = bpy.context.object
+        ent_object.name = "box"
+        mats = []
+        for shader in shaders:
+            mat = bpy.data.materials.new(shader)
+            mats.append(mat)
+            ent_object.data.materials.append(mat)
+
+        imported_objects = [ent_object]
+
+        QuakeShader.init_shader_system(None)
+        QuakeShader.build_quake_shaders(
+                VFS,
+                import_settings,
+                imported_objects)
+        
+        for mat in mats:
+            mat.asset_mark()
+            shader_struct = mat.name.split("/")
+            current_path = "Materials/" + "/".join(shader_struct[:-1])
+            mat.asset_data.catalog_id = a_categorys[current_path]
+            mat.asset_generate_preview()
+
+        bpy.ops.wm.save_as_mainfile(filepath=prefs.assetlibrary+"/"+"materials.blend")
 
         for line in log:
             print(line)

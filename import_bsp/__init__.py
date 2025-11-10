@@ -231,6 +231,7 @@ class BspImportAddonPreferences(bpy.types.AddonPreferences):
             row = layout.row()
             row.operator("q3.fill_asset_lib", text="Fill with models")
             row.operator("q3.fill_asset_lib_entities", text="Fill with entities")
+            row.operator("q3.fill_asset_lib_mats", text="Fill with shaders")
 
 
 classes = (Gamepacks.Open_gamepack,
@@ -265,6 +266,7 @@ classes = (Gamepacks.Open_gamepack,
            UI.Pack_Lightmap_Images,
            UI.FillAssetLibrary,
            UI.FillAssetLibraryEntities,
+           UI.FillAssetLibraryMats,
            UI.Q3_OP_Equi_to_box,
            UI.Q3_PT_Imagepanel,
            UI.Q3_OP_Quick_emission_mat,
