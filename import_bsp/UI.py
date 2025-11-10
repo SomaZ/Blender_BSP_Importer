@@ -16,6 +16,7 @@ import uuid
 from . import BlenderBSP, BlenderEntities
 from . import MD3, TAN, TIKI, MDR
 from . import QuakeShader, QuakeSky, QuakeLight, ShaderNodes
+from . import BlenderBSPPatching
 
 from .idtech3lib import Helpers, Parsing, GamePacks, ID3Shader
 from .idtech3lib.ID3VFS import Q3VFS
@@ -1583,6 +1584,7 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
             ('$lightmap_bake', "$lightmap_bake", "$lightmap_bake", 0),
             ('$lightmap', "$lightmap", "$lightmap", 1)])
     patch_external: BoolProperty(name="Save External Lightmaps", default=False)
+    patch_deluxe:BoolProperty(name="Save Deluxemaps", default=False)
     patch_external_flip: BoolProperty(
         name="Flip External Lightmaps",
         default=False)
@@ -1615,9 +1617,7 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
 
     # TODO Shader lump + shader assignments
     def execute(self, context):
-        class light_settings:
-            pass
-        light_settings = light_settings()
+        light_settings = BlenderBSPPatching.Light_settings()
         light_settings.gamma = self.lightmap_gamma
         light_settings.overbright_bits = int(self.overbright_bits)
         light_settings.compensate = self.compensate
@@ -1974,6 +1974,12 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
                                                     bsp_vert.lm4coord,
                                                     lightmap_size,
                                                     packed_lightmap_size))
+                                    else:
+                                        lightmap_id.append(-3)
+                                        if bsp.lightmaps == 4:
+                                            lightmap_id2.append(-3)
+                                            lightmap_id3.append(-3)
+                                            lightmap_id4.append(-3)
 
                     if len(vertices) > 0:
                         if len(lightmap_id) > 0:
@@ -2089,7 +2095,7 @@ class PatchBspData(bpy.types.Operator, ExportHelper):
         if self.patch_colors:
             self.report({"INFO"}, "Storing Vertex Colors...")
             success, message = QuakeLight.storeVertexColors(
-                bsp, objs, light_settings, self.patch_colors)
+                bsp, objs, light_settings)
             self.report({"INFO"} if success else {"ERROR"}, message)
 
         # write bsp
