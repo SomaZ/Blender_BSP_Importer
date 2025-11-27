@@ -511,9 +511,15 @@ class Color_Normalize_Node(Generic_Node_Group):
         group_outputs.location = (1300, 0)
         create_node_output(light_group, 'NodeSocketColor', 'OutColor')
 
-        rgb_node = light_group.nodes.new(type="ShaderNodeSeparateRGB")
+        if bpy.app.version >= (3, 3, 0):
+            rgb_node = light_group.nodes.new(type="ShaderNodeSeparateColor")
+            rgb_input_socket_name = "Color"
+        else:
+            rgb_node = light_group.nodes.new(type="ShaderNodeSeparateRGB")
+            rgb_input_socket_name = "Image"
+
         light_group.links.new(
-            group_inputs.outputs["Color"], rgb_node.inputs["Image"])
+            group_inputs.outputs["Color"], rgb_node.inputs[rgb_input_socket_name])
 
         max1 = light_group.nodes.new(type="ShaderNodeMath")
         max1.operation = "MAXIMUM"
