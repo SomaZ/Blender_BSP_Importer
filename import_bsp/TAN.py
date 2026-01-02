@@ -22,7 +22,7 @@ class vertex_map:
         self.loop = loop_id
         self.position = mesh.vertices[vertex_id].co.copy()
         self.normal = mesh.vertices[vertex_id].normal.copy()
-        if mesh.has_custom_normals:
+        if mesh.has_custom_normals or bpy.app.version >= (4, 1, 0):
             self.normal = mesh.loops[loop_id].normal.copy()
         self.tc = mesh.uv_layers.active.data[loop_id].uv.copy()
 
