@@ -7,7 +7,8 @@ from numpy import (cross,
                    arccos,
                    linalg,
                    sin,
-                   cos)
+                   cos,
+                   round)
 from itertools import combinations
 from dataclasses import field
 
@@ -152,22 +153,22 @@ def parse_brush(planes, material_sizes=None):
     for combination in combinations(planes, 3):
         point = p3_intersect(*combination)
         if point is not None:
-            all_points.add(point)
+            all_points.add(tuple(round(point, 4)))
 
     # cull vertices that are outside the brush
     for plane in test_planes:
         all_points = [p for p in all_points.copy()
-                      if dot(plane, (*p, 1.0)) <= 0.00001]
+                      if dot(plane, (*p, 1.0)) <= 0.0001]
 
     for plane, uv_data in zip(test_planes, test_uvs):
         # select points on plane
         culled_points = [p for p in all_points.copy()
-                         if abs(dot(plane, (*p, 1.0))) <= 0.00001]
+                         if abs(dot(plane, (*p, 1.0))) <= 0.0001]
 
-        culled_points_set = set(culled_points)
+        culled_points = list(set(culled_points))
 
         # check if valid face
-        if len(culled_points_set) < 3:
+        if len(culled_points) < 3:
             continue
 
         # create face for the plane
