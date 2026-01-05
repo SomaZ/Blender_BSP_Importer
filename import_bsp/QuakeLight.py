@@ -57,15 +57,11 @@ def colorNormalize(color, scale, lightsettings=None):
         outColor[2] /= color_max
 
     if lightsettings:
-        if lightsettings.compensate:
-            outColor[0] *= scale
-            outColor[1] *= scale
-            outColor[2] *= scale
-
-        return linearToSRGB(outColor) if lightsettings.gamma == "sRGB" else \
-            linearToGamma(outColor, float(lightsettings.gamma))
-    else:
+        outColor = linearToGamma(outColor, float(lightsettings.gamma))
+    if lightsettings and lightsettings.sRGB_transform:
         return linearToSRGB(outColor)
+    else:
+        return outColor
 
 
 def color_to_bytes(color):
@@ -122,132 +118,6 @@ def add_light(name, type, intensity, color, vector, angle):
             rotation_vec).to_euler()
 
     return obj
-
-
-def storeLighmaps(bsp,
-                  image,
-                  n_lightmaps,
-                  light_settings,
-                  internal=True,
-                  flip=False):
-    hdr = light_settings.hdr
-    lm_size = bsp.lightmap_size
-    color_components = 4
-    color_scale = 1.0 / (pow(2.0, float(light_settings.overbright_bits)))
-
-    if image is None:
-        return False, "No image found for patching"
-
-    local_pixels = list(image.pixels[:])
-
-    packed_width, packed_height = image.size
-    blender_lm_size = (packed_width /
-                       bpy.context.scene.id_tech_3_lightmaps_per_column,
-                       packed_height /
-                       bpy.context.scene.id_tech_3_lightmaps_per_row)
-
-    if internal:
-        if (blender_lm_size[0] != lm_size[0]) or (
-                blender_lm_size[1] != lm_size[1]):
-            return (False,
-                    "Rescale the lightmap texture atlas to the "
-                    "right resolution")
-    else:
-        lm_size = int(blender_lm_size[0]), int(blender_lm_size[1])
-
-    num_rows = bpy.context.scene.id_tech_3_lightmaps_per_row
-    num_columns = bpy.context.scene.id_tech_3_lightmaps_per_column
-    numPixels = lm_size[0] * lm_size[1] * color_components
-    lightmaps = [[float(0.0)] * numPixels for i in range(n_lightmaps)]
-
-    for pixel in range(packed_width*packed_height):
-        # pixel position in packed texture
-        row = pixel % packed_width
-        colum = floor(pixel/packed_height)
-
-        # lightmap quadrant
-        quadrant_x = floor(row/lm_size[0])
-        quadrant_y = floor(colum/lm_size[1])
-        lightmap_id = floor(quadrant_x + (num_columns * quadrant_y))
-
-        if (lightmap_id > n_lightmaps-1) or (lightmap_id < 0):
-            continue
-        else:
-            # pixel id in lightmap
-            lm_x = row % lm_size[0]
-            lm_y = colum % lm_size[1]
-
-            if (internal and not hdr) or flip:
-                lm_y = lm_size[1]-1 - lm_y
-
-            pixel_id = int(lm_x + (lm_y * lm_size[0]))
-
-            lightmaps[lightmap_id][pixel_id * color_components] = (
-                local_pixels[4 * pixel + 0])
-            lightmaps[lightmap_id][pixel_id*color_components + 1] = (
-                local_pixels[4 * pixel + 1])
-            lightmaps[lightmap_id][pixel_id*color_components + 2] = (
-                local_pixels[4 * pixel + 2])
-            lightmaps[lightmap_id][pixel_id*color_components + 3] = 1.0
-
-    if internal and not hdr:
-        # clear lightmap lump
-        bsp.lumps["lightmaps"].clear()
-
-        # fill lightmap lump
-        for i in range(n_lightmaps):
-            internal_lightmap = [0] * (lm_size[0] * lm_size[1] * 3)
-            for pixel in range(lm_size[0] * lm_size[1]):
-                outColor = color_to_bytes(
-                    colorNormalize(
-                        [lightmaps[i][pixel * color_components],
-                         lightmaps[i][pixel * color_components + 1],
-                         lightmaps[i][pixel * color_components + 2]],
-                        color_scale,
-                        light_settings))
-
-                internal_lightmap[pixel * 3] = outColor[0]
-                internal_lightmap[pixel * 3 + 1] = outColor[1]
-                internal_lightmap[pixel * 3 + 2] = outColor[2]
-
-            bsp_lightmap = bsp.lump_info["lightmaps"]()
-            bsp_lightmap.map[:] = internal_lightmap
-            bsp.lumps["lightmaps"].append(bsp_lightmap)
-
-    if not internal or hdr:
-        bsp_path = bsp.import_settings.file.replace("\\", "/").split(".")[0] + "/"
-        if not os.path.exists(bsp_path):
-            os.makedirs(bsp_path)
-        file_type = "HDR" if hdr else "TARGA_RAW"
-        file_ext = ".hdr" if hdr else ".tga"
-        color_space = 'Non-Color' if hdr else "sRGB"
-
-        image_settings = bpy.context.scene.render.image_settings
-        image_settings.file_format = file_type
-        image_settings.color_depth = '32' if hdr else '8'
-        image_settings.color_mode = 'RGB'
-        img_name = "lm_export_buffer"
-
-        for lightmap in range(n_lightmaps):
-            image = bpy.data.images.get(img_name)
-            if image is None:
-                image = bpy.data.images.new(
-                    img_name,
-                    width=lm_size[0],
-                    height=lm_size[1],
-                    float_buffer=True)
-                image.colorspace_settings.name = color_space
-                image.file_format = file_type
-
-            image.filepath_raw = bsp_path + "lm_" + \
-                str(lightmap).zfill(4) + file_ext.lower()
-            image.pixels = lightmaps[lightmap]
-            image.save_render(image.filepath_raw, scene=bpy.context.scene)
-
-    if internal and not hdr:
-        return True, "Lightmaps succesfully added to BSP"
-    else:
-        return True, "Lightmap images succesfully created"
 
 
 def create_lightgrid():
@@ -385,6 +255,8 @@ def packLightgridData(bsp,
         bsp.lumps["lightgridarray"].clear()
 
     color_scale = 1.0 / (pow(2.0, float(light_settings.overbright_bits)))
+    color_scale *= pow(2.0, light_settings.exposure)
+
     current_pixel_mapping = 0
     hash_table = {}
     hash_table_diff = {}
@@ -637,12 +509,11 @@ def packLightgridData(bsp,
     return current_pixel_mapping
 
 
-def storeLightgrid(bsp, light_settings):
+def storeLightgrid(bsp, patch_settings, light_settings):
 
     # light_settings.gamma = self.lightmap_gamma
     # light_settings.overbright_bits = self.overbright_bits
-    # light_settings.compensate = self.compensate
-    hdr_export = light_settings.hdr
+    hdr_export = patch_settings.hdr_lighting
 
     vec_image = bpy.data.images.get("$Vector")
     dir_image = bpy.data.images.get("$Direct")
@@ -1030,9 +901,10 @@ def bake_uv_to_vc(objs, uv_layer, vertex_layer):
     return True, "Vertex colors succesfully added to mesh"
 
 
-def storeVertexColors(bsp, objs, light_settings):
-    hdr_export = light_settings.hdr
+def storeVertexColors(bsp, objs, patch_settings, light_settings):
+    hdr_export = patch_settings.hdr_lighting
     color_scale = 1.0 / (pow(2.0, float(light_settings.overbright_bits)))
+    color_scale *= pow(2.0, light_settings.exposure)
 
     lightmap = bpy.data.images.get("$lightmap_bake")
     vertexmap = bpy.data.images.get("$vertmap_bake")
