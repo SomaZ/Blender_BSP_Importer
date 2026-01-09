@@ -194,9 +194,9 @@ def patch_static_lighting(bsp, bsp_indices, mesh, lightmapped_vertices, light_se
     lightmap_size = bsp.lightmap_size
     packed_lightmap_size = [
         lightmap_size[0] *
-        bpy.context.scene.id_tech_3_lightmaps_per_column,
+        bpy.context.scene.id_tech_3_lightmaps_per_row,
         lightmap_size[1] *
-        bpy.context.scene.id_tech_3_lightmaps_per_row]
+        bpy.context.scene.id_tech_3_lightmaps_per_column]
     
     # Find the lightmap ids from patched tcs
     # then set the surfaces lightmap ids
@@ -458,18 +458,15 @@ def patch_lightmaps(bsp, patch_settings: Patch_settings, light_settings: Light_s
     if not patch_settings.external_lighting:
         bsp.lumps["lightmaps"].clear()
 
-    num_rows = bpy.context.scene.id_tech_3_lightmaps_per_row
-    num_columns = bpy.context.scene.id_tech_3_lightmaps_per_column
-
-    export_width = image.size[0] // bpy.context.scene.id_tech_3_lightmaps_per_column
-    export_height = image.size[1] // bpy.context.scene.id_tech_3_lightmaps_per_row
+    export_width = image.size[0] // bpy.context.scene.id_tech_3_lightmaps_per_row
+    export_height = image.size[1] // bpy.context.scene.id_tech_3_lightmaps_per_column
     export_length = export_width * export_height * 4
     atlas_pixels = numpy.array(image.pixels[:]).reshape(
-        (image.size[0], image.size[1], 4))
+        (image.size[1], image.size[0], 4))
     lightmap = 0
 
-    for y in range(num_rows):
-        for x in range(num_columns):
+    for y in range(bpy.context.scene.id_tech_3_lightmaps_per_column):
+        for x in range(bpy.context.scene.id_tech_3_lightmaps_per_row):
             start = (x * export_width, y * export_height)
             end = (start[0] + export_width, start[1] + export_height)
             cropped = atlas_pixels[start[1]:end[1], start[0]:end[0]]
@@ -526,12 +523,12 @@ def patch_lightmaps(bsp, patch_settings: Patch_settings, light_settings: Light_s
             # write to bsp
             else:
                 bsp_lightmap = bsp.lump_info["lightmaps"]()
-                bsp_lightmap.map[:] = (sdr[:, :, :3] * 255).astype(numpy.uint8).reshape(
+                bsp_lightmap.map[:] = (sdr[::-1, :, :3] * 255).astype(numpy.uint8).reshape(
                     export_width * export_height * 3)
                 bsp.lumps["lightmaps"].append(bsp_lightmap)
                 if deluxemap_pixels:
                     bsp_lightmap = bsp.lump_info["lightmaps"]()
-                    bsp_lightmap.map[:] = (deluxemap_pixels[:, :, :3] * 255).astype(numpy.uint8).reshape(
+                    bsp_lightmap.map[:] = (deluxemap_pixels[::-1, :, :3] * 255).astype(numpy.uint8).reshape(
                         export_width * export_height * 3)
                     bsp.lumps["lightmaps"].append(bsp_lightmap)
 
