@@ -59,7 +59,7 @@ class surface_descriptor:
             loo = zipped[1]
             vert_pos = in_mesh.vertices[tri].co.copy()
             vert_nor = in_mesh.vertices[tri].normal.copy()
-            if in_mesh.has_custom_normals:
+            if in_mesh.has_custom_normals or bpy.app.version >= (4, 1, 0):
                 vert_nor = in_mesh.loops[loo].normal.copy()
             vert_tc = in_mesh.uv_layers.active.data[loo].uv.copy()
             triangle_descriptor.append((vert_pos, vert_nor, vert_tc))
@@ -375,7 +375,7 @@ class TAN:
                 mesh = map.mesh
                 new_vertex = cls.vertex.from_vertex(mesh.vertices[map.vert])
                 new_tc = cls.tc.from_loop(mesh.uv_layers.active.data[map.loop])
-                if mesh.has_custom_normals:
+                if mesh.has_custom_normals or bpy.app.version >= (4, 1, 0):
                     new_vertex.normal = mesh.loops[map.loop].normal.copy()
 
                 surface.vertices.data.append(new_vertex)
@@ -394,7 +394,7 @@ class TAN:
                 mesh = map.mesh
                 new_vertex = self.vertex.from_vertex(mesh.vertices[map.vert])
                 new_vertex.apply_scale_offset(scale, offset)
-                if mesh.has_custom_normals:
+                if mesh.has_custom_normals or bpy.app.version >= (4, 1, 0):
                     new_vertex.normal = mesh.loops[map.loop].normal.copy()
 
                 self.vertices.data.append(new_vertex)

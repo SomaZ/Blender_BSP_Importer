@@ -151,7 +151,7 @@ class MD3:
                 mesh = map.mesh
                 new_vertex = cls.vertex.from_vertex(mesh.vertices[map.vert])
                 new_tc = cls.tc.from_loop(mesh.uv_layers.active.data[map.loop])
-                if mesh.has_custom_normals:
+                if mesh.has_custom_normals or bpy.app.version >= (4, 1, 0):
                     new_vertex.normal = mesh.loops[map.loop].normal.copy()
 
                 surface.vertices.data.append(new_vertex)
@@ -170,7 +170,7 @@ class MD3:
             for map in sd.vertex_mapping:
                 mesh = map.mesh
                 new_vertex = self.vertex.from_vertex(mesh.vertices[map.vert])
-                if mesh.has_custom_normals:
+                if mesh.has_custom_normals or bpy.app.version >= (4, 1, 0):
                     new_vertex.normal = mesh.loops[map.loop].normal.copy()
 
                 self.vertices.data.append(new_vertex)

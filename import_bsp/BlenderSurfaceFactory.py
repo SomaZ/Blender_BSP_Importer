@@ -7,12 +7,21 @@ class Vertex_map:
         self.obj_id = object_id
         self.vert = vertex_id
         self.loop = loop_id
-        self.position = mesh.vertices[vertex_id].co.copy().freeze()
-        self.normal = mesh.vertices[vertex_id].normal.copy().freeze()
         if mesh.has_custom_normals or bpy.app.version >= (4, 1, 0):
-            self.normal = mesh.loops[loop_id].normal.copy().freeze()
-        self.tc = mesh.uv_layers.active.data[loop_id].uv.copy().freeze()
-        self.hash_tuple = tuple((*self.position, *self.normal, *self.tc))
+            self.hash_tuple = (
+                *mesh.vertices[vertex_id].co,
+                *mesh.loops[loop_id].normal,
+                *mesh.uv_layers.active.data[loop_id].uv
+                )
+        else:
+            self.hash_tuple = (
+                *mesh.vertices[vertex_id].co,
+                *mesh.vertices[vertex_id].normal,
+                *mesh.uv_layers.active.data[loop_id].uv
+                )
+        self.position = self.hash_tuple[0:3]
+        self.normal = self.hash_tuple[3:6]
+        self.tc = self.hash_tuple[6:8]
 
     def set_mesh(self, mesh):
         self.mesh = mesh
