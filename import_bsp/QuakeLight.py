@@ -1094,40 +1094,39 @@ def storeVertexColors(bsp, objs, light_settings, patch_colors=False):
                                   3 + 2] += local_pixels[index + 2]
                 samples_vertex_colors[bsp_vert_index] += 1
 
-        for bsp_vert_index, samples in enumerate(samples_vertex_colors):
-            if samples > 0:
-                hdr_vertex_colors[bsp_vert_index * 3] /= float(samples)
-                hdr_vertex_colors[bsp_vert_index * 3 + 1] /= float(samples)
-                hdr_vertex_colors[bsp_vert_index * 3 + 2] /= float(samples)
-
-            bsp_vert = bsp.lumps["drawverts"][bsp_vert_index]
-            
-            if patch_colors:
-                color = colorNormalize(
-                    (hdr_vertex_colors[bsp_vert_index * 3],
-                     hdr_vertex_colors[bsp_vert_index * 3 + 1],
-                     hdr_vertex_colors[bsp_vert_index * 3 + 2]),
-                    color_scale,
-                    light_settings)
-                bsp_vert.color1[0] = int(color[0] * 255)
-                bsp_vert.color1[1] = int(color[1] * 255)
-                bsp_vert.color1[2] = int(color[2] * 255)
-                bsp_vert.color1[3] = int(
-                    mesh.vertex_colors["Alpha"].data[loop].color[0] * 255)
-                # TODO: Add support for lightstyles
-                # if bsp.lightmaps == 4:
-                #    bsp_vert.color2 = (
-                #       mesh.vertex_colors["Color2"].data[loop].color)
-                #    bsp_vert.color2[3] = (
-                #       mesh.vertex_colors["Alpha"].data[loop].color[1])
-                #    bsp_vert.color3 = (
-                #       mesh.vertex_colors["Color3"].data[loop].color)
-                #    bsp_vert.color3[3] = (
-                #       mesh.vertex_colors["Alpha"].data[loop].color[2])
-                #    bsp_vert.color4 = (
-                #       mesh.vertex_colors["Color4"].data[loop].color)
-                #    bsp_vert.color4[3] = (
-                #       mesh.vertex_colors["Alpha"].data[loop].color[3])
+    for bsp_vert_index, samples in enumerate(samples_vertex_colors):
+        if samples > 0:
+            hdr_vertex_colors[bsp_vert_index * 3] /= float(samples)
+            hdr_vertex_colors[bsp_vert_index * 3 + 1] /= float(samples)
+            hdr_vertex_colors[bsp_vert_index * 3 + 2] /= float(samples)
+        bsp_vert = bsp.lumps["drawverts"][bsp_vert_index]
+        
+        if patch_colors:
+            color = colorNormalize(
+                (hdr_vertex_colors[bsp_vert_index * 3],
+                 hdr_vertex_colors[bsp_vert_index * 3 + 1],
+                 hdr_vertex_colors[bsp_vert_index * 3 + 2]),
+                color_scale,
+                light_settings)
+            bsp_vert.color1[0] = int(color[0] * 255)
+            bsp_vert.color1[1] = int(color[1] * 255)
+            bsp_vert.color1[2] = int(color[2] * 255)
+            bsp_vert.color1[3] = int(
+                mesh.vertex_colors["Alpha"].data[loop].color[0] * 255)
+            # TODO: Add support for lightstyles
+            # if bsp.lightmaps == 4:
+            #    bsp_vert.color2 = (
+            #       mesh.vertex_colors["Color2"].data[loop].color)
+            #    bsp_vert.color2[3] = (
+            #       mesh.vertex_colors["Alpha"].data[loop].color[1])
+            #    bsp_vert.color3 = (
+            #       mesh.vertex_colors["Color3"].data[loop].color)
+            #    bsp_vert.color3[3] = (
+            #       mesh.vertex_colors["Alpha"].data[loop].color[2])
+            #    bsp_vert.color4 = (
+            #       mesh.vertex_colors["Color4"].data[loop].color)
+            #    bsp_vert.color4[3] = (
+            #       mesh.vertex_colors["Alpha"].data[loop].color[3])
 
     if hdr_export:
         hdr_bytes = bytearray()
