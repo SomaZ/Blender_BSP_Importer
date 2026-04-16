@@ -101,7 +101,7 @@ class Surface_factory:
                     mat_name = mat.name.split(".")[0]
                     if mat_name not in surfaces:
                         surfaces[mat_name] = [
-                            Surface_descriptor(mat_name, obj.name)]
+                            Surface_descriptor(mat_name, mat_name.replace("/", "_"))]
                         self.num_surfaces += 1
             else:
                 if len(obj.data.materials) == 0:
@@ -143,8 +143,12 @@ class Surface_factory:
 
                         if succeeded:
                             continue
+
+                        new_name = mat.replace("/", "_")
+                        new_name += string.ascii_lowercase[len(surfaces[mat])]
+
                         new_surface_descr = Surface_descriptor(
-                            mat, obj.name)
+                            mat, new_name)
                         new_surface_descr.add_triangle(
                             obj_id,
                             mesh,
