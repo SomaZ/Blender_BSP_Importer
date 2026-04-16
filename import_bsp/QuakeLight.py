@@ -1095,10 +1095,12 @@ def storeVertexColors(bsp, objs, light_settings, patch_colors=False):
                 samples_vertex_colors[bsp_vert_index] += 1
 
     for bsp_vert_index, samples in enumerate(samples_vertex_colors):
-        if samples > 0:
-            hdr_vertex_colors[bsp_vert_index * 3] /= float(samples)
-            hdr_vertex_colors[bsp_vert_index * 3 + 1] /= float(samples)
-            hdr_vertex_colors[bsp_vert_index * 3 + 2] /= float(samples)
+        if samples == 0:
+            continue
+        
+        hdr_vertex_colors[bsp_vert_index * 3] /= float(samples)
+        hdr_vertex_colors[bsp_vert_index * 3 + 1] /= float(samples)
+        hdr_vertex_colors[bsp_vert_index * 3 + 2] /= float(samples)
         bsp_vert = bsp.lumps["drawverts"][bsp_vert_index]
         
         if patch_colors:
