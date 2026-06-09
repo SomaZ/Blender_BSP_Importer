@@ -117,7 +117,8 @@ def get_lm_id(tc, lightmap_size, packed_lm_size):
     quadrant_y = int(column/lightmap_size[1])
 
     scale = packed_lm_size[0] / lightmap_size[0]
-    return int(quadrant_x + (scale * quadrant_y))
+    lm_id = int(quadrant_x + (scale * quadrant_y))
+    return lm_id if lm_id >= 0 else -3
 
 
 def unpack_lm_tc(tc, lightmap_size, packed_lm_size):

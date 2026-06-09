@@ -859,6 +859,10 @@ class ID3Model:
                 if bsp.deluxemapping and lightmap_id >= 0:
                     lightmap_id = lightmap_id // 2
 
+                if style_index > 0 and lightmap_id < 0:
+                    self.uv_layers[layer_name].indexed[uv_id] = -1.0, 0.0
+                    continue
+
                 self.uv_layers[layer_name].indexed[uv_id] = pack_lm_tc(
                     uv_set,
                     lightmap_id,
