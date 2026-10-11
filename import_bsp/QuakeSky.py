@@ -310,10 +310,14 @@ def add_sun(shader, function, sun_parms, i):
         if len(parms) < 9:
             print("not enogh q3gl2_sun parameters")
 
-    color = Vector((float(parms[0]), float(parms[1]), float(parms[2])))
-    color.normalize()
-    intensity = float(parms[3])
-    rotation = [float(parms[4]), float(parms[5])]
+    try:
+        color = Vector((float(parms[0]), float(parms[1]), float(parms[2])))
+        color.normalize()
+        intensity = float(parms[3])
+        rotation = [float(parms[4]), float(parms[5])]
+    except Exception:
+        print("Could not parse sun in", shader)
+        return False
 
     light_vec = [0.0, 0.0, 0.0]
     rotation[0] = rotation[0] / 180.0 * math.pi
